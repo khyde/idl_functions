@@ -1,0 +1,157 @@
+; $ID:	READ_CTD_DAT.PRO,	2020-06-30-17,	USER-KJWH	$
+FUNCTION READ_CTD_DAT, FILE, ERROR=ERROR
+
+
+; The following is the format (fortran) information for NODC file header and data records located in the ftp site.
+; CTD casts are appended together for an entire cruise.
+;
+; i = integer, a=character, t=tab to that column number
+;
+; header (t80 = 1):
+;   t1, i2 = country code (31, 32, & 33 = U.S.)
+;   t3, A2 = ship code (a4 = Albatross IV, 6g = Delaware II, HB=Henry Bigelow...etc)
+;   t5, i5 = latitude  example: 40302 is 40 deg, 30.2 minutes
+;   t10, i6 = longitude (same format as latitude)
+;   t17, i4 = year
+;   t21, i2 = month
+;   t23, i2 = day
+;   t25, i4 = GMT time  example 1150 is 11.50 or 11:30
+;   t29, i2 = cruise code
+;   t31, i3 = cast number
+;   t34, i4 = station bottom depth
+;   t39, a1 = deployment method (V=vertical profile, B=bongo, W=water cast)
+;   t42, i4 = CTD serial number used for that particular cast
+;   t63, i10 = station number
+;   t80, i1 = flag (1 = header record)
+;
+; data records (t80 = 3):
+;   t28, i4 = pressure (db)
+;   t33, i4 = temperature (1138 = 11.38 deg. C)
+;   t38, i5 = salinity (32528 = 32.528)
+;   t43, i4 = density (sigma-t, 2241 = 22.41)
+;   t51, i3 = DOx (072 = 7.2 mg/liter)
+;   t60, i4 = chlorophyll concentration for 911 CTD equipped with fluorometer (0166 = 1.66 microg/l or mg/m^3)
+;   t65, i4 = PAR/Irradiance (0001 = 1 microEinsteins per meter(^-2) * second)
+;   t80, i1 = flag (3 = data record)
+
+
+  ROUTINE_NAME='READ_CTD_DAT'
+
+  ERROR = 0
+	FN=FILE_PARSE(FILE)
+	CRUISE = STRUPCASE(FN.FIRST_NAME)
+  TXT = READ_TXT(FILE)
+  
+; ===> Get non blank lines from txt
+  OK = WHERE(STRLEN(TXT) GE 2,COUNT)
+
+  IF COUNT GE 1 THEN BEGIN
+  	TXT=TXT[OK]
+  ENDIF ELSE BEGIN
+    ERROR=1
+    RETURN,[]
+  ENDELSE
+
+  CARD = STRMID(TXT,79,1)
+  OK_HEADER = WHERE(CARD EQ 1,COUNT_HEADER)
+  OK_DATA   = WHERE(CARD EQ 3,COUNT_DATA)
+  OK_OTHER  = WHERE(CARD NE 1 AND CARD NE 3,COUNT_OTHER)
+  IF COUNT_OTHER GE 1 THEN BEGIN
+  	PRINT,NUM2STR(COUNT_OTHER)+' Other Data Records are Present Besides 1 and 3'
+  	REPORT,  CRUISE+' : '+  NUM2STR(COUNT_OTHER)+' Other Data Records are Present Besides 1 and 3'
+  ENDIF
+
+; ===> Make a structure to hold all header and data
+	STRUCT =	CREATE_STRUCT('CRUISE','','COUNTRY_CODE',0,'SHIP_CODE','','CRUISE_CODE',0,'DATE','','YEAR','','MONTH','','DAY','','HOUR','','MINUTE','',$
+	                        'STATION','', 'CAST',0,'CTD_CODE','','LAT_DEG','','LAT_MINUTES','','LON_DEG','','LON_MINUTES','','LAT',0.0,'LON',0.0,'BOTTOM',0,$
+													'DEPTH',0.0,'PRESSURE',0.0,'TEMPERATURE',0.0,'SALINITY',0.0,'DENSITY',0.0,'OXYGEN',0.0,'FLUOR',0.0,'PAR',0.0)													
+ 	STRUCT = REPLICATE(STRUCT_2MISSINGS(STRUCT),COUNT_DATA)
+ 	
+ 	START  = OK_HEADER+1 
+ 	FINISH = SHIFT(OK_HEADER,-1) -1 
+ 	FINISH(COUNT_HEADER-1) = LAST(OK_DATA) 
+
+; ===> Initialize Array Subscript (sub_start)
+	SUB_START = 0L
+
+;	LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+  FOR NTH = 0L,COUNT_HEADER-1L DO BEGIN
+    T= TXT(START[NTH]:FINISH[NTH])
+  	N_RECS = N_ELEMENTS(T)
+  	SUB_FINISH = SUB_START + N_RECS -1L
+  	SUBS = SUB_START+LINDGEN(N_RECS)
+
+  	STRUCT(SUBS).CRUISE 			= CRUISE
+		STRUCT(SUBS).COUNTRY_CODE	= STRMID(TXT(OK_HEADER[NTH]),0,2)
+		STRUCT(SUBS).SHIP_CODE		= STRMID(TXT(OK_HEADER[NTH]),2,2)
+		STRUCT(SUBS).CRUISE_CODE  = STRMID(TXT(OK_HEADER[NTH]),28,2)
+		
+		STRUCT(SUBS).LAT_DEG 			= STRMID(TXT(OK_HEADER[NTH]),4,2) 
+		STRUCT(SUBS).LAT_MINUTES  = STRMID(TXT(OK_HEADER[NTH]),6,2) + '.' + STRMID(TXT(OK_HEADER[NTH]),8,1)
+		STRUCT(SUBS).LAT          = DMS2DEG(STRUCT(SUBS).LAT_DEG + STRUCT(SUBS).LAT_MINUTES)
+		
+		LON                       = STRMID(TXT(OK_HEADER[NTH]),9,6)
+		IF STRMID(LON,0,1) EQ '' THEN STRUCT(SUBS).LON_DEG = STRMID(LON,1,2) $
+		                         ELSE STRUCT(SUBS).LON_DEG = STRMID(LON,0,3) ; Determine if the LON DEGREE is 2 or 3 digits
+		STRUCT(SUBS).LON_MINUTES  = STRMID(LON,3,2) + '.' + STRMID(LON,5,1)    
+    STRUCT(SUBS).LON          = DMS2DEG(STRUCT(SUBS).LON_DEG + STRUCT(SUBS).LON_MINUTES) * (-1)
+
+		STRUCT(SUBS).YEAR 				= STRMID(TXT(OK_HEADER[NTH]),16,4)
+		STRUCT(SUBS).MONTH 				= ADD_STR_ZERO(STRMID(TXT(OK_HEADER[NTH]),20,2))
+		STRUCT(SUBS).DAY	 				= ADD_STR_ZERO(STRMID(TXT(OK_HEADER[NTH]),22,2))
+		STRUCT(SUBS).HOUR 				= ADD_STR_ZERO(STRMID(TXT(OK_HEADER[NTH]),24,2))
+		STRUCT(SUBS).MINUTE				= ADD_STR_ZERO(ROUNDS(60.0*FLOAT(STRMID(TXT(OK_HEADER[NTH]),26,2))/100.0))
+		
+		STRUCT(SUBS).CAST 				= STRMID(TXT(OK_HEADER[NTH]),30,3)
+		STRUCT(SUBS).CTD_CODE     = STRMID(TXT(OK_HEADER[NTH]),41,4)
+		STRUCT(SUBS).BOTTOM				= STRMID(TXT(OK_HEADER[NTH]),33,4)
+  	STRUCT(SUBS).STATION			= STRMID(TXT(OK_HEADER[NTH]),69,3)
+
+    PRS = STRMID(T,27,4) & OK=WHERE(STRCOMPRESS(PRS,/REMOVE_ALL) EQ '',COUNT) & IF COUNT GE 1 THEN PRS[OK] = '0'      ;   ===> PRESSURE
+    TEM = STRMID(T,32,4) & OK=WHERE(STRCOMPRESS(TEM,/REMOVE_ALL) EQ '',COUNT) & IF COUNT GE 1 THEN TEM[OK] = '0000'   ;   ===> TEMPERATURE
+    SAL = STRMID(T,37,5) & OK=WHERE(STRCOMPRESS(SAL,/REMOVE_ALL) EQ '',COUNT) & IF COUNT GE 1 THEN SAL[OK] = '00000'  ;   ===> SALINITY
+    DEN = STRMID(T,42,4) & OK=WHERE(STRCOMPRESS(DEN,/REMOVE_ALL) EQ '',COUNT) & IF COUNT GE 1 THEN DEN[OK] = '0000'   ;   ===> DENSITY
+    OXY = STRMID(T,50,3) & OK=WHERE(STRCOMPRESS(OXY,/REMOVE_ALL) EQ '',COUNT) & IF COUNT GE 1 THEN OXY[OK] = '000'    ;   ===> OXYGEN
+    FLU = STRMID(T,59,4) & OK=WHERE(STRCOMPRESS(FLU,/REMOVE_ALL) EQ '',COUNT) & IF COUNT GE 1 THEN FLU[OK] = '0000'   ;   ===> FLUOR
+    PAR = STRMID(T,64,4) & OK=WHERE(STRCOMPRESS(PAR,/REMOVE_ALL) EQ '',COUNT) & IF COUNT GE 1 THEN PAR[OK] = '0000'   ;   ===> PAR
+
+  	STRUCT(SUBS).PRESSURE     = FLOAT(PRS)
+    STRUCT(SUBS).TEMPERATURE	= FLOAT(STRMID(TEM,0,2)+'.'+STRMID(TEM,2,2))
+    STRUCT(SUBS).SALINITY	    = FLOAT(STRMID(SAL,0,2)+'.'+STRMID(SAL,2,3))
+    STRUCT(SUBS).DENSITY	    = FLOAT(STRMID(DEN,0,2)+'.'+STRMID(DEN,2,2))
+    STRUCT(SUBS).OXYGEN       = FLOAT(STRMID(OXY,0,2)+'.'+STRMID(OXY,2,2))
+    STRUCT(SUBS).FLUOR	      = FLOAT(STRMID(FLU,0,2)+'.'+STRMID(FLU,2,2))
+		STRUCT(SUBS).PAR          = FLOAT(STRMID(PAR,0,3)+'.'+STRMID(PAR,2,1))
+
+    ; SORT BASED ON PRESSURE
+    SRT = SORT(STRUCT(SUBS).PRESSURE)
+    STRUCT(SUBS) = STRUCT(SUBS(SRT))
+
+  	SUB_START = SUB_START + N_RECS
+
+  ENDFOR
+;	|||||||||||||||||||||||||||||||||||
+
+
+  STRUCT.DATE = STRUCT.YEAR + STRUCT.MONTH + STRUCT.DAY + STRUCT.HOUR + STRUCT.MINUTE + '00'   ; Make DATE
+	STRUCT.DEPTH=STRUCT.PRESSURE                                                                 ; Make DEPTH from pressure
+
+
+;	*************************
+;	*** FIND MISSING DATA ***
+;	*************************
+  OK=WHERE(STRUCT.PRESSURE    GT 999,COUNT)  & IF COUNT GE 1 THEN STRUCT[OK].PRESSURE    = MISSINGS(STRUCT.PRESSURE)
+ 	OK=WHERE(STRUCT.TEMPERATURE GT 99, COUNT)  & IF COUNT GE 1 THEN STRUCT[OK].TEMPERATURE = MISSINGS(STRUCT.TEMPERATURE)
+ 	OK=WHERE(STRUCT.SALINITY 	  GT 99, COUNT)  & IF COUNT GE 1 THEN STRUCT[OK].SALINITY 	 = MISSINGS(STRUCT.SALINITY)
+ 	OK=WHERE(STRUCT.DENSITY 	  GT 99, COUNT)  & IF COUNT GE 1 THEN STRUCT[OK].DENSITY 		 = MISSINGS(STRUCT.DENSITY)
+	OK=WHERE(STRUCT.OXYGEN 		  GT 99, COUNT)	 & IF COUNT GE 1 THEN STRUCT[OK].OXYGEN 		 = MISSINGS(STRUCT.OXYGEN)
+	OK=WHERE(STRUCT.FLUOR       GT 99, COUNT)  & IF COUNT GE 1 THEN STRUCT[OK].FLUOR       = MISSINGS(STRUCT.FLUOR)
+	OK=WHERE(STRUCT.PAR         GT 999,COUNT)  & IF COUNT GE 1 THEN STRUCT[OK].PAR         = MISSINGS(STRUCT.PAR)
+	
+	OK=WHERE(STRUCT.OXYGEN      EQ 0.0,COUNT)  & IF COUNT GE 1 THEN STRUCT[OK].OXYGEN      = MISSINGS(STRUCT.OXYGEN)
+	OK=WHERE(STRUCT.FLUOR       EQ 0.0,COUNT)  & IF COUNT GE 1 THEN STRUCT[OK].FLUOR       = MISSINGS(STRUCT.FLUOR)
+	OK=WHERE(STRUCT.PAR         EQ 0.0,COUNT)  & IF COUNT GE 1 THEN STRUCT[OK].PAR         = MISSINGS(STRUCT.PAR)
+
+	RETURN, STRUCT
+
+END

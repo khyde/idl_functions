@@ -1,0 +1,87 @@
+; $ID:	DATE_GEN.PRO,	2020-07-08-15,	USER-KJWH	$
+;###########################################################################
+ FUNCTION DATE_GEN, DATE_RANGE, UNITS=UNITS, STEP=STEP
+;+
+; NAME:
+; 	DATE_GEN
+;
+;	PURPOSE:
+;		GENERATE A SERIES OF DATES OVER THE INTERVAL SPECIFIED AND WITH THE RESULUTION SPECIFIED IN UNITS
+;		PROGRAM USES IDL'S TIMEGEN, CONVERTING INPUT DATE RANGE
+;
+;	LIMITATIONS:
+;		YEARS MUST BE GE 1000
+;
+;	INPUTS:
+;
+;	EXAMPLES:
+;	D= DATE_GEN() & PLIST,D
+; D= DATE_GEN(['2000','2000'],UNITS='MONTH') & PLIST,D
+;	D= DATE_GEN(['2000','2001'],UNITS='MONTH') & PLIST,D
+;	D= DATE_GEN(['20010101','20020101'],UNITS='MONTH') & PLIST,D
+;	D= DATE_GEN(['20000101','20011231'],UNITS='YEAR') & PLIST,D
+; D= DATE_GEN(['19980101','20131231'],UNITS='DAY') & PLIST,D
+; D= DATE_GEN(['20020101','2002010123'],UNITS='HOUR') & PLIST,D
+; D= DATE_GEN(['20020101','2002010223'],UNITS='HOUR') & PLIST,D
+;	D= DATE_GEN(['20020101000000','20020101000004'],UNITS='SECOND') & PLIST,D
+;
+
+; MODIFICATION HISTORY:
+;		WRITTEN JAN 24, 2004 BY J.O'REILLY, 28 TARZWELL DRIVE, NMFS, NOAA 02882 (JAY.O'REILLY@NOAA.GOV)
+;		APR 09, 2014 - JEOR: Formatting
+;		APR 09, 2014 - JEOR: Changed defaul year from 2020 to 2121
+;		JUL 01, 2014 - JEOR: Fixed problem with units: 
+;		                       DATES = JD_2DATE(TIMEGEN(START=JD[0],FINAL=JD[1],STEP_SIZE=STEP))
+;		JUL 29, 2015 - JEOR: Formatting
+;		               Added IS_DATE function
+;		DEC 04, 2017 - KJWH: Formatting
+;		                     Fixed problem with returning replicate dates when using a unit such as MONTH
+;		                       Added DATES = DATES[UNIQ(DATES)] oo remove replicated dates when using a subunit such as MONTH
+;#################################################################################################
+;-
+;***********************
+  ROUTINE_NAME='DATE_GEN'
+;***********************
+
+; ===> DEFAULTS
+  IF NONE(UNITS) THEN  _UNITS = 'DAY' ELSE _UNITS = STRUPCASE(UNITS)
+  IF N_ELEMENTS(DATE_RANGE) NE 2 THEN _DATE_RANGE = ['2121010100','21211231'] ELSE _DATE_RANGE = DATE_RANGE
+
+;	===> EDIT _UNITS BY REMOVING PLURALS (LAST S, E.G. SECONDS)
+  POS = STRPOS(_UNITS, 'S',/REVERSE_SEARCH)
+  IF (STRLEN(_UNITS) - 1) EQ POS THEN _UNITS = STRMID(_UNITS,0,POS)
+
+;	===> CONVERT INPUT DATE RANGE INTO JD
+	JD = DATE_2JD(_DATE_RANGE)
+
+;	===> GENERATE DATE SERIES
+  DATES = JD_2DATE(TIMEGEN(START=JD[0],FINAL=JD[1],STEP_SIZE=STEP))
+	
+; ===> PARSE DATES INTO UNITS	
+	YEARS   = STRMID(DATES,0,4)
+  MONTHS  = STRMID(DATES,4,2)
+  DAYS    = STRMID(DATES,6,2)
+  HOURS   = STRMID(DATES,8,2)
+  MINUTES = STRMID(DATES,10,2)
+  SECONDS = STRMID(DATES,12,2)
+
+;	===> TRUNCATE DATES DEPENDING ON THE DESIRED RESOLUTION (UNITS)
+	CASE 1 OF
+   	_UNITS EQ 'YEAR' 	: BEGIN &  MONTHS=''& DAYS=''	& HOURS='' 	& MINUTES='' 	& SECONDS=''	&  END
+  	_UNITS EQ 'MONTH' : BEGIN &    					DAYS=''	& HOURS='' 	& MINUTES='' 	& SECONDS=''	&  END
+  	_UNITS EQ 'DAY' 	: BEGIN	&											& HOURS='' 	& MINUTES='' 	& SECONDS='' 	&  END
+    _UNITS EQ 'HOUR'  : BEGIN & 																& MINUTES='' 	& SECONDS='' 	&  END
+  	_UNITS EQ 'MINUTE': BEGIN	&																								& SECONDS='' 	&  END
+  	_UNITS EQ 'SECOND': BEGIN	&																															&  END
+  	ELSE							: BEGIN &     								& HOURS='' 	& MINUTES='' 	& SECONDS='' 	&  END
+  ENDCASE
+
+;	===> JOIN DATE SEGEMENTS AND REMOVE REPLICATES
+	DATES = YEARS+MONTHS+DAYS+HOURS+MINUTES+SECONDS
+	DATES = DATES[UNIQ(DATES)] ; Remove replicated dates
+	RETURN, DATES
+
+END; #####################  END OF ROUTINE ################################
+
+
+

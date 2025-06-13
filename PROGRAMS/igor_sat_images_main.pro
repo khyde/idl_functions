@@ -1,0 +1,87 @@
+; $ID:	IGOR_SAT_IMAGES_MAIN.PRO,	2020-06-30-17,	USER-KJWH	$
+
+	PRO IGOR_SAT_IMAGES_MAIN
+
+;+
+; NAME:
+;		IGOR_SAT_IMAGES_MAIN
+;
+; PURPOSE:
+;		This procedure is the MAIN program to download the near real time satellite data, process it, and send it to the ship for quick viewing.
+;
+; CATEGORY:
+;
+;
+; CALLING SEQUENCE:
+;
+; INPUTS:
+;
+; OPTIONAL INPUTS:
+;
+; KEYWORD PARAMETERS:
+;
+; OUTPUTS:
+;		This procedure produces mapped satellite images
+;
+; OPTIONAL OUTPUTS:
+; COMMON BLOCKS:
+; SIDE EFFECTS:
+; RESTRICTIONS:
+;	PROCEDURE:
+; EXAMPLE:
+;
+;	NOTES:
+;
+;
+; MODIFICATION HISTORY:
+;			Written March 18, 2010 by K.J.W.Hyde, 28 Tarzwell Drive, NMFS, NOAA 02882 (kimberly.hyde@noaa.gov)
+;-
+;	****************************************************************************************************
+	ROUTINE_NAME = 'IGOR_SAT_IMAGES_MAIN'
+
+;	===> Initialize ERROR to a null string. If errors are encountered ERROR will be set to a message.
+;			 The calling routine can check error (e.g.IF ERROR NE 0 then there was a problem and do this or that)
+	ERROR = ''
+
+  DIR_PROJECT    = 'D:\PROJECTS\SAT_TEST\'
+  DIR_Z          = DIR_PROJECT + 'Z\'
+  DIR_SAVE       = DIR_PROJECT + 'SAVE\'
+  DIR_MAPPED     = DIR_PROJECT
+  
+
+; Create save files    
+    CHL_FILES = FILE_SEARCH(DIR_Z + 'S*L2*.hdf')
+    FOR NTH=0L,N_ELEMENTS(CHL_FILES)-1 DO BEGIN
+      IF CHL_FILES[NTH] EQ '' THEN CONTINUE
+      FN = FILE_PARSE(CHL_FILES[NTH])
+      STRUCT = READ_HDF_2STRUCT(CHL_FILES[NTH],PRODUCTS=['CHLOR_A','LONGITUDE','LATITUDE'])
+      CHLOR  = ROTATE(struct.sd.CHLOR_A.IMAGE,7) ; ; FLIP IMAGE
+      LON    = ROTATE(struct.sd.LONGITUDE.IMAGE,7) ; ; FLIP IMAGE
+      LAT    = ROTATE(struct.sd.LATITUDE.IMAGE,7) ; ; FLIP IMAGE
+      FRONTS = IMAGE_FRONTS(CHLOR,PROD='CHLOR_A',GRAD_MAG=GRAD_MAG,GRAD_DIR=GRAD_DIR,GRAD_X=GRAD_X,GRAD_Y=GRAD_Y)      
+      SAVE,FILENAME=DIR_SAVE + FN.NAME + '-CHLOR_A.SAVE',CHLOR,/COMPRESS   
+      SAVE,FILENAME=DIR_SAVE + FN.NAME + '-CHLOR_A-GRAD_MAG.SAVE',GRAD_MAG,/COMPRESS
+      SAVE,FILENAME=DIR_SAVE + FN.NAME + '-CHLOR_A-GRAD_DIR.SAVE',GRAD_DIR,/COMPRESS
+      SAVE,FILENAME=DIR_SAVE + FN.NAME + '-CHLOR_A-GRAD_X.SAVE',GRAD_X,/COMPRESS
+      SAVE,FILENAME=DIR_SAVE + FN.NAME + '-CHLOR_A-GRAD_Y.SAVE',GRAD_Y,/COMPRESS
+    ENDFOR  
+
+    SST_FILES = FILE_SEARCH(DIR_Z + '*.L2_LAC_SST4.bz2')
+    FOR NTH=0L,N_ELEMENTS(SST_FILES)-1 DO BEGIN
+      IF SST_FILES[NTH] EQ '' THEN CONTINUE
+      FN = FILE_PARSE(SST_FILES[NTH])
+      STRUCT = READ_HDF_2STRUCT(SST_FILES[NTH],PRODUCTS=['SST','LONGITUDE','LATITUDE'])
+      SST    = ROTATE(STRUCT.SD.SST.IMAGE,7) ; ; FLIP IMAGE
+      LON    = ROTATE(STRUCT.SD.LONGITUDE.IMAGE,7) ; ; FLIP IMAGE
+      LAT    = ROTATE(STRUCT.SD.LATITUDE.IMAGE,7) ; ; FLIP IMAGE
+      FRONTS = IMAGE_FRONTS(SST,PROD='SST',GRAD_MAG=GRAD_MAG,GRAD_DIR=GRAD_DIR,GRAD_X=GRAD_X,GRAD_Y=GRAD_Y)      
+      SAVE,FILENAME=DIR_SAVE + FN.NAME + '-SST.SAVE',CHLOR,/COMPRESS   
+      SAVE,FILENAME=DIR_SAVE + FN.NAME + '-SST-GRAD_MAG.SAVE',GRAD_MAG,/COMPRESS
+      SAVE,FILENAME=DIR_SAVE + FN.NAME + '-SST-GRAD_DIR.SAVE',GRAD_DIR,/COMPRESS
+      SAVE,FILENAME=DIR_SAVE + FN.NAME + '-SST-GRAD_X.SAVE',GRAD_X,/COMPRESS
+      SAVE,FILENAME=DIR_SAVE + FN.NAME + '-SST-GRAD_Y.SAVE',GRAD_Y,/COMPRESS
+    ENDFOR
+
+
+
+	END; #####################  End of Routine ################################

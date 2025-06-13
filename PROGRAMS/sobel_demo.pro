@@ -1,0 +1,209 @@
+; $ID:	SOBEL_DEMO.PRO,	2020-06-30-17,	USER-KJWH	$
+
+PRO SOBEL_DEMO
+PAL_SW3
+
+; %%%  EDGE_DETECTOR_SOBEL  %%%
+  EDGE_DETECTOR_SOBEL = FLTARR(3,3)
+  EDGE_DETECTOR_SOBEL[0,[0,2]] = -1.;
+  EDGE_DETECTOR_SOBEL[2,[0,2]] =  1.;
+  EDGE_DETECTOR_SOBEL[0,1] = -2.;
+  EDGE_DETECTOR_SOBEL[2,1] =  2.;
+; //////////////////////////
+
+ 	EDGE_DETECTOR_ONE = FLTARR(3,3)
+  EDGE_DETECTOR_ONE[0,[0,2]] = -1.;
+  EDGE_DETECTOR_ONE[2,[0,2]] =  1.;
+  EDGE_DETECTOR_ONE[0,1] = -1.;
+  EDGE_DETECTOR_ONE[2,1] =  1.;
+
+
+ 	EDGE_DETECTOR_J = FLTARR(3,3)
+  EDGE_DETECTOR_J[0,[0,2]] = -1.;
+  EDGE_DETECTOR_J[2,[0,2]] =  1.;
+  EDGE_DETECTOR_J[0,1] = -SQRT(2);
+  EDGE_DETECTOR_J[2,1] = SQRT(2);
+
+
+
+
+kernel = [ [0,1,0],[-1,0,1],[0,-1,0] ]
+;WINDOW,1,XSIZE=700,YSIZE=300
+
+DO_SHOW_MISSING_DATA_RESULTS_IN_NO_GRADIENT = 0
+DO_MAGNITUDE_FOR_1_UNIT = 0
+
+DO_NORMALIZE_OPTION = 0
+
+DO_COMPARE_SOBEL_WITH_ACTUAL_DATA = 1
+
+DO_LINE_DELTA_VS_GRAD_MAG = 1
+
+
+;	********************************************************
+	IF DO_COMPARE_SOBEL_WITH_ACTUAL_DATA GE 1 THEN BEGIN
+;	********************************************************
+
+		GRAD_MAG=STRUCT_SD_READ('D:\PROJECTS\EDGES\SAVE\!T_200105030701-AVHRR-N16-S3-CW_CD-NEC-SST-MF3_1D_5PT_E1_000-GAUSS_5_SIG_0_6-SOBEL-GRAD_MAG.SAVE',STRUCT=STRUCT)
+	 	GRAD_DIR=STRUCT_SD_READ('D:\PROJECTS\EDGES\SAVE\!T_200105030701-AVHRR-N16-S3-CW_CD-NEC-SST-MF3_1D_5PT_E1_000-GAUSS_5_SIG_0_6-SOBEL-GRAD_DIR.SAVE',STRUCT=STRUCT)
+	 	FILTERED=STRUCT_SD_READ('D:\PROJECTS\EDGES\SAVE\!T_200105030701-AVHRR-N16-S3-CW_CD-NEC-SST-MF3_1D_5PT_E1_000.SAVE',STRUCT=STRUCT)
+
+		XP=690
+		YP=307
+		LEFT = XP -1
+		RIGHT= XP +1
+		BOT = YP -1
+		TOP = YP +1
+
+		PRINT, FILTERED(LEFT:RIGHT,BOT:TOP)
+		PRINT, GRAD_MAG(LEFT:RIGHT,BOT:TOP)
+		PRINT, GRAD_DIR(LEFT:RIGHT,BOT:TOP)
+
+	 	S=STATS2([0,1,2],[5.83,6.625,15.2375],MODEL='RMA') & PRINT,S.SLOPE
+	 	PRINT,  GRAD_MAG(LEFT:RIGHT,BOT:TOP)/8
+
+		STOP
+	ENDIF
+;	////////////////////////
+
+
+
+;	**************************************************************
+	IF DO_SHOW_MISSING_DATA_RESULTS_IN_NO_GRADIENT GE 1 THEN BEGIN
+;	**************************************************************
+;	===> Show that missing data results in no gradient
+ 	data = FLTARR(11,11)
+	data(*,*) = 5
+  data(5,5:6) = MISSINGS(data)
+  PRINT,data
+  STOP
+ 	EDGE=SOBEL(data)
+ 	PRINT, EDGE
+ 	STOP
+ 	PRINT,   data - EDGE
+ 	STOP
+	PRINT,  ABS(ABS(data -ABS(EDGE)))
+	STOP
+	ENDIF
+; ///////
+
+;	**************************************
+	IF DO_MAGNITUDE_FOR_1_UNIT THEN BEGIN
+;	**************************************
+;		===> Show Magnitude of gradient when only 1 unit apart
+	 	data = FLTARR(11,11)
+		data(*,*) = 5
+	  data(5,5:6) = 6
+	  PRINT,data
+	  STOP
+	 	EDGE=SOBEL(data)
+	 	PRINT, EDGE
+	 	STOP
+	 	PRINT,   data - EDGE
+	 	STOP
+		PRINT,  ABS(ABS(data -ABS(EDGE)))
+ 		STOP
+
+ 		PAL_SW3
+ 		H=HISTOGRAM(EDGE,MIN=0,BINSIZE=1)
+
+ 		PLOT,H,/YLOG,YRANGE=[0.9,MAX(H)],/YSTYLE,PSYM=10,THICK=1
+
+
+		data = FLTARR(11,11)
+		data(*,*) = 5
+	  data(5,5:6) = 5.5
+	  PRINT,data
+	  STOP
+	 	EDGE=SOBEL(data)
+	 	PRINT, EDGE
+	 	STOP
+	 	PRINT,   data - EDGE
+	 	STOP
+		PRINT,  ABS(ABS(data -ABS(EDGE)))
+		STOP
+
+	 PAL_SW3
+	 H=HISTOGRAM(EDGE,MIN=0,BINSIZE=1)
+	 PLOT,H,/YLOG,YRANGE=[0.9,MAX(H)],/YSTYLE,PSYM=10,THICK=1
+	 STOP
+	ENDIF
+;	/////
+
+;	***************************************
+	IF DO_NORMALIZE_OPTION GE 1 THEN BEGIN
+;	***************************************
+ 	  data = FLTARR(7,7)
+		data(*,*) = 5
+	  data(*,3) = 5.1
+	  data(*,4) = 5.2
+
+	  PRINT,data
+	  PRINT
+		GX_SOBEL = CONVOL(ALOG(DATA),       		EDGE_DETECTOR_SOBEL,	/CENTER,/NORMALIZE)
+  	GY_SOBEL = CONVOL(ALOG(DATA),TRANSPOSE(	EDGE_DETECTOR_SOBEL), /CENTER,/NORMALIZE)
+    MAG_SOBEL = SQRT(GX_SOBEL^2+GY_SOBEL^2)
+		PRINT,'SOBEL'
+		PRINT, GX_SOBEL
+		PRINT
+		PRINT, GY_SOBEL
+		PRINT
+		PRINT, MAG_SOBEL
+
+
+		PRINT, 'ONES'
+ 		GX_ONE = CONVOL(ALOG(DATA),       		EDGE_DETECTOR_ONE,	/CENTER,/NORMALIZE)
+  	GY_ONE = CONVOL(ALOG(DATA),TRANSPOSE(	EDGE_DETECTOR_ONE), /CENTER,/NORMALIZE)
+    MAG_ONE = SQRT(GX_ONE^2+GY_ONE^2)
+   	PRINT, GX_ONE
+		PRINT
+		PRINT, GY_ONE
+		PRINT
+		PRINT,MAG_ONE
+
+		PLOT, MAG_ONE  ,MAG_SOBEL , psym=1
+
+
+
+		STOP
+	ENDIF
+;	///////
+
+
+;	***************************************
+	IF DO_LINE_DELTA_VS_GRAD_MAG GE 1 THEN BEGIN
+;	***************************************
+ 	  data = FLTARR(7,7)
+ 	  SEED =  .1
+		data(*,*) = SEED
+
+		INC = INTERVAL([0,2],0.1)
+		GRAD_MAG = REPLICATE(MISSINGS(0.0),N_ELEMENTS(INC))
+
+		FOR NTH=0L,N_ELEMENTS(INC)-1L DO BEGIN
+			DELTA=INC[NTH]
+	  	data(*,3) = SEED+DELTA
+	     	data(*,4) = SEED+DELTA*2
+	;    	data(*,5) = SEED+DELTA*3
+
+ 		GX = CONVOL(ALOG(DATA),       		EDGE_DETECTOR_SOBEL,	/CENTER,/NORMALIZE)
+  	GY = CONVOL(ALOG(DATA),TRANSPOSE(	EDGE_DETECTOR_SOBEL), /CENTER,/NORMALIZE)
+
+	;	GX = CONVOL(ALOG(DATA),       		EDGE_DETECTOR_ONE,	/CENTER,/NORMALIZE)
+  ;	GY = CONVOL(ALOG(DATA),TRANSPOSE(	EDGE_DETECTOR_ONE), /CENTER,/NORMALIZE)
+
+	;	GX = CONVOL(ALOG(DATA),       		EDGE_DETECTOR_j,	/CENTER,/NORMALIZE)
+  ;	GY = CONVOL(ALOG(DATA),TRANSPOSE(	EDGE_DETECTOR_j), /CENTER,/NORMALIZE)
+
+		  MAG= SQRT(GX^2+GY^2)
+	    GRAD_MAG[NTH] = MAX(MAG)
+
+		ENDFOR
+	;	PLOT, INC/SEED, (GRAD_MAG)
+			PLOT, INC , (GRAD_MAG)
+		GRIDS
+ 	STOP
+	ENDIF
+;	///////
+
+END

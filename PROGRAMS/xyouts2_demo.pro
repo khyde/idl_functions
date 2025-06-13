@@ -1,0 +1,132 @@
+; $ID:	XYOUTS2_DEMO.PRO,	2020-06-30-17,	USER-KJWH	$
+;+
+;	This Program is A DEMO for XYOUTS2
+;
+;	EXAMPLES:
+;		Result = XYOUTS2_DEMO(0.8,0.8)
+; OUTPUT:
+;	 Coordinates within the Plot Window
+; ARGUMENTS:
+; 	X:	X coordinate in Relative Units (0 to 1.0)
+;		Y:	Y coordinate in Relative Units (0 to 1.0)
+; KEYWORDS:
+;		SEE IDL CONVERT_COORD
+; HISTORY:
+;	Feb 10,2001	Written by:	J.E. O'Reilly, NOAA, 28 Tarzwell Drive, Narragansett, RI 02882
+;-
+; *************************************************************************
+
+	PRO XYOUTS2_DEMO, X, Y,TXT, _EXTRA=_extra
+
+  ROUTINE_NAME='XYOUTS2_DEMO'
+  ERROR = 0
+
+	TXT = 'abcdefghijklmnopqrstuvwxyz'
+	TXT = 'XX!CXX!CX!CXq'
+ ;	TXT = 'Xq'
+;   TXT = 'X!CXq'
+;  TXT = 'Xq'
+;TXT = 'X!CXq'
+  S=STATS2([1,2,3],[2.3,4,6],MODEL='RMA')
+  TXT=S.STATSTRING
+	DO_POSITION 	= 1
+	DO_BACKGROUND = 1
+	DO_LETTERS = 1
+
+	BKG = 32
+	CHARSIZE= 2
+
+;	*********************************
+	IF DO_POSITION GE 1 THEN BEGIN
+;	*********************************
+
+		FOR N = 1,3 DO BEGIN
+
+		IF N EQ 1 THEN WIN,[1024,500]
+		IF N EQ 2 THEN BEGIN & ZWIN & SETCOLOR,255,0 & ENDIF
+		IF N EQ 3 THEN 	PSPRINT,/HALF,/COLOR
+
+;		FONT_TIMES
+		FONT_HELVETICA
+;		DEFONT
+		PAL_36
+
+		PLOT,[0,1,2],[0,1,2],/NODATA
+ 		BACKGROUND,/PLOT,COLOR=TC(BKG)
+		OPLOT,[0,2],[1,1]
+		XYOUTS2,1.0,1.0,TXT,color=0,CHARSIZE=CHARSIZE
+		XYOUTS2,1.0,1.0,TXT,color=TC(21),CHARSIZE=CHARSIZE,ALIGN=0.5
+		XYOUTS2,1.0,1.0,TXT,color=TC(18),CHARSIZE=CHARSIZE,ALIGN=[0.5,0.5]
+		XYOUTS2,1.0,1.0,TXT,color=TC(18),CHARSIZE=CHARSIZE,ALIGN=[0.5,0.5],ORIENTATION=180
+	 	XYOUTS2,1.0,1.0,TXT,color=TC(6),CHARSIZE=CHARSIZE,ALIGN=[0.5,-0.5]
+		XYOUTS2,1.0,1.0,TXT,color=TC(26),CHARSIZE=CHARSIZE,ALIGN=[-0.5,-0.5]
+		PLOTS,1,1,PSYM=1,COLOR=TC(10),SYMSIZE=6
+
+		IF N EQ 2 THEN BEGIN
+	 		IM=TVRD()
+	 		ZWIN
+	 		SLIDEW, IM
+	 	ENDIF
+	 	IF N EQ 3 THEN  PSPRINT
+	ENDFOR
+ENDIF
+
+
+;	*********************************
+	IF DO_BACKGROUND GE 1 THEN BEGIN
+;	*********************************
+	PAL_36
+	FOR N = 1,3 DO BEGIN
+
+		IF N EQ 1 THEN WIN,[1024,500]
+		IF N EQ 2 THEN BEGIN & ZWIN & SETCOLOR,255,0 & ENDIF
+		IF N EQ 3 THEN 	PSPRINT,/HALF,/COLOR
+
+   	 	FONT_TIMES
+;    		DEFONT
+		PAL_36
+  		IF N EQ 3 THEN DEVICE,/NARROW
+
+		PLOT,[0,1,2],[0,1,2],/NODATA
+		BACKGROUND,/PLOT,COLOR=TC(32)
+		OPLOT,[0,2],[1,1]
+ ;		XYOUTS2,1.0,1.5,TXT,color=TC(18),CHARSIZE=CHARSIZE,ALIGN=[1.5,0.0] ,/BACKGROUND
+  		XYOUTS2,1.0,1.5,TXT,color=TC(18),CHARSIZE=CHARSIZE,ALIGN=[0.5, 0.5] ,/BACKGROUND;, LINESPACE=.6
+		PLOTS,1,1.5,PSYM=1,COLOR=TC(10),SYMSIZE=6
+		IF N EQ 2 THEN BEGIN & IM=TVRD() & 	ZWIN & 	SLIDEW, IM & 	ENDIF
+	 	IF N EQ 3 THEN  PSPRINT
+	ENDFOR
+ENDIF
+
+
+
+;	*********************************
+	IF DO_LETTERS GE 1 THEN BEGIN
+;	*********************************
+		A = ALPHABET()
+		CHARSIZE = 2
+		FOR N = 1,3 DO BEGIN
+
+			IF N EQ 1 THEN WIN
+			IF N EQ 2 THEN BEGIN & ZWIN & ERASE,255 & ENDIF
+			IF N EQ 3 THEN 	PSPRINT,/HALF,/COLOR
+
+			FONT_TIMES
+			PAL_36
+
+			PLOT,[0,6],[0,6],/NODATA
+			BACKGROUND,/PLOT,COLOR=TC(32)
+			FOR NTH = 0,N_ELEMENTS(A)-1 DO BEGIN
+				X=  NTH  MOD 5 +1
+				Y= NTH / 6. + 1
+				XYOUTS2,X,Y,A[NTH],color=TC[0],CHARSIZE=CHARSIZE,ALIGN=[0.5,0.5] ,/BACKGROUND
+			  PLOTS,X,Y,PSYM=1,COLOR=TC(21),SYMSIZE=1
+		 	ENDFOR
+		 	IF N EQ 2 THEN BEGIN & IM=TVRD() & 	ZWIN & PAL_36 &	SLIDEW, IM & 	ENDIF
+		 	IF N EQ 3 THEN  PSPRINT
+		ENDFOR
+	ENDIF
+
+ DONE:
+
+END; #####################  End of Routine ################################

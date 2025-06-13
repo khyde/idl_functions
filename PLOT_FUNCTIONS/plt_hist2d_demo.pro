@@ -1,0 +1,90 @@
+; $ID:	PLT_HIST2D_DEMO.PRO,	2020-07-01-12,	USER-KJWH	$
+; ######################################################################### 
+PRO PLT_HIST2D_DEMO
+
+;+
+; THIS PROGRAM IS  A DEMO  FOR PLT_HIST2D
+
+
+; HISTORY:
+;     APR 23, 2004  WRITTEN BY: J.E. O'REILLY
+;     MAY 2,2014,JOR ADDED RESOLVE_ROUTINE
+;     MAY 3,2014,JOR FINAL TESTING
+;-
+; #########################################################################
+
+;*****************************
+ROUTINE_NAME  = 'PLT_HIST2D_DEMO'
+;*****************************
+;  RECOMPILE IIMAGE [IMAGE FUNCTION, AND COLORBAR A NECESSARY WORKAROUND]
+RESOLVE_ROUTINE, 'IImage',/COMPILE_FULL_FILE
+;RESOLVE_ROUTINE, 'COLORBAR',/COMPILE_FULL_FILE
+;===> MAKE THE RANDOM X,Y ONLY ONCE [PLOT_HIS2D AND PLT_HIS2D MUST USE THE SAME X,Y]
+;  X=RANDOMN(SEED,256L*256)
+;  Y=RANDOMN(SEED,256L*256)+1.7*X
+;  P,MM(X),MM(Y)
+;  SAVE,FILENAME = 'XY.SAVE',X,Y,/VERBOSE
+
+; ================>
+; SWITCHES CONTROLLING WHICH PROCESSING STEPS TO DO:
+  DO_SST_VS_PAR       = 1
+  DO_PLOT_HIST2D      = 0
+  DO_PLT_HIST2D       = 0
+
+;SSSSS     END OF SWITCHES     SSSSS
+
+
+
+
+
+;********************************
+IF DO_SST_VS_PAR GE 1 THEN BEGIN
+;********************************
+  SST = STATS_READ(!S.DEMO+"MANNUAL_1996_2014-PAT-9KM-SMI-SST-STATS.SAVE")
+  PAR = STATS_READ(!S.DEMO+"MANNUAL_1997_2014-OSTAM-2010_12-SMI-PAR-STATS.SAVE")
+  PLT_HIST2D,SST,PAR,SAMPLE = 10,FILE = !S.IDL_TEMP + 'SST_VS_PAR.PNG',/CB_ADD  
+; PLT_HIST2D, SST,PAR,SMO = 8,DELAY = 5,/CB_ADD
+ENDIF;IF DO_SST_VS_PAR GE 1 THEN BEGIN
+;|||||||||||||||||||||||||||||||||||||
+;;
+;*********************************
+IF DO_PLOT_HIST2D GE 1 THEN BEGIN
+;*********************************
+IF DO_PLOT_HIST2D EQ 3 THEN STOP
+  NUM = 256L
+  X=RANDOMN(SEED,NUM*NUM)
+  Y=RANDOMN(SEED,NUM*NUM)+0.5*X
+  FILE = !S.IDL_TEMP + 'PLOT_HIST2D.PNG'
+  ZWIN,[5000,5000]
+  !Y.OMARGIN=[5,5] & !X.OMARGIN=[5,5] 
+  FONT_HELVETICA 
+  PLOT_HIST2D,X,Y,PAL='PAL_FREQ',ONE_COLOR=255,ONE_THICK = 3,SMO=4,CHARSIZE=1.5 
+  IM = TVRD()
+  ZWIN
+  PAL_FREQ,R,G,B
+  WRITE_PNG,FILE,IM,R,G,B
+  PFILE,FILE  
+ENDIF;IF DO_PLOT_HIST2D GE 1 THEN BEGIN
+;||||||||||||||||||||||||||||||||||||||||
+;
+;*********************************
+IF DO_PLT_HIST2D GE 1 THEN BEGIN
+  ;*********************************
+IF DO_PLT_HIST2D EQ 3 THEN STOP
+  NUM = 256L
+  X=RANDOMN(SEED,NUM*NUM)
+  Y=RANDOMN(SEED,NUM*NUM)+0.5*X
+  FILE = !S.IDL_TEMP + 'PLT_HIST2D.PNG'
+
+  PLT_HIST2D,X,Y,PAL='PAL_FREQ',ONE_THICK = 3,SMO=4,IMAGE=IMAGE,$
+    FILE =FILE,DELAY=3,/CB_ADD,/GRID_ADD,/ONE_ADD,/REG_ADD,$
+    ONE_COLOR = 'BLACK',/STATS_ADD,$
+    STATS_COLOR = 'BLACK',/PERCENT
+  HELP,IMAGE
+  
+ENDIF;IF DO_PLT_HIST2D GE 1 THEN BEGIN
+;||||||||||||||||||||||||||||||||||||||
+
+
+
+END; #####################  END OF ROUTINE ################################

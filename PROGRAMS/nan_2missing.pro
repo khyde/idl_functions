@@ -1,0 +1,56 @@
+; $ID:	NAN_2MISSING.PRO,	2020-06-26-15,	USER-KJWH	$
+
+function nan_2missing,DATA
+;+
+; NAME:
+;       nan_2missing
+;
+; PURPOSE:
+;       Convert system NAN to  missing codes (infinity for float and double)
+;
+
+; MODIFICATION HISTORY:
+;       Written by:  J.E.O'Reilly, June 25,1999
+;-
+
+  COPY = DATA  ; DO NOT CHANGE INPUT DATA
+  TYPE = IDLTYPE(COPY,/CODE)
+
+
+  IF TYPE EQ 8 THEN BEGIN
+    NTAGS = N_TAGS(COPY)
+    FOR N = 0L, NTAGS-1L DO BEGIN
+      ATYPE = IDLTYPE(COPY.(N),/CODE)
+      IF ATYPE EQ 7 THEN BEGIN
+				OK = WHERE(STRUPCASE(STRTRIM(COPY.(N),2)) EQ 'NAN',COUNT)
+				IF COUNT GE 1 THEN COPY[OK].(N) = ''
+			ENDIF ELSE BEGIN
+	      IF N_ELEMENTS(nan) NE 1 THEN _nan = !VALUES.F_NAN ELSE _MISSING = MISSING
+	      OK = WHERE(COPY.(N) EQ _MISSING,COUNT)
+	      IF COUNT GE 1 THEN BEGIN
+	        IF ATYPE EQ 4 THEN COPY[OK].(N) = !VALUES.F_NAN
+	        IF ATYPE EQ 5 THEN COPY[OK].(N) = !VALUES.D_NAN
+	      ENDIF
+      ENDELSE
+    ENDFOR
+
+  ENDIF
+
+	IF TYPE EQ 7 THEN BEGIN
+		OK = WHERE(STRUPCASE(STRTRIM(COPY,2)) EQ 'NAN',COUNT)
+		IF COUNT GE 1 THEN COPY[OK] = ''
+	ENDIF
+
+  IF TYPE EQ 4 OR TYPE EQ 5 THEN BEGIN
+      IF N_ELEMENTS(MISSING) NE 1 THEN _MISSING = MISSINGS(COPY) ELSE _MISSING = MISSING
+      OK = WHERE(COPY EQ _MISSING,COUNT)
+      IF COUNT GE 1 THEN BEGIN
+        IF TYPE EQ 4 THEN COPY[OK] = !VALUES.F_NAN
+        IF TYPE EQ 5 THEN COPY[OK] = !VALUES.D_NAN
+      ENDIF
+  ENDIF
+
+    RETURN, COPY
+
+  END; #####################  End of Routine ################################
+

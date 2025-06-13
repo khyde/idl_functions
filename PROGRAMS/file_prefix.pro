@@ -1,0 +1,54 @@
+; $ID:	FILE_PREFIX.PRO,	2020-07-01-12,	USER-KJWH	$
+;+
+;#############################################################################################################
+	PRO FILE_PREFIX,FILES
+
+;
+; PURPOSE: ADDS A NUMERIC PREFIX TO INPUT FILES
+;
+; CATEGORY:	PLT FAMILY
+;
+; CALLING SEQUENCE: FILE_PREFIX,STRUCT
+;
+; INPUTS: FILES
+;		
+; OPTIONAL INPUTS:
+;		NONE:	
+;		
+; KEYWORD PARAMETERS:
+;		NONERENAMES FILES WITH PREFIX 
+
+; OUTPUTS: 
+;		
+; EXAMPLES: 
+;
+; MODIFICATION HISTORY:
+;			MAY 19,2014,  WRITTEN BY J.O'REILLY 
+;			
+;			
+;			
+;#################################################################################
+;-
+;********************************
+ROUTINE_NAME  = 'FILE_PREFIX'
+;********************************
+IF NONE(FILES) THEN MESSAGE,'ERROR: FILES ARE REQUIRED'
+
+PREFIXES = '-'+STRTRIM(SINDGEN(N_ELEMENTS(FILES)),2)+ '-'
+;FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+FOR NTH = 0,N_ELEMENTS(FILES)-1 DO BEGIN
+  FILE = FILES[NTH]
+  PREFIX = PREFIXES[NTH]
+  FN = FILE_PARSE(FILE)
+  OUTFILE = FN.DIR +  PREFIX + FN.NAME_EXT
+  FILE_MOVE,FILE,OUTFILE,/ALLOW_SAME,/OVERWRITE,/VERBOSE
+  
+
+  
+ENDFOR;FOR NTH = 0,N_ELEMENTS(FILES)-1 DO BEGIN
+;FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+
+
+
+
+END; #####################  END OF ROUTINE ################################

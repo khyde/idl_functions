@@ -1,0 +1,45 @@
+; $ID:	BAR_PLOTS_DEMO.PRO,	2014-12-18	$
+
+ PRO BAR_PLOTS_DEMO, TIME
+;+
+; NAME:
+;       BAR_PLOT_DEMO
+;
+; PURPOSE:
+;				Demonstrate IDL's BAR_PLOT
+;
+
+; MODIFICATION HISTORY:
+;       Written by:  J.E.O'Reilly, Dec 2,2004
+;				i Added keywords YRANGE AND TICKV TO IDLS BAR_PLOT AND RENAMED IT BAR_PLOTS.PRO IN MY DEFAULT IDL WORKING DIRECTORY
+;-
+
+ROUTINE_NAME='BAR_PLOTS_DEMO'
+
+PSPRINT,/COLOR,/HALF
+SETCOLOR,255
+PAL_36,R,G,B
+years = [1998,1999,2000,2001,2002,2003]
+values=[ 0.3, 0.4,0.33, 0.5, 0.25, 0.5]
+ERRORS =[0.15,0.1, 0.1, 0.2, 0.1, 0.12]
+
+;BAR_PLOT, Values [, BACKGROUND=color_index] [, BARNAMES=string_array]
+;[, BAROFFSET=scalar] [, BARSPACE=scalar] [, BARWIDTH=value]
+;[, BASELINES=vector] [, BASERANGE=scalar{0.0 to 1.0}] [, COLORS=vector]
+;[, /OUTLINE] [, /OVERPLOT] [, /ROTATE] [, TITLE=string] [, XTITLE=string]
+;[, YTITLE=string]
+
+BARSPACE = 0.6
+BAR_PLOTS, VALUES, BARNAMES=YEARS,BARSPACE=BARSPACE,COLORS=REPLICATE(21,N_ELEMENTS(VALUES)) ,yrange=[0,0.8],TICKV=TICKV,YTITLE='CHL'
+
+
+	!P.THICK = 11
+OPLOTERR, TICKV,VALUES,ERRORS, 1
+
+ !P.THICK = 1
+
+PSPRINT
+END; #####################  End of Routine ################################
+
+
+

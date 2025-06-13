@@ -1,0 +1,168 @@
+; $ID:	PROD_DEMO.PRO,	2021-04-15-17,	USER-KJWH	$
+; 
+PRO PROD_DEMO
+
+; #########################################################################; 
+;+
+; THIS PROGRAM IS A DEMO FOR THE NEW PROD ROUTINES
+
+
+; HISTORY:
+;     NOV 6, 2013  WRITTEN BY: J.E. O'REILLY
+;-
+; #########################################################################
+
+;*****************************
+ROUTINE_NAME  = 'PROD_DEMO'
+;*****************************
+
+; SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
+; SSSSS       S W I T C H E S      CONTROLLING WHICH PROCESSING STEPS TO DO SSSSS
+;SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS;	
+; 0 (DO NOT DO THE STEP)
+;	1 (DO THE STEP)
+; 2 (DO THE STEP AND OVERWRITE ANY OUTPUT IF IT ALREAD EXISTS)
+; 3 (STOP IN THE STEP)
+; ================>
+; SWITCHES CONTROLLING WHICH PROCESSING STEPS TO DO:
+  DO_MAKE_COLORBARS =	1
+  DO_STEP_2 			  = 0
+  DO_STEP_3  			  = 0
+  DO_STEP_4 		    = 0
+  DO_STEP_5   		  = 0
+  DO_STEP_6 			= 0
+  DO_STEP_7				= 0
+;SSSSS     END OF SWITCHES     SSSSS
+
+IDL_SYSTEM
+;===> MAKE A JUNK DIRECTORY FOR OUTPUT COLORBAR PNGS
+DIR_PROGRAMS = !S.DIR_PROGRAMS
+DIR_JUNK = REPLACE(DIR_PROGRAMS,'PROGRAMS','JUNK')
+DIR_TEST,DIR_JUNK
+
+; ****************************
+ 	IF DO_MAKE_COLORBARS GE 1 THEN BEGIN
+; ****************************
+    , 'DO_MAKE_COLORBARS'
+    OVERWRITE = DO_MAKE_COLORBARS EQ 2
+		IF DO_MAKE_COLORBARS EQ 3 THEN STOP 
+		
+		;PRODS = READ_PROD_DB(/NAMES)
+		PRODS = ['CHLOR_A','SST','LNP_JMAX_CPY'];'LNP_1CPY']
+    PRODS = ['ANCIL']
+		;FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+		FOR _PROD = 0,N_ELEMENTS(PRODS)-1 DO BEGIN
+		  PROD = PRODS(_PROD)
+		  FONT_HELVETICA
+		  CHARSIZE=4
+		  
+		 
+		  
+		 PNGFILE=!S.DIR_TEMP + PROD + '-' + ROUTINE_NAME+'-A.PNG'
+		  IM=COLOR_BAR_SCALE(PROD = PROD,CHARSIZE = 4,PX=800, PY=200,$
+		     POS=[.06,.02,.96,.26], PAL='PAL_SWV',PNG = PNGFILE,BACKGROUND = 254)
+      S = READ_PROD_DB(PROD)
+      ;###> EXTRACT COLORBAR PARAMETERS FROM S      
+      IF S.TICKNAME[0] EQ '' THEN TICKNAME = '' ELSE TICKNAME = S.TICKNAME
+      IF S.TICKS EQ '' THEN MAJOR = 5 ELSE MAJOR = S.TICKS
+      MINOR = 0
+      TEXTPOS = 1
+      RANGE =	S.RANGE
+      TITLE = S.UNITS
+		  RGB = CPAL_READ('PAL_SW3') & RGB_TABLE = RGB(*,1:250)
+  		TICKV =S.TICKV
+  		TICKNAME = S.TICKNAME
+  	  POSITION = [0.025,0.51,0.85,0.55]
+  	  
+ ; 	   b_values =   0 > (  (ALOG10(data)-S.b_intercept)/S.b_slope) < 250 ;;
+
+  	  
+		  IF S.LOGIT EQ 1 OR S.B_SCALING  EQ 'ALOG10' THEN BEGIN
+		    TICKV = ALOG10(TICKV)
+		     RANGE = ALOG10(RANGE)
+		  ENDIF;IF S.LOGIT EQ 1 THEN BEGIN
+		    IM = (REPLICATE(255B,30,30))
+		    BACKGROUND_COLOR = 255 & BACKGROUND_COLOR = REPLICATE(BACKGROUND_COLOR,3)
+		    IM = IMAGE(IM,RGB_TABLE=RGB_TABLE,/HIDE,BACKGROUND_COLOR= BACKGROUND_COLOR)
+
+        TICKLEN=0.5  & THICK = 2
+        CB = COLORBAR(TARGET = IM,$
+		    RGB_TABLE=RGB_TABLE,$
+		    RANGE=RANGE,$
+		    TEXTPOS =1,$
+		    TICKVALUES=TICKV,$
+		    TICKNAME=TICKNAME,$
+        TICKLEN=TICKLEN,$
+        THICK=THICK,$
+		    ORIENTATION=0,$
+        POSITION=POSITION, $
+        TITLE=TITLE,$
+        COLOR = 'BLACK',$
+        BORDER_ON = 1,$
+        MAJOR = MAJOR,$
+        MINOR = MINOR,$
+        TICKINTERVAL = 50,$
+        UVALUE= UVALUE,$
+        TICKDIR = 0,$
+        SUBTICKLEN = 0.4,$       
+        FONT_NAME ='Helvetica',$
+        FONT_STYLE = 2,$
+        FONT_SIZE=32)	
+        ;BIT_DEPTH, BORDER, TRANSPARENT, RESOLUTION, WIDTH, HEIGHT
+        PNGFILE=!S.DIR_TEMP + PROD + '-' + ROUTINE_NAME+'-B.PNG'
+        CB.SAVE, PNGFILE,  RESOLUTION=600,WIDTH = 800,HEIGHT = 800 ,BORDER = 0
+        
+
+        ;W.SAVE, PNGFILE,RESOLUTION=600,WIDTH = 800,HEIGHT = 800 ,BORDER = 0 
+        ;W.CLOSE
+        PFILE,PNGFILE,/W    
+        ST,S
+		STOP
+		  ENDFOR;FOR _PROD = 0,N_ELEMENTS(PROD)-1 DO BEGIN
+		 ;FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+		
+		
+		
+		
+		
+		
+		
+		 
+    , 'DO_MAKE_COLORBARS'
+  ENDIF ; IF DO_MAKE_COLORBARS GE 1 THEN BEGIN
+; ||||||||||||||||||||||||||||||||||||
+
+
+; ****************************
+  IF DO_STEP_2 GE 1 THEN BEGIN
+; ****************************
+    , 'DO_STEP_2'
+    OVERWRITE = DO_STEP_2 EQ 2
+    IF DO_STEP_2 EQ 3 THEN STOP  
+    , 'DO_STEP_2'
+  ENDIF ; IF DO_STEP_2 GE 1 THEN BEGIN
+; ||||||||||||||||||||||||||||||||||||
+
+; ****************************
+IF DO_STEP_3 GE 1 THEN BEGIN
+  ; **************************
+  , 'DO_STEP_3'
+  OVERWRITE = DO_STEP_3 EQ 2
+  IF DO_STEP_3 EQ 3 THEN STOP
+  , 'DO_STEP_3'
+ENDIF ; IF DO_STEP_3 GE 1 THEN BEGIN
+; ||||||||||||||||||||||||||||||||||||
+
+; ****************************
+IF DO_STEP_4 GE 1 THEN BEGIN
+  ; ****************************
+  , 'DO_STEP_4'
+  OVERWRITE = DO_STEP_4 EQ 2
+  IF DO_STEP_4 EQ 3 THEN STOP
+  , 'DO_STEP_4'
+ENDIF ; IF DO_STEP_4 GE 1 THEN BEGIN
+; ||||||||||||||||||||||||||||||||||||
+
+
+
+END; #####################  END OF ROUTINE ################################

@@ -1,0 +1,135 @@
+; $ID:	D3_VIEW.PRO,	2020-06-26-15,	USER-KJWH	$
+;+
+
+PRO D3_VIEW, PSERIES_FILE, XP=XP, YP=YP, LON=LON, LAT=LAT, WIDTH_FILTER=WIDTH_FILTER, SPAN=SPAN, VERBOSE=VERBOSE, DATE=DATE, TITLE=TITLE
+;
+;
+; PURPOSE: View the time seires of a specific location with the D3 PSERIES 
+
+; CATEGORY:	D3 FAMILY		 
+;
+; CALLING SEQUENCE: D3_VIEW,PSERIES_FILE
+;
+; INPUTS: 
+;   PSERIES_FILE........FILE CREATED FROM FROM D3_MAKE
+;
+; OPTIONAL INPUTS:
+;		NONE:	
+;		
+; KEYWORD PARAMETERS:
+;   XP............. GET A PSERIES AT A SPECIFIED XP,YP; MAP COORDINATES THAT CORRESPOND TO THE LOCATION IN THE PSERIES_FILE DATA
+;   YP............. GET A PSERIES AT A SPECIFIED XP,YP; MAP COORDINATES THAT CORRESPOND TO THE LOCATION IN THE PSERIES_FILE DATA
+;   LON............ GET A PSERIES AT SPECIFIED LON,LAT COORDINATES THAT CORRESPOND TO THE LOCATION IN THE PSERIES_FILE DATA
+;   LAT............ GET A PSERIES AT SPECIFIED LON,LAT COORDINATES THAT CORRESPOND TO THE LOCATION IN THE PSERIES_FILE DATA
+;   WIDTH_FILTER... THE WIDTH FOR THE SMOOTHING FUNCTION 
+;   SPAN........... THE NUMBER OF DAYS ACCEPTABLE BETWEEN REAL VALUES (ENTERED INTO D3_BLANK_INTERP)  
+;   TITLE.......... TITLE FOR THE PLOT
+;   
+; OUTPUTS: 
+;   PLOT => IF XP/YP OR LON/LAT INPUTS SUPPLIED
+;   PNG  => IF DATE PROVIDED
+;		
+; EXAMPLES:
+;     D3_VIEW, PSERIES_FILE, DATE='20180601'
+;     D3_VIEW, PSERIES_FILE, XP=830, YP=980
+;     D3_VIEW, PSERIES_FILE, LON=-71.105, LAT=41.005
+;     
+;     
+;	NOTES:
+;
+;
+; COPYRIGHT:
+; Copyright (C) 2018, Department of Commerce, National Oceanic and Atmospheric Administration, National Marine Fisheries Service,
+;   Northeast Fisheries Science Center, Narragansett Laboratory.
+;   This software may be used, copied, or redistributed as long as it is not sold and this copyright notice is reproduced on each copy made.
+;   This routine is provided AS IS without any express or implied warranties whatsoever.
+;
+;   This program was written by John E. O'Reilly, DOC/NOAA/NMFS/NEFSC Narragansett, RI
+;          with assistance from Kimberly Hyde, DOC/NOAA/NMFS/NEFSC Narragansett, RI, kimberly.hyde@noaa.gov.  Inquiries should be directed to kimberly.hyde@noaa.gov.
+;
+; MODIFICATION HISTORY:
+;			Written:  April 17, 2015 by John E. O'Reilly, NOAA/NEFSC/Narragansett Laboratory, 28 Tarzwell Drive, 02882 
+;			Modified: FEB 22, 2019 - KJWH: Updated formatting
+;			                               Added D3_INTERP_BLANK step
+;			                               Added BLANK plotting
+;			                               Updated keywords
+;			                               Updated documentation
+;			            
+;
+;#################################################################################
+;-
+;*****************************
+  ROUTINE_NAME  = 'D3_VIEW'
+;*****************************
+
+;===> DEFAULTS
+  LAND_CODE = -999.0
+  IF NONE(WIDTH_FILTER) THEN WIDTH_FILTER = 3
+  IF NONE(SPAN) THEN SPAN = 7
+  IF NONE(TITLE) THEN TITLE = ''
+  
+  IF NONE(PSERIES_FILE) THEN PSERIES_FILE = DIALOG_PICKFILE(FILTER = ['*-PSERIES*.FLT'],/READ)
+  IF NONE(PSERIES_FILE) OR ~FILE_TEST(PSERIES_FILE) THEN MESSAGE,'ERROR: PSERIES_FILE IS REQUIRED
+  
+  ARR = D3_READ(PSERIES_FILE, XP=XP, YP=YP, LON=LON, LAT=LAT, DATE=DATE, NUM=NUM, JDS=JDS, I_JDS=I_JDS, MAPP=MAPP, PROD=PROD)
+  IF ARR EQ [] THEN MESSAGE,'ERROR: NO DATA FOUND FOR THIS COORDINATE '
+  
+
+  IF (KEY(LON) AND KEY(LAT)) OR (KEY(XP) AND KEY(YP)) THEN BEGIN
+    IF KEY(LON) AND KEY(LAT) THEN TITLE = TITLE + 'LON/LAT (' + ROUNDS(LON,2) + ',' + ROUNDS(LAT,2) + ')'
+    IF KEY(XP)  AND KEY(YP)  THEN TITLE = TITLE + ' XP/YP (' + ROUNDS(XP) + ',' + ROUNDS(YP) + ')'
+ 
+    DAYS = I_JDS-FIRST(I_JDS)
+    OK = WHERE(FINITE(ARR) AND ARR NE LAND_CODE,COUNT)
+    _DAYS = DAYS[OK]
+    ARR = ARR[OK]
+    _JDS = I_JDS[OK]
+ 
+    ;===>  LINEARLY INTERPOLATE _PSERIES TO ALL THE DAYS IN THIS PSERIES
+    INTP = INTERPX(_DAYS, ARR, DAYS)
+    ;===> SMOOTH INTP USING TRICUBE
+    SMO =   FILTER(INTP, FILT='TRICUBE', WIDTH=WIDTH_FILTER)
+    ;===> BLANK OUT GAPS > BLANK DAYS
+    BLANKED = D3_INTERP_BLANK(JD=_JDS, INTERP_DATA=SMO, INTERP_JD=I_JDS, SPAN=7)  ; BLANK OUT GAPS > BLANK DAYS
+  
+    IF KEY(VERBOSE) THEN BEGIN
+      PRINT,'ARR :', ROUNDS(MM(ARR),4,/SIG)
+      PRINT,'INTP :',ROUNDS(MM(INTP),4,/SIG)
+      PRINT,'SMO :', ROUNDS(MM(SMO),4,/SIG)
+      PRINT,'BLANKED :', ROUNDS(MM(BLANKED),4,/SIG)
+    ENDIF  
+  
+    ;===> MAKE A DATA ARRAY FOR PLOTTING THE ACTUAL DATA
+    DAT = REPLICATE(MISSINGS(0.0),NOF(DAYS)) & BLANK = DAT & DAT[OK] = ARR
+    BOK = WHERE(BLANKED EQ MISSINGS(BLANKED) AND INTP NE MISSINGS(INTP),COUNT) & IF COUNT GE 1 THEN BLANK(BOK) = INTP(BOK)
+   
+    P1=PLOT(DAYS, INTP, THICK=5, COLOR='LIGHT_GREY',/OVERPLOT,/CURRENT,TITLE = TITLE,XTITLE = 'Days',YTITLE = UNITS(PROD),FONT_SIZE = 16, NAME = 'Interpolated') 
+    P2=PLOT(DAYS, SMO,  THICK=3, COLOR='BLUE',/OVERPLOT,/CURRENT,NAME = 'Smoothed-'+ ROUNDS(WIDTH_FILTER))
+    P3=PLOT(DAYS, DAT,   SYM_COLOR='BLACK', SYM_FILLED= 1, SYM_FILL_COLOR='BLACK',SYMBOL = 'CIRCLE',LINESTYLE=6, /OVERPLOT, /CURRENT,NAME = 'Data')
+    P4=PLOT(DAYS, BLANK, SYM_COLOR='RED', SYM_FILLED= 0, SYMBOL = 'STAR',  LINESTYLE=6, /OVERPLOT, /CURRENT,NAME = 'Blanked Data')
+  
+    XPOS = 0.99* SPAN(DAYS) & YPOS = 0.01*MAX(INTP)
+    LEG = LEGEND(TARGET=[P1,P2,P3,P4], POSITION=[XPOS,YPOS],/DATA, HORIZONTAL_ALIGNMENT=1,VERTICAL_ALIGNMENT=0, /AUTO_TEXT_COLOR)
+    PLT_GRIDS,P1
+    
+    IF KEY(PNG) THEN BEGIN
+      
+      
+    ENDIF ELSE WAIT, 15;IF KEY(PNG) THEN BEGIN
+    P1.CLOSE
+    
+ENDIF;IF KEY(LAT) AND KEY(LON) THEN BEGIN
+;||||||||||||||||||||||||||||||||||||||||
+;
+;
+;**********************
+IF KEY(DATE) THEN BEGIN
+;**********************
+  TITLE = TITLE +'DATE: '+ DATE
+  IF ARR EQ [] THEN MESSAGE,'ERROR: NONE FOUND FOR THIS DATE: '+ DATE
+  IMGR,ARR,PROD=PROD,TITLE=TITLE,TAG=TAG,MAP=MAPP,EDIT=EDIT,VSTAG=VSTAG,PAL=PAL,DELAY=DELAY
+ENDIF;IF KEY(DATA) THEN BEGIN
+;||||||||||||||||||||||||||||
+
+DONE:          
+	END; #####################  END OF ROUTINE ################################

@@ -1,0 +1,166 @@
+; $ID:	PRESENTATION_PLOTS.PRO,	2021-04-15-17,	USER-KJWH	$
+
+PRO PRESENTATION_PLOTS, IOCS17=IOCS17
+
+;+
+; NAME:
+;   PRESENTATION_PLOTS
+;
+; PURPOSE:;
+;   This procedure creates plots for presentaitons.
+;
+; CATEGORY:
+;   CATEGORY
+;
+; CALLING SEQUENCE:
+;
+;   ROUTINE_NAME
+;
+; INPUTS:
+;
+; OPTIONAL INPUTS:
+;
+; KEYWORD PARAMETERS:
+;
+; OUTPUTS:
+;   This function creates plots for presentations
+;
+; NOTES:
+;
+;
+; MODIFICATION HISTORY:
+;     Written April 7, 2011 by K.J.W.Hyde, 28 Tarzwell Drive, NMFS, NOAA 02882 (kimberly.hyde@noaa.gov)
+;-
+; ****************************************************************************************************
+  ROUTINE_NAME = 'PRESENTATION_PLOTS'
+
+; ===> Initialize ERROR to a null string. If errors are encountered ERROR will be set to a message.
+;      The calling routine can check error (e.g.IF ERROR NE 0 then there was a problem and do this or that)
+  ERROR = ''
+  SL = PATH_SEP()
+
+  IF TOTAL([ANY(IOCS17)]) EQ 0 THEN BEGIN
+    IF NONE(IOCS17)     THEN IOCS17   = 'Y'  ; Plots and figures for the 2017 International Ocean Color Meeting (Lisbon, Portugal)
+  ENDIF
+  
+  DIR_PRES = !S.PROJECTS + ROUTINE_NAME + SL
+  
+  
+; ********************************************
+  IF KEY(IOCS17) THEN BEGIN
+; ********************************************
+    SNAME = 'IOCS17'
+    SWITCHES,IOCS17,STOPP=STOPP,OVERWRITE=OVERWRITE,VERBOSE=VERBOSE,INIT=INIT,R_FILES=R_FILES,R_DATASETS=R_DATASETS,R_MAPS=R_MAPS,DATERANGE=DATERANGE
+    
+    DIR_PLOTS = DIR_PRES + SNAME + SL + 'PLOTS' + SL & DIR_TEST, DIR_PLOTS
+    DIR_DATA  = DIR_PRES + SNAME + SL + 'DATA'  + SL & DIR_TEST, DIR_DATA
+    
+    MAP_OUT='GOM'
+    PROD='GRAD_CHL_1.05_1.5'
+    TICKNAMES=['1.1','1.2','1.3','1.4','1.5']
+    
+    GROUPS = ['WHALES','TURTLES','TUNA']
+    FOR G=0, N_ELEMENTS(GROUPS)-1 DO BEGIN
+      
+      CASE GROUPS(G) OF
+      'WHALES':  BEGIN & DATERANGES = LIST(['20170417','20170419']) & MAP_OUT = 'MAB'
+                         CDIR  = !S.FRONTS + 'OC-MODISA-1KM/' & CPROD = 'GRAD_CHL' & CRANGE='_1.08_1.5' & CTICKS = ['1.1','1.2','1.3','1.4'] & CTITLE = 'Chlorophyll Gradients'
+                         SDIR  = !S.FRONTS + 'SST-MUR-1KM/'   & SPROD = 'GRAD_SST' & SRANGE='' & STICKS = []  & STITLE = 'Sea Surface Temperature Gradients'
+                         SHIP  = STRUCT_2NUM(CSV_READ(DIR_DATA + 'SHIPTRACK.csv'))
+                         CSVS = DIR_DATA + 'WHALE_SIGHTINGS.csv'
+                         SYMFILL = 1 & SYMSCALE = 1 & FILLCOLOR='WHITE' & COLOR='BLACK' & TRAN = 70 & THICK=5 & END
+      'TURTLES': BEGIN & DATERANGES = LIST(['20090904','20090909'],['20090910','20090916'],['20090917','20090924'],['20090925','20090930'],['20090904','20091112']) 
+                         MAP_OUT = 'SNE'
+                         CDIR = !S.FRONTS + 'OC-MODISA-1KM/'           & CPROD = '' & CRANGE ='_1.0_1.2' & CTICKS = ['1.0','1.05','1.1','1.15','1.2'] & CTITLE = 'Chlorophyll Gradients'
+                         SDIR = !S.FRONTS + 'SST-'+['MUR']+'-1KM/'     & SPROD = 'GRAD_SST' & SRANGE = '_0.01_0.13' & STICKS = ['0.01','0.02','0.04','0.08','0.12'] &  STITLE = 'Sea Surface Temperature Gradients' 
+                         SHIP = []
+                         SHIP = [] & CSVS = DIR_DATA + 'TURTLES_' + ['WK1','WK2','WK3','WK4','TRACK'] + '.csv'
+                         SYMFILL = 1 & SYMSCALE = 0.4 & FILLCOLOR='WHITE' & COLOR='WHITE' & TRAN = 0 & THICK = 5 & END
+      'TUNA':    BEGIN & DATERANGES = LIST(['20130713','20130722']) & MAP_OUT = 'NEC'
+                         CPROD = '' & CRANGE = '' & CTICKS = '' & CTITLE = ''
+                         SDIR  = !S.DATASETS+'SST-MUR-1KM/' & SPROD = 'SST' & STICKS = ['20','22','24','26','28','30'] & SRANGE = '_20_30' & STITLE = 'Temperature ' + UNITS('SST',/NO_NAME)
+                         SHIP = [] & CSVS = DIR_DATA+'TUNA.csv'
+                         SYMFILL = 0 & SYMSCALE = 0.5 & FILLCOLOR='BLACK' & COLOR='BLACK' & TRAN = 0 & THICK = 10 & END
+      ENDCASE  
+      
+      PRODS = [CPROD,SPROD]
+      RANGES = [CRANGE,SRANGE]
+      TITLES = [CTITLE,STITLE]
+      
+      FOR C =0, N_ELEMENTS(CSVS)-1 DO BEGIN
+        COUNTS = STRUCT_2NUM(CSV_READ(CSVS(C)))
+        DATERANGE = DATERANGES(C)
+        IF CPROD NE '' THEN BEGIN
+          F = FLS(CDIR + 'NES/SAVE/CHL_BOA-OCI/D_*',DATERANGE=DATERANGE)
+          STATS_ARRAYS_FRONTS, F, DIR_OUT=DIR_DATA, PERIOD_CODE_OUT='DD', FILE_LABEL=FILE_LABEL,  DO_STATS=STAT_TYPES, OVERWRITE=OVERWRITE, VERBOSE=VERBOSE
+          IF HAS(F[0],'BOA') THEN STATS_ARRAYS_FRONTS,  F, DIR_OUT=DIR_DATA, PERIOD_CODE_OUT='DD', FILE_LABEL=FILE_LABEL,  DO_STATS=STAT_TYPES, OVERWRITE=OVERWRITE, VERBOSE=VERBOSE $
+                             ELSE STATS_ARRAYS_PERIODS, F, DIR_OUT=DIR_DATA, PERIOD_CODE_OUT='DD', FILE_LABEL=FILE_LABEL,  DO_STATS=STAT_TYPES, OVERWRITE=OVERWRITE, VERBOSE=VERBOSE
+        ENDIF
+        
+        IF SPROD NE '' THEN BEGIN
+          F = FLS(SDIR + 'NES/SAVE/SST*/D_*',DATERANGE=DATERANGE)
+        ;  F = FS(SDIR + 'L3B2/NC/*2013*',DATERANGE=DATERANGE)
+          IF HAS(F[0],'BOA') THEN STATS_ARRAYS_FRONTS,  F, DIR_OUT=DIR_DATA, PERIOD_CODE_OUT='DD', FILE_LABEL=FILE_LABEL,  DO_STATS=STAT_TYPES, OVERWRITE=OVERWRITE, VERBOSE=VERBOSE $
+                             ELSE STATS_ARRAYS_PERIODS, F, DIR_OUT=DIR_DATA, PERIOD_CODE_OUT='DD', FILE_LABEL=FILE_LABEL,  DO_STATS=STAT_TYPES, OVERWRITE=OVERWRITE, VERBOSE=VERBOSE, STAT_PROD='SST' 
+        ENDIF
+        
+        FOR I=0, N_ELEMENTS(PRODS)-1 DO BEGIN
+          IF PRODS(I) EQ '' THEN CONTINUE  
+          IF I EQ 0 THEN TICKNAMES = CTICKS ELSE TICKNAMES = STICKS
+          PROD = VALIDS('PRODS',PRODS(I)) 
+          IF HAS(PRODS(I),'GRAD') THEN FPROD = STRMID(PROD,2,/REVERSE_OFFSET) + '_BOA' ELSE FPROD = PROD
+          F = FLS(DIR_DATA + 'DD_'+STRJOIN(DATERANGE,'_') + '*'+FPROD+'*STATS.SAV')
+          PNGFILE = DIR_PLOTS+'DD_'+STRJOIN(DATERANGE,'_')+'-'+MAP_OUT+'-'+FPROD+'-'+GROUPS(G)+'.PNG'
+          IF N_ELEMENTS(F) NE 1 THEN STOP
+          IF FILE_MAKE(F,PNGFILE,OVERWRITE=OVERWRITE) EQ 0 THEN CONTINUE
+          
+          TAG = PROD
+          D = STRUCT_READ(F,TAG=TAG,STRUCT=S,MAP_OUT=MAP_OUT)
+          MS = MAPS_SIZE(MAP_OUT,PX=MPX,PY=MPY)
+          
+          IF MAP_OUT EQ 'SNE' THEN ADD_COAST = 0 ELSE ADD_COAST = 1
+          B = PRODS_2BYTE(D,PROD=PROD+RANGES(I),/ADD_LAND,ADD_COAST=ADD_COAST,MP=MAP_OUT)
+          IF MAP_OUT EQ 'SNE' THEN B(WHERE(B EQ 255)) = 254 
+          
+          BUFFER = 0
+          IM = IMAGE(B,RGB_TABLE=CPAL_READ('PAL_BR'),MARGIN=0,DIMENSIONS=[MPX,MPY],BUFFER=BUFFER)
+          CASE MAP_OUT OF 
+            'GOM': PRODS_COLORBAR, PROD+RANGES(I), TICKNAMES=TICKNAMES, IMG=IM, LOG=1, ORIENTATION=0, TITLE=TITLES(I), FONT_SIZE=12, POSITION=[15,480,260,500],  TEXTPOS=0, /DEVICE, PAL='PAL_BR'
+            'NEC': PRODS_COLORBAR, PROD+RANGES(I), TICKNAMES=TICKNAMES, IMG=IM, LOG=1, ORIENTATION=0, TITLE=TITLES(I), FONT_SIZE=15, POSITION=[15,980,450,1010], TEXTPOS=0, /DEVICE, PAL='PAL_BR'
+            'MAB': PRODS_COLORBAR, PROD+RANGES(I), TICKNAMES=TICKNAMES, IMG=IM, LOG=1, ORIENTATION=0, TITLE=TITLES(I), FONT_SIZE=13, POSITION=[20,800,380,825], TEXTPOS=0, /DEVICE, PAL='PAL_BR'
+            'SNE': PRODS_COLORBAR, PROD+RANGES(I), TICKNAMES=TICKNAMES, IMG=IM, LOG=1, ORIENTATION=0, TITLE=TITLES(I), FONT_SIZE=13, POSITION=[20,780,280,800], TEXTPOS=0, /DEVICE, PAL='PAL_BR'
+          ENDCASE
+          
+          SX = []
+          ZWIN,D
+          MAPS_SET,MAP_OUT
+          IF SHIP NE [] THEN PXPY=MAP_DEG2IMAGE(D,SHIP.LON,SHIP.LAT, X=SX, Y=SY, AROUND=AROUND, SUBS=SUBS)
+          PXPY=MAP_DEG2IMAGE(D,COUNTS.LON,COUNTS.LAT,X=WX,Y=WY,AROUND=AROUND, SUBS=SUBS)
+          ZWIN
+          IF SX NE [] THEN Y = POLYLINE(SX,SY,COLOR='WHITE',THICK=2,TRANSPARENCY=40,/DEVICE)
+          FOR N=0,N_ELEMENTS(COUNTS)-1 DO BEGIN
+            IF COUNTS(N).NUMBER LT 0 THEN CONTINUE
+            CASE COUNTS(N).NUMBER OF
+              0:  SYMSIZE = 0.5
+              1:  SYMSIZE = 1
+              2:  SYMSIZE = 2
+              3:  SYMSIZE = 2
+              5:  SYMSIZE = 3
+              6:  SYMSIZE = 3
+              7:  SYMSIZE = 4
+              8:  SYMSIZE = 4
+              12: SYMSIZE = 5
+              15: SYMSIZE = 5
+            ENDCASE
+            S = SYMBOL(WX(N),WY(N),'CIRCLE',/DEVICE,SYM_COLOR=COLOR,SYM_THICK=THICK,SYM_FILL_COLOR=FILLCOLOR,SYM_FILLED=SYMFILL,SYM_SIZE=SYMSIZE*SYMSCALE,SYM_TRANSPARENCY=TRAN)
+          ENDFOR
+       
+        IM.SAVE,PNGFILE,RESOLUTION=600
+        IM.CLOSE
+      ENDFOR  
+    ENDFOR
+    ENDFOR
+    
+  ENDIF  
+  
+END  

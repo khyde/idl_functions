@@ -1,0 +1,48 @@
+; $ID:	REPLACE_ALPHA.PRO,	2020-06-30-17,	USER-KJWH	$
+
+ FUNCTION REPLACE_ALPHA, STR , VALUE
+;+
+; NAME:
+;       REPLACE_ALPHA
+;
+; PURPOSE:
+;				Replace any values not 0,1,2,3,4,5,6,7,8,9 or .  with Value
+;	PARAMETERS:
+;				STR:  Input string
+;				VALUE: The Value to use as the replacement
+;	KEYWORDS:
+;			 NONE
+;
+; MODIFICATION HISTORY:
+;       Written by:  J.E.O'Reilly, Nov 27, 2004
+
+;-
+
+ ROUTINE_NAME='REPLACE_ALPHA'
+ IF N_ELEMENTS(VALUE) EQ 0 THEN BEGIN
+ 	_VALUE = BYTE('0')
+ ENDIF ELSE BEGIN
+ 	_VALUE =  BYTE(STRTRIM(VALUE,2))
+ 	_VALUE = _VALUE[0]
+ ENDELSE
+
+;[0,1,2,3,4,5,6,7,8,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31, $
+; 34,35,36,37,38,39,40,41,42,43,44,45,46,47, $ ;		"#$%&'()*+,-./
+; 48,49,50,51,52,53,54,55,56,57, $ ; NUMBERS 0-9 ARE OK
+
+; 58,59,60,61,62,63,64, $ ;        :;<=>?@
+;	91,92,93,94,96,$;   							[\]^`
+;	123,124,125,126,127,128,130,131,132,134,137,138,139,144,146,148,150,151,152,154,156,158,160,164,166,167,168,170,172,173,174,176,177,178,180,181,182,184,188,190,191,192,194,242,250,253,254,255]
+
+	B=BYTE(STR)
+  OK=WHERE(B LT 46 OR B GT 57 OR B EQ 47 AND B NE 0,COUNT)
+  IF COUNT GE 1 THEN BEGIN
+  	B[OK] = _VALUE
+  	NEW = STRING(B)
+  ENDIF ELSE NEW = STR
+RETURN,NEW
+
+END; #####################  End of Routine ################################
+
+
+

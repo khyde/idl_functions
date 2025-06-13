@@ -1,0 +1,422 @@
+; $ID:	PP_ANALYSES_MAIN.PRO,	2020-06-30-17,	USER-KJWH	$
+
+  PRO PP_ANALYSES_MAIN , FILES = FILES, DIR_CHL=dir_chl,dir_par=DIR_PAR, DIR_SST=dir_sst
+; NAME:
+;       PP_ANALYSES_MAIN
+
+; PURPOSE:
+;       Analyze PP data from various satellite models
+;
+;
+
+; MODIFICATION HISTORY:
+;       Written by:  J.E.O'Reilly, March 24, 2006.
+;-
+
+
+  ROUTINE_NAME = 'PP_ANALYSES_MAIN'
+  STATUS = ''
+
+	PROJECT_FOLDER = 'PP_ANALYSES'
+
+  PP_METHOD= 'VGPM2A'
+  SENSOR='PP'
+  SATELLITE='Z'
+  SST_METHOD='N4ATG'
+  MAP = 'NEC' &
+
+
+ ; MAP = 'L3B9' & DIR_ROOT=SENSOR+'_L3B9'
+
+;	******************************************
+; ***** Directories for Resource Files *****
+;	******************************************
+  DIR_PROGRAMS       = 'D:\IDL\PROGRAMS\'
+  DIR_DATA           = 'D:\IDL\DATA\'
+  DIR_IMAGES         = 'D:\IDL\IMAGES\'
+
+;	******************************
+;	***** C O N S T A N T S  *****
+;	******************************
+  COMPUTER=GET_COMPUTER() & NOW = LONG(STRMID(DATE_NOW(),0,8))
+  DELIM		=DELIMITER(/PATH) & SLASH=DELIMITER(/SLASH) & DASH=DELIMITER(/DASH) & UL=DELIMITER(/UL) & CM=DELIMITER(/COMMA) & AS = DELIMITER(/ASTER)
+  NOW 		= NUM2STR(LONG(STRMID(DATE_NOW(),0,8)))
+
+	DRIVES = GET_DRIVE_NAMES()
+	TARGET_DRIVE = 'IOMEGA_HDD_3'
+
+
+
+
+;	**********************************************************************************
+;	***** P A R A M E T E R S   T H A T  D E P E N D  O N  M A P   C H O I C E   *****
+;	**********************************************************************************
+    LAND_MASK = READ_LANDMASK(MAP=MAP,/LAND)
+    OK_LAND   = WHERE(LAND_MASK EQ 1,COUNT_LAND)
+
+;    BATHY     = READALL(DIR_IMAGES+'MASK_BATHY-NEC-PXY_1024_1024-100M-EDIT.png')
+;    BOTTOM    = READALL(DIR_DATA+'SRTM30-NEC-PXY_1024_1024-BATHY-SMOOTH_5.SAVE')
+
+
+
+		OK=WHERE(DRIVES.NAME EQ TARGET_DRIVE,COUNT)
+;		IF COUNT NE 1 THEN STOP
+
+	;	DRIVE_IN = DRIVES(OK[0]).DRIVE
+
+
+; \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+
+
+;	*************************************************
+;	***** O U T P U T   D I R E C T O R I E S   *****
+;	*************************************************
+	IF COMPUTER EQ 'LOLIGO' THEN DISK_PROJECT = 'D:'
+
+  PATH = DISK_PROJECT+DELIM + 'PROJECTS\'+PROJECT_FOLDER+DELIM
+
+  DIR_SAVE              = path+'SAVE'             +SLASH
+  DIR_DOC              	= path+'DOC'              +SLASH
+  DIR_LOG               = path+'LOG'              +SLASH
+  DIR_REPORT            = path+'REPORT'           +SLASH
+  DIR_PLOTS            = path+'PLOTS'           +SLASH
+
+  DIR_ALL = [DIR_SAVE,DIR_DOC,DIR_REPORT,DIR_PLOTS]
+
+
+;	******************************************************************
+; *********** J O B  S W I T C H E S  ******************************
+;	******************************************************************
+  DO_CHECK_DIRS            = 1  ; Normally, keep this switch on
+  DO_PP_STATS_TABLE        = 0  ; 1 = DO  2 = OVERWRITE
+  DO_PP_GFISH4_PLOT   		 = 0
+  DO_PP_NORTHEAST_SHELF    = 0
+
+	DO_PP_ANNUAL_CONTOUR     = 2
+
+
+;	###############################################
+; #####  B E G I N   P R O C E S S I N G    #####
+;	###############################################
+
+; *********************************************
+  IF DO_CHECK_DIRS GE 1 THEN BEGIN
+; *********************************************
+    PRINT, 'S T E P:    DO_CHECK_DIRS'
+    FOR N=0,N_ELEMENTS(DIR_ALL)-1 DO BEGIN & AFILE = STRMID(DIR_ALL(N),0,STRLEN(DIR_ALL(N))-1) &
+      IF FILE_TEST(AFILE,/DIRECTORY) EQ 0L THEN FILE_MKDIR,AFILE &  ENDFOR
+  ENDIF
+; |||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+; *********************************************
+  IF DO_PP_STATS_TABLE GE 1 THEN BEGIN
+; *********************************************
+    PRINT, 'S T E P:    DO_PP_TABLE'
+    TS_SUBAREAS_FOLDER     = DRIVE_IN+SENSOR+'_'+SST_METHOD+'-'+MAP+DELIM+'TS_SUBAREAS'+DELIM+'SAVE'+DELIM
+    SUBAREA_DEFINITION = 'GFISH4'
+
+
+	;	!M-TS_SUBAREAS-NEC-GFISH4-Gulf_of_Maine-VGPM2A-PPD.PS
+
+		PERIODS = ['!M']
+
+		STUDY = READALL(FILE_SEARCH(TS_SUBAREAS_FOLDER+'!STUDY-MASK_SUBAREA'+'-'+MAP+'-*'+SUBAREA_DEFINITION+'-'+PP_METHOD+'*.SAVE'))
+		MONTH = READALL(FILE_SEARCH(TS_SUBAREAS_FOLDER+'!MONTH-MASK_SUBAREA'+'-'+MAP+'-*'+SUBAREA_DEFINITION+'-'+PP_METHOD+'*.SAVE'))
+		Y		 	= READALL(FILE_SEARCH(TS_SUBAREAS_FOLDER+'!Y-MASK_SUBAREA'+'-'+MAP+'-*'+SUBAREA_DEFINITION+'-'+PP_METHOD+'*.SAVE'))
+		M    	= READALL(FILE_SEARCH(TS_SUBAREAS_FOLDER+'!M-MASK_SUBAREA'+'-'+MAP+'-*'+SUBAREA_DEFINITION+'-'+PP_METHOD+'*.SAVE'))
+
+  	FI=PARSE_IT(M.FIRST_NAME,/ALL)
+    SETS=WHERE_SETS(M. SUBAREA_CODE )
+    CODES = SETS.VALUE
+    LIST,CODES
+
+		CSV_FILE = DIR_SAVE+'PP_STATS_TABLE-'+SUBAREA_DEFINITION+'.CSV
+
+;			LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+			FOR _CODE = 0,N_ELEMENTS(CODES)-1 DO BEGIN
+				ACODE = CODES(_CODE)
+				OK= WHERE(STRTRIM(M.SUBAREA_CODE,2) EQ STRTRIM(ACODE,2),CODE)
+				M_=M[OK]
+
+				OK= WHERE(STRTRIM(MONTH.SUBAREA_CODE,2) EQ STRTRIM(ACODE,2),CODE)
+				MONTH_=MONTH[OK]
+
+				OK= WHERE(STRTRIM(Y.SUBAREA_CODE,2) EQ STRTRIM(ACODE,2),CODE)
+				Y_=Y[OK]
+
+				OK= WHERE(STRTRIM(STUDY.SUBAREA_CODE,2) EQ STRTRIM(ACODE,2),CODE)
+				STUDY_=STUDY[OK]
+
+				P = PERIOD_STATS_ALL( PERIOD_2JD(M_.FIRST_NAME),M_.MEAN, PROD='PPD')
+
+			ENDFOR
+
+	  DB=DB(1:*)
+	  STRUCT_2CSV,CSV_FILE,DB
+
+    STOP
+  ENDIF
+; |||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+; *********************************************
+  IF DO_PP_GFISH4_PLOT GE 1 THEN BEGIN
+; *********************************************
+    PRINT, 'S T E P:    DO_PP_TABLE'
+
+	;	!M-TS_SUBAREAS-NEC-GFISH4-Gulf_of_Maine-VGPM2A-PPD.PS
+
+	  CODES = [1,2,3,4]
+
+		CSV_FILE = DIR_SAVE+' PP_STATS_TABLE-GFISH4.CSV'
+		CSV_FILE = 'D:\PROJECTS\PP_ANALYSES\SAVE\PP_STATS_TABLE-GFISH4.CSV'
+
+
+		ALL=READ_CSV(CSV_FILE)
+		PER = VALID_PERIODS(ALL.FIRST_NAME)
+		OK=WHERE(PER.PERIOD_CODE EQ '!Y')
+		DB = ALL[OK]
+
+		PSFILE = DIR_PLOTS+'GFISH4-PPD.PS'
+		PSPRINT,FILENAME=PSFILE,/COLOR
+		PAL_36
+		COLORS = [6,12,19,26]
+		COLORS = REVERSE(COLORS)
+
+		LABELS = ''
+;			LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+			FOR _CODE = 0,N_ELEMENTS(CODES)-1 DO BEGIN
+				ACODE = CODES(_CODE)
+			  OK=WHERE(DB.SUBAREA_CODE EQ ACODE)
+			  D=DB[OK]
+			  SUBAREA_MEAN = '('+   STRTRIM(STRING (MEAN(FLOAT(D.MEAN)),FORMAT='(F6.3)') ,2)      + ')'
+			  PER = VALID_PERIODS(D.FIRST_NAME)
+
+  		  LABELS = [LABELS,D[0].SUBAREA_NAME+' ' + SUBAREA_MEAN]
+			  IF _CODE EQ 0 THEN BEGIN
+			  DA=DATE_AXIS(PERIOD_2JD(PER.PERIOD), /YEAR,ROOM=[1,1] )
+
+  															;	NAMES=NAMES,  ROOM=room, 	ENDS=ends, $
+  														  ;	MID=mid,MAX_LABELS=max_labels, _EXTRA=_extra
+
+			  PLOT,DA.JD,D.MEAN,XTICKS=DA.TICKS,XTICKNAME=DA.TICKNAME,XTICKV=DA.TICKV,/NODATA,$
+			  TITLE = 'Northeast Shelf Ecosystem Primary Production',YTITLE='Annual Primary Production '+UNITS('PPD')
+			  GRIDS,COLOR=34,THICK=3
+			  ENDIF
+					OPLOT,DA.JD, D.MEAN,COLOR=COLORS(_CODE),THICK=5
+			ENDFOR
+
+			LABELS = LABELS(1:*)
+			LEG_SPACING = 0
+			LEG_PSPACING = 2.0
+			LEG_MARGIN   = [0.5,0.5]
+			COLORS = COLORS
+	  	THICKS = REPLICATE(5,N_ELEMENTS(COLORS))
+	  	LINESTYLE = REPLICATE(0,N_ELEMENTS(COLORS))
+	  ;	PSYM= REPLICATE(1,N_ELEMENTS(COLORS))
+
+
+	  ;	XPOS= MEAN(!X.CRANGE) &  YPOS = !Y.CRANGE(1)*.3
+   		LEGEND,/BOTTOM,/RIGHT,/data,LABELS,COLORS=COLORS, PSYM=psym, LINESTYLE=LINESTYLE,$
+    				 PSPACING=LEG_PSPACING,SPACING=LEG_SPACING,MARGIN=LEG_MARGIN,THICK=THICKS,$
+    				  /BOX,/VERTICAL,/center,/CLEAR,BACKGROUND_COLOR=BACKGROUND_COLOR,CHARSIZE=1
+			FRAME,/PLOT,COLOR=0,THICK=4
+	  PSPRINT
+	  IMAGE_TRIM,PSFILE,DPI=600
+
+  ENDIF
+; |||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+; *********************************************
+  IF DO_PP_NORTHEAST_SHELF GE 1 THEN BEGIN
+; *********************************************
+    PRINT, 'S T E P:    DO_PP_TABLE'
+
+	;	!M-TS_SUBAREAS-NEC-GFISH4-Gulf_of_Maine-VGPM2A-PPD.PS
+
+	  CODES = [1,2,3,4]
+
+		CSV_FILE = DIR_SAVE+' PP_STATS_TABLE-GFISH4.CSV'
+		CSV_FILE = 'D:\PROJECTS\PP_ANALYSES\SAVE\PP_STATS_TABLE-GFISH4.CSV'
+
+
+		ALL=READ_CSV(CSV_FILE)
+		PER = VALID_PERIODS(ALL.FIRST_NAME)
+		OK=WHERE(PER.PERIOD_CODE EQ '!Y')
+		DB = ALL[OK]
+
+		PSFILE = DIR_PLOTS+'GFISH4-SHELF-PPD.PS'
+		PSPRINT,FILENAME=PSFILE,/COLOR
+		PAL_36
+		COLORS = [6,12,19,26]
+		COLORS = REVERSE(COLORS)
+
+		LABELS = ''
+		YEARS = INDGEN(8)+1998
+		SHELF_ALL_YEARS = 0.0
+
+
+;		*****************************************************
+;		*** PER DAY  ****************************************
+;		*****************************************************
+;			LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+			FOR _YEAR = 0,N_ELEMENTS(YEARS)-1 DO BEGIN
+				AYEAR = YEARS(_YEAR)
+				PER = VALID_PERIODS(DB.FIRST_NAME)
+
+			  OK=WHERE(PER.YEAR_START EQ AYEAR,COUNT)
+			  PRINT,AYEAR,COUNT
+			  D=DB[OK]
+			  SHELF_MEAN = TOTAL(FLOAT(D.N)* FLOAT(D.MEAN))/TOTAL(FLOAT(D.N))
+			  PRINT, SHELF_MEAN
+			  AVG = MEAN(FLOAT(D.MEAN))*365
+			  SHELF_ALL_YEARS = [SHELF_ALL_YEARS, AVG]
+
+			  SHELF_MEAN_LABEL = '('+STRTRIM( ROUND(AVG) ,2)   + UNITS('GCM2Y') + ')'
+
+			  PER = VALID_PERIODS(D.FIRST_NAME)
+
+  		  LABELS = [LABELS,D[0].SUBAREA_NAME+' ' + SHELF_MEAN_LABEL]
+			  IF _YEAR EQ 0 THEN BEGIN
+			 ; DA=DATE_AXIS(PERIOD_2JD(PER.PERIOD), /YEAR,ROOM=[1,1] )
+  		;
+  															;	NAMES=NAMES,  ROOM=room, 	ENDS=ends, $
+  		;												  ;	MID=mid,MAX_LABELS=max_labels, _EXTRA=_extra
+
+			  PLOT,YEARS, REPLICATE(SHELF_MEAN,N_ELEMENTS(YEARS)),$
+			  XRANGE = [1997,2006],/XSTYLE,YRANGE = [0,1.2],/YSTYLE,/NODATA,$
+			  TITLE = 'Northeast Shelf Ecosystem Primary Production',$
+			  YTITLE = 'Primary Production '+UNITS('PPD'),$
+			  XTICK_GET=XTICK_GET,YTICK_GET=YTICK_GET
+			  GRIDS,XX=XTICKGET,YY=YTICKGET,COLOR=34,THICK=3
+			  ENDIF
+					PLOTS, AYEAR, SHELF_MEAN,PSYM=1,COLOR=0,THICK=5,SYMSIZE=2
+			ENDFOR
+			SHELF_ALL_YEARS = SHELF_ALL_YEARS(1:*)
+
+			LABELS = STRTRIM(STRING(MEAN(SHELF_ALL_YEARS),FORMAT='(I4)'),2) + ' ' +UNITS('GCM2Y')
+			LEG_SPACING = 0
+			LEG_PSPACING = 2.0
+			LEG_MARGIN   = [0.5,0.5]
+			COLORS = 0
+	  	THICKS = 2;REPLICATE(5,N_ELEMENTS(COLORS))
+	  	LINESTYLE = REPLICATE(0,N_ELEMENTS(COLORS))
+	   	PSYM= 1; REPLICATE(1,N_ELEMENTS(COLORS))
+
+   		LEGEND, /BOTTOM,/RIGHT,/data,LABELS,COLORS=COLORS,$;L PSYM=PSYM,$
+     				 PSPACING=LEG_PSPACING,SPACING=LEG_SPACING,MARGIN=LEG_MARGIN,THICK=THICKS,$
+     				  /BOX,/VERTICAL,/CLEAR,BACKGROUND_COLOR=BACKGROUND_COLOR,CHARSIZE=1
+
+
+
+			FRAME,/PLOT,COLOR=0,THICK=4
+	  PSPRINT
+ 	  IMAGE_TRIM,PSFILE,DPI=600
+
+
+;		*****************************************************
+;		*** PER YEAR ****************************************
+;		*****************************************************
+
+			PSFILE = DIR_PLOTS+'GFISH4-SHELF-PPY.PS'
+			PSPRINT,FILENAME=PSFILE,/COLOR,/HALF
+			PAL_36
+			FONT_TIMES
+			COLORS = [6,12,19,26]
+			COLORS = REVERSE(COLORS)
+
+			LABELS = ''
+
+
+
+
+		  SHELF_MEAN_LABEL = '('+STRTRIM( ROUND(AVG) ,2)   + UNITS('GCM2Y') + ')'
+
+		  PER = VALID_PERIODS(D.FIRST_NAME)
+
+		  LABELS = [LABELS,D[0].SUBAREA_NAME+' ' + SHELF_MEAN_LABEL]
+
+
+		  PLOT,YEARS, REPLICATE(SHELF_MEAN,N_ELEMENTS(YEARS)),$
+		  XRANGE = [1997,2006],/XSTYLE,YRANGE = [0,400],/YSTYLE,/NODATA,$
+		  TITLE = 'Northeast Shelf Ecosystem Primary Production',$
+		  YTITLE = 'Primary Production '+UNITS('PPY'),$
+		  XTICK_GET=XTICK_GET,YTICK_GET=YTICK_GET,XMINOR=2, YMINOR=1, position=[0.1,0.1,0.9,0.5]
+		  GRIDS,XX=XTICKGET,YY=YTICKGET,COLOR=34,THICK=3
+
+			PLOTS, YEARS, SHELF_ALL_YEARS,PSYM=1,COLOR=0,THICK=5,SYMSIZE=2
+			PLOTS, YEARS, REPLICATE(MEAN(SHELF_ALL_YEARS),N_ELEMENTS(YEARS)),LINESTYLE=1,COLOR=0,THICK=3
+
+
+			LABELS = 'Mean 1998-2005: ' + STRTRIM(STRING(MEAN(SHELF_ALL_YEARS),FORMAT='(I4)'),2) + ' ' +UNITS('GCM2Y')
+			LEG_SPACING = 0
+			LEG_PSPACING = 2.0
+			LEG_MARGIN   = [0.5,0.5]
+			COLORS = 0
+	  	THICKS = 2;REPLICATE(5,N_ELEMENTS(COLORS))
+	  	LINESTYLE = REPLICATE(0,N_ELEMENTS(COLORS))
+	   	PSYM= 0; REPLICATE(1,N_ELEMENTS(COLORS))
+			LINESTYLE=1
+
+   		LEGEND, /BOTTOM,/RIGHT,/data,LABELS,COLORS=COLORS, PSYM=PSYM,LINESTYLE=LINESTYLE,$
+     				 PSPACING=LEG_PSPACING,SPACING=LEG_SPACING,MARGIN=LEG_MARGIN,THICK=THICKS,$
+     				  /BOX,/VERTICAL,/CLEAR,BACKGROUND_COLOR=BACKGROUND_COLOR,CHARSIZE=1
+
+			FRAME,/PLOT,COLOR=0,THICK=4
+	  	PSPRINT
+	   IMAGE_TRIM,PSFILE,DPI=600
+    STOP
+  ENDIF
+; |||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+
+;	****************************************
+	IF DO_PP_ANNUAL_CONTOUR GE 1 THEN BEGIN
+;	****************************************
+
+	METHOD='OPAL'
+	FILE=FILELIST('D:\WORK\STATS\'+'!ANNUAL-PP-'+METHOD+'-NEC-PPD-MEAN.SAVE')
+		LIST, FILE
+
+		FN=FILE_PARSE(FILE)
+		FI=FILE_INFO(FILE)
+		PNGFILE = DIR_PLOTS+FN.FIRST_NAME+'-LEG-CONTOUR.PNG'
+
+
+;		STRUCT_SD_2PNG,FILE,DIR_OUT=DIR_PLOTS,/ADD_BATHY,BATHY_COLOR=254,/ADD_LAND,OVERWRITE=1 ,/ADD_COLORBAR
+		LEVELS =  [0.4, 0.5,  0.6,    0.70,  1,   2,  3]
+		C_COLORS = [251, 251,  251,  251,  251, 251, 251]
+		C_COLORS = [0,    0,  0,   0,    0,   0,    0]
+		C_THICK  = [1,   1,   1,     1,     1,   1,   1]
+		C_LABELS  = [1,   1,      1,     1,   1,   1, 1]
+	 	C_ANNOTATION = NUM2STR(LEVELS,TRIM=2)
+		MIN_PTS = [1000,1000,1000, 300, 300,400,500]
+		MED = 5
+		CON=STRUCT_SD_CONTOUR(FILE,LEVELS=levels,C_colors=C_colors, C_thick=C_thick,C_ANNOTATION=c_annotation,C_LABELS=C_LABELS,MIN_VALUE=MIN_VALUE, MIN_PTS=MIN_PTS,$
+	    												/ADD_LAND,/ADD_COAST,/ADD_LAKES,/ADD_COLORBAR,/ADD_METHOD,/ADD_PROD,/ADDDATE,MED=MED,C_CHARSIZE=1.3,PNGFILE=PNGFILE )
+
+  	PAL_SW3,R,G,B
+;				ALTER 255 COLORS TO BE OFF WHITE
+;				R(255)=224 & B(255) = 224 & G(255) = 224
+		PNGFILE = DIR_PLOTS+FN.FIRST_NAME+'-LEG-CONTOUR.PNG'
+		WRITE_PNG,PNGFILE,CON,R,G,B
+ 		CON=MAP_ADD_BATHY(CON,MAP='NEC',BATHS=[100],COLOR=0,LINESTYLE=1)
+;		CON=MAP_ADD_BATHY(CON,MAP='NEC',BATHS=[200],COLOR=0,LINESTYLE=1)
+
+		PNGFILE='D:\WORK\STATS_BROWSE\'+FN.FIRST_NAME+'-LEG-CONTOUR-BATH.PNG'
+		WRITE_PNG,PNGFILE,CON,R,G,B
+
+
+
+
+	ENDIF
+;	|||||||||||||||||||||||||||||||||||||||
+DONE:
+PRINT, ROUTINE_NAME+ ' FINISHED'
+END; END OF PROGRAM
+

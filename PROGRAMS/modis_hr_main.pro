@@ -1,0 +1,1848 @@
+; $ID:	MODIS_HR_MAIN.PRO,	2020-07-08-15,	USER-KJWH	$
+
+
+ PRO MODIS_HR_MAIN
+;+
+; NAME:
+;       PAMLICO_MAIN
+;
+; PURPOSE:
+;          Main routine for analyzing Pamlico Sound data from start to finish
+;						1)
+;						2)
+;						3)
+;						4)
+;						5)
+;						6)
+;
+;
+; MODIFICATION HISTORY:
+;       Written by:   K. Whitman Hyde March, 2007
+;				Modified by:
+;-
+
+	ROUTINE_NAME='MODIS_HR_MAIN'
+
+TIMER
+
+;	===> Load simple color palette
+ 	PAL_36
+
+; ===> Defaults
+  SP = ' ' & UL='_' & ASTER='*'& DASH='-'
+
+; =====> Different delimiters for WIN, MAX, AND X DEVICES
+  os = STRUPCASE(!VERSION.OS) & computer=GET_COMPUTER() & DELIM=DELIMITER(/PATH)
+
+
+; **************************************************
+; ***** SWITCHES CONTROLLING PROCESSING STEPS  *****
+; **************************************************
+;		Switch	Operation
+;		0  			Do not do Step
+;		1				Do Step (unless output from this step already exists, then skip this step)
+; 	2     	Do Step (make output file from step and overwrite output if it already exists)
+
+		DO_SEADAS_FILE_UPDATE           = 0
+		DO_L2_2MAPPED_RAW               = 0
+		DO_L2_2MAPPED_SAVE              = 0
+		DO_TURBIDITY_REMAKE             = 0
+		DO_FIX_MAPS											= 0
+		DO_CDOM_MAKE                    = 0
+		DO_COMPARISON_FIGURES						= 0
+		DO_IMAGE_MERGE                  = 0
+		DO_RAW_2SAVE										= 0
+		DO_BROWSES                      = 0
+		DO_MAKE_SUBAREA_MAP_FIGURE			= 0
+		DO_STATS												= 2
+    DO_STATS_BROWSE									= 0
+    DO_STATS_BROWSE_PAGE						= 0
+		DO_TS_SUBAREAS									= 0
+		DO_SUBAREA_TIMELINES						= 0
+		DO_SAT_SHIP											= 0
+		DO_SAT_SHIP_JOIN								= 0
+		DO_STATION_EXTRACT							= 0
+    DO_CHL_SAT_FIG									= 0
+
+
+		INSITU_DATA							= 'D:\PROJECTS\HABS\PAMLICO\DATA\PS_INSITU_CHL.SAVE'
+		CHL_SAT_FIGS1						= 'D:\PROJECTS\HABS\PAMLICO\PLOTS\SAT_1KM-INSITU-MATCHUP_FIGURES.PS'
+		CHL_SAT_FIGS5						= 'D:\PROJECTS\HABS\PAMLICO\PLOTS\SAT_500M-INSITU-MATCHUP_FIGURES.PS'
+		SAT_SHIP_CHL            = 'D:\PROJECTS\HABS\PAMLICO\DATA\SAT_SHIP-PAMLICO-CHLOR_A-MATCH_UPS.SAVE'
+
+
+		ABACKGROUND=252 & ALAND_COLOR=252 & AOUTSCAN_COLOR=253 & AOUTMAP_COLOR=253 & AALGFAIL_COLOR=251 &$
+	  AFLAG_COLOR=254 & AMISS_COLOR=254 & AHI_LO_COLOR=255 & ACRITERIA_COLOR=253 & ABATHY_COLOR=252
+	  DIR_DATA        = 'D:\IDL\DATA\'
+	  DIR_EXCLUDE			= 'D:\IDL\EXCLUDE\'
+	  DIR_IMAGES      = 'D:\IDL\IMAGES\'
+	  DIR_INVENTORY   = 'D:\IDL\INVENTORY\'
+	  DIR_SUFFIX 			= ''
+
+	 	DATA_SET = 'MODIS_HR-PAMLICO'
+	  DISK_SAVE 			= 'E:'
+	  DISK_ANALYSES 	= 'E:'
+	  DISK_Z          = 'E:'
+	  DISK_TS_IMAGES	= DISK_ANALYSES
+	  DISK_PSERIES		= DISK_TS_IMAGES
+		SENSOR 					= 'MODIS'
+	 	METHOD 					= 'COLL5'
+	 	OUTMETHOD				= METHOD
+	  PROCESS 				= 'SEADAS'
+	  SAT    					= 'AQU'
+	  SUITE						= 'NARR'
+		MAP_OUT 				= 'NEC'
+	  PAL     				= 'PAL_SW3'
+	  FILE_LABEL	    = SENSOR+dash+METHOD+dash+SUITE+dash+MAP_OUT
+
+	  REMOVE_DAT   = 1   ; (Usually we only keep the original compressed file (*.hdf.z)
+  	REMOVE_HDF   = 1   ; (Remove the uncompressed hdf file in the save folder)
+
+		PATH                         = 'F:\MODIS_HR-PAMLICO\'
+
+	  DIR_ANOM          		 			 = path+'anom\'
+	  DIR_ANOM_SAVE     		 			 = path+'anom\save\'
+	  DIR_ANOM_BROWSE     	 			 = path+'anom\browse\'
+	  DIR_ANOM_BROWSE_PAGE 	 			 = path+'anom\browse_page\'
+	  DIR_BROWSE             			 = path+'BROWSE\'
+	  DIR_COLORBAR           			 = path+'colorbar\'
+	  DIR_COMPOSITE                = path+'composite\'
+	  DIR_HIST2D             			 = path+'hist2d\
+		DIR_HIST2D_PNG							 = path+'hist2d_png\'
+		DIR_JUNK               			 = path+'junk\'
+	  DIR_LOG                      = path+'log\'
+	  DIR_RATIO         			     = path+'ratio\'
+	  DIR_RATIO_SAVE         			 = path+'ratio\save\'
+	  DIR_RATIO_BROWSE       			 = path+'ratio\browse\'
+	  DIR_SAT_SHIP           			 = path+'sat_ship\'
+	  DIR_SAT_SHIP_SAVE      			 = path+'sat_ship\save\'
+	  DIR_SAT_SHIP_PLOTS     			 = path+'sat_ship\plots\'
+	  DIR_SAT_TIMESERIES     			 = path+'sat_timeseries\'
+	  DIR_SAVE               			 = path+'save\'
+	  DIR_STATS              			 = path+'stats\'
+	  DIR_STATS_BROWSE       			 = path+'stats_browse\'
+	  DIR_STATS_BROWSE_PAGE  			 = path+'stats_browse_page\'
+	  DIR_TS_IMAGES                = path+'ts_images\'
+	  DIR_TS_IMAGES_ISERIES        = path+'ts_images\iseries\'
+	  DIR_TS_IMAGES_PSERIES        = path+'ts_images\ts_images\pseries\'
+	  DIR_TS_IMAGES_INTERP_PSERIES = path+'ts_images\interp_pseries\'
+	  DIR_TS_IMAGES_INTERP_ISERIES = path+'ts_images\interp_iseries\'
+	  DIR_TS_IMAGES_SAVE           = path+'ts_images\save\'
+	  DIR_TS_IMAGES_BROWSE         = path+'ts_images\browse\'
+	  DIR_TS_IMAGES_MOVIE          = path+'ts_images\movie\'
+	  DIR_TS_SUBAREAS              = path+'TS_SUBAREAS\'
+	  DIR_TS_SUBAREAS_SAVE         = path+'TS_SUBAREAS\save\'
+	  DIR_TS_SUBAREAS_PLOTS        = path+'TS_SUBAREAS\plots\'
+	  DIR_TRUE          					 = path + 'TRUE_IMAGES\'
+;
+;	  DIR_ALL = [	DIR_ANOM_SAVE,DIR_ANOM,DIR_ANOM_BROWSE,DIR_ANOM_BROWSE_PAGE,$
+;	  					 	DIR_BROWSE,DIR_BROWSE_UNNAV,DIR_BROWSE_FREQ,DIR_BROWSE_MAX,DIR_BR_VS_CHL,$
+;	              DIR_COLORBAR,DIR_COMPOSITE,DIR_HIST2D,DIR_HIST2D_PNG,DIR_LOG,DIR_JUNK,$
+;	              DIR_MB,DIR_METHODS,DIR_MONTH2MONTH,DIR_RATIO,DIR_RATIO_SAVE,DIR_RATIO_BROWSE,$
+;	              DIR_SAT_SHIP,DIR_SAT_SHIP_SAVE,DIR_SAT_SHIP_PLOTS,DIR_SAT_TIMESERIES,$
+;	              DIR_SAVE,DIR_STATS,DIR_STATS_BROWSE,DIR_STATS_FREQ,DIR_STATS_BROWSE_PAGE,$
+;	              DIR_TS_IMAGES, DIR_TS_IMAGES_ISERIES,DIR_TS_IMAGES_PSERIES,DIR_TS_IMAGES_INTERP_PSERIES, $
+;	              DIR_TS_IMAGES_INTERP_ISERIES,DIR_TS_IMAGES_INTERP_PSERIES,DIR_TS_IMAGES_MOVIE,$
+;	              DIR_TS_IMAGES_LNP,DIR_TS_IMAGES_BROWSE, DIR_TS_IMAGES_SAVE,DIR_TS_IMAGES_SAVE_MED_FILL,$
+;	              DIR_TS_IMAGES_BROWSE_REGIONS,DIR_TS_IMAGES_PLOT,DIR_TS_IMAGES_MOVIE,DIR_TS_IMAGES_PSTATS,$
+;	              DIR_TS_IMAGES_INTERP_PSERIES_DOY, DIR_TS_IMAGES_INTERP_ISERIES_DOY, DIR_TS_IMAGES_SAVE_DOY,$
+;	              DIR_TS_IMAGES_BROWSE_DOY, DIR_TS_IMAGES_MOVIE_DOY ,$
+;	              DIR_TS_SUBAREAS,DIR_TS_SUBAREAS_SAVE,DIR_TS_SUBAREAS_PLOTS,DIR_TRUE,DIR_Z]
+
+; ===> Make directories if they do not exist
+;  FOR N=0,N_ELEMENTS(DIR_ALL)-1 DO BEGIN
+;    AFILE = STRMID(DIR_ALL(N),0,STRLEN(DIR_ALL(N))-1)
+;    IF FILE_TEST(AFILE,/DIRECTORY) EQ 0L THEN FILE_MKDIR,AFILE
+;  ENDFOR
+
+;	*******************************************************
+	IF DO_SEADAS_FILE_UPDATE GE 1 THEN BEGIN
+;	*******************************************************
+		FILES = FILE_SEARCH('J:\MODIS_HR\!S*L2*')
+		HELP, FILES
+		FILE_UPDATE, FILES, DIR_Z
+	ENDIF
+
+
+
+;	*******************************************************
+	IF DO_L2_2MAPPED_SAVE GE 1 THEN BEGIN
+;	*******************************************************
+
+		OVERWRITE = DO_L2_2MAPPED_SAVE GE 2
+		MAPS = 'PAMLICO'
+		DIR_Z = 'E:\MODIS_HR-PAMLICO-Z\'
+		RESOLUTION = ['LAC_250','LAC_500','LAC_1KM']
+	;	RESOLUTION = ['LAC_500','LAC_1KM']
+	;  RESOLUTION = 'LAC_250'
+	  METHODS = ['COLL5-','COLL5_SWIR-']
+
+		DIR_OUT = 'F:\MODIS_HR-PAMLICO\SAVE\'
+		DIR_BROWSE = 'F:\MODIS_HR-PAMLICO\BROWSE\'
+		BROWSE_PRODS = ['TURBIDITY','CHLOR_A','FLH']
+		PX_OUT = 600
+		PY_OUT = 600
+		NO_MASK = 1
+		FOR _RES = 0L, N_ELEMENTS(RESOLUTION)-1 DO BEGIN
+			RES = RESOLUTION(_RES)
+			FOR _MET = 0L, N_ELEMENTS(METHODS)-1 DO BEGIN
+				MET = METHODS(_MET)
+				FILES = FILELIST(DIR_Z + '!S*' + RES + '*' + MET + '*l2.hdf.gz')
+				IF RES EQ 'LAC_250' THEN BEGIN
+					PRODS=['Rrs_645','l2_flags','tindx_shi']
+					PX_OUT = 1600
+					PY_OUT = 1600
+				ENDIF
+				IF RES EQ 'LAC_500' THEN BEGIN
+					PRODS=['Rrs_469','Rrs_555','Rrs_645','chl_oc2','l2_flags']
+					PX_OUT = 800
+					PY_OUT = 800
+				ENDIF
+				IF RES EQ 'LAC_1KM' THEN BEGIN
+					PRODS=['Rrs_412','Rrs_443','Rrs_469','Rrs_488','Rrs_531','Rrs_551','Rrs_645','Rrs_667','Rrs_678','chl_oc2','chlor_a','l2_flags','flh']
+					PX_OUT = 400
+					PY_OUT = 400
+				ENDIF
+	      L2_2MAPPED_2SAVE,FILES=FILES,PRODS=PRODS,DIR_OUT=DIR_OUT,PX_OUT=PX_OUT,PY_OUT=PY_OUT,DIR_BROWSE=DIR_BROWSE,BROWSE_PRODS=BROWSE_PRODS,MAPS=MAPS,/MAKE_BROWSE,OVERWRITE=OVERWRITE, NO_MASK=NO_MASK, /ADD_COVERAGE
+	    ENDFOR
+	  ENDFOR
+	ENDIF
+
+
+;;	*******************************************************
+;	IF DO_L2_2MAPPED_RAW GE 1 THEN BEGIN
+;;	*******************************************************
+;
+;		OVERWRITE = DO_L2_2MAPPED_RAW GE 2
+;		RESOLUTION = ['250','500','1KM']
+;		FOR _RES = 0L, N_ELEMENTS(RESOLUTION)-1 DO BEGIN
+;			RES = RESOLUTION(_RES)
+;
+;			FILES = FILE_SEARCH('E:\MODISA_HR-PAMLICO\*' + RES + '*l2.hdf.gz')
+;			IF RES EQ '250' THEN PRODS=['OC3MCHL','FLAG','STUMPFCHL','FLH','RRS_670']
+;			IF RES EQ '500' THEN PRODS=['OC3MCHL','FLAG','STUMPFCHL','FLH','RRS_670']
+;			IF RES EQ '1KM' THEN PRODS=['OC3MCHL','FLAG','STUMPFCHL','FLH','RRS_670']
+;
+;;			===> LOOP THROUGH EACH FILE
+;  	  FOR NTH=0L, N_ELEMENTS(FILES)-1 DO BEGIN
+;	      AFILE = FILES[NTH]
+;	      FP = FILE_PARSE(AFILE)
+;	      PRINT & PRINT, 'WORKING ON: ' + FP.NAME & PRINT
+;	      ; CALL RAWAUX MAPPING STEP
+;    	ENDFOR
+;    ENDFOR
+;	ENDIF
+
+;	*******************************************************
+	IF DO_TURBIDITY_REMAKE GE 1 THEN BEGIN
+;	*******************************************************
+		OVERWRITE = DO_TURBIDITY_REMAKE GE 2
+		FILES = FILELIST(DIR_SAVE + '*TURBIDITY-SHI.SAVE') & HELP, FILES
+
+		no_mask = 0
+		pal = 'pal_ratio'
+
+;		MAKE TURBIDITY MASK - MASK OUT DATA LT 1.3
+		FOR NTH=0L, N_ELEMENTS(FILES)-1 DO BEGIN
+			;FA = PARSE_IT(FILES[NTH],/ALL)
+;			pal = 'pal_ratio'
+;			STRUCT_SD_2PNG, FILES[NTH], DIR_OUT=DIR_BROWSE, $
+;													/ADD_COLORBAR, /ADDDATE,/ADD_SENSOR,/ADD_PROD,/ADD_METHOD,$
+;  												/ADD_LAND,/ADD_COAST,BACKGROUND=ABACKGROUND, SPECIAL_SCALE='LOW',$
+;												  PAL=PAL,LAND_COLOR=ALAND_COLOR,FLAG_COLOR=AFLAG_COLOR,OUTSCAN_COLOR=aoutscan_color,$
+;												  ALGFAIL_COLOR=AALGFAIL_COLOR,HI_LO_COLOR=AHI_LO_COLOR,FLAGS=_FLAGS,SOLO=SOLO ,$
+;												  OVERWRITE=overwrite,/QUIET,NO_MASK=NO_MASK,ADD_EXTRA=ADD_EXTRA
+;
+			DATA = STRUCT_SD_READ(FILES[NTH],STRUCT=STRUCT)
+			OK = WHERE(STRUCT.IMAGE GT 0 AND STRUCT.IMAGE LT 1.3,COUNT)
+			IF COUNT GT 1 THEN STRUCT.IMAGE[OK] = 0.0
+			SAVEFILE = REPLACE(FILES[NTH],'-SHI.','-SHI_MASK.')
+			IF FILE_TEST(SAVEFILE) EQ 0 OR KEYWORD_SET(OVERWRITE) THEN BEGIN
+				STRUCT_SD_WRITE, SAVEFILE, IMAGE=STRUCT.IMAGE, 		$
+												PROD=STRUCT.PROD,$
+												ALG='SHI_MASK',$
+												GLOBAL=STRUCT.GLOBAL,			 $
+                        MISSING_CODE=STRUCT.missing_code,	MISSING_NAME=STRUCT.missing_NAME,$
+                        MASK=STRUCT.MASK,CODE_MASK=STRUCT.CODE_MASK,CODE_NAME_MASK=STRUCT.CODE_NAME_MASK, $
+                        SCALING='LINEAR',    INTERCEPT=0,SLOPE=1,DATA_UNITS=DATA_UNITS,$
+                        TRANSFORMATION=TRANSFORMATION, $
+                        STAT_CRITERIA=STAT_CRITERIA, $
+                        PERIOD=STRUCT.PERIOD, SENSOR=STRUCT.SENSOR,  SATELLITE=STRUCT.SATELLITE,  SAT_EXTRA=STRUCT.SAT_EXTRA,$
+                        METHOD=STRUCT.METHOD, SUITE=STRUCT.SUITE, MAP=STRUCT.MAP, $
+                        INFILE=STRUCT.INFILE,$
+                        NOTES=NOTES, ERROR=ERROR,_EXTRA=_extra
+
+				pal='pal_turbidity_mask'
+				STRUCT_SD_2PNG,	SAVEFILE, DIR_OUT=DIR_BROWSE, $
+												/ADD_COLORBAR, /ADDDATE,/ADD_SENSOR,/ADD_PROD,/ADD_METHOD,$
+  											/ADD_LAND,/ADD_COAST,BACKGROUND=ABACKGROUND, $
+												PAL=PAL,FLAGS=_FLAGS,SOLO=SOLO, SPECIAL_SCALE='LOW',$
+												OVERWRITE=_overwrite,/QUIET,NO_MASK=NO_MASK,ADD_EXTRA=ADD_EXTRA,MISS_COLOR=245
+				ENDIF
+
+
+		ENDFOR
+
+;		FOR NTH = 0L, N_ELEMENTS(FILES)-1 DO BEGIN
+;
+;			DATA = STRUCT_SD_READ(FILES[NTH],STRUCT=S)
+;			OK = WHERE(S.MISSING_CODE EQ -999.000,COUNT)
+;			IF COUNT GE 1 THEN CONTINUE
+;			MISSING_CODES = [S.MISSING_CODE,-999.000]
+;			MISSING_NAMES = STRTRIM(MISSING_CODES,2)
+;
+;			STRUCT_SD_WRITE,S.FILE_NAME,PROD=S.PROD, ASTAT=S.STAT,GLOBAL=S.GLOBAL,$
+;          				 INPUT_PARAMETERS=S.INPUT_PARAMETERS, 	L2_INPUT_FILES=S.L2_INPUT_FILES,$
+;                   IMAGE=S.IMAGE,     MISSING_CODE=missing_codes,MISSING_NAME=missing_names, $
+;                   MASK=S.MASK,     CODE_MASK=S.CODE_MASK,    CODE_NAME_MASK=S.CODE_NAME_MASK, $
+;                   SCALING=S.SCALING, INTERCEPT=S.INTERCEPT,    SLOPE=S.SLOPE,       DATA_UNITS=S.DATA_UNITS,$
+;                   PERIOD=S.PERIOD, ALG=S.ALG, SENSOR=S.SENSOR, SATELLITE=S.SATELLITE, SAT_EXTRA=S.SAT_EXTRA,$
+;                   METHOD=S.METHOD, SUITE=S.SUITE, MAP=S.MAP, COVERAGE=S.COVERAGE,$
+;                   INFILE=S.INFILE, NOTES=''
+;
+;
+;		ENDFOR
+STOP
+
+	ENDIF
+
+
+
+
+;	*******************************************************
+	IF DO_FIX_MAPS GE 1 THEN BEGIN
+;	*******************************************************
+
+		OVERWRITE = DO_FIX_MAPS GE 2
+
+		FILES = FILELIST('D:\MODIS_HR-PAMLICO\save_old\*.SAVE')
+		FA = PARSE_IT(FILES,/ALL)
+		OK = WHERE(FILE_TEST( 'D:\MODIS_HR-PAMLICO\SAVE\' + FA.NAME_EXT) EQ 0 )
+		FILES = FILES[OK] & FA = FA[OK]
+		FOR _F = 0L, N_ELEMENTS(FILES)-1 DO BEGIN
+			AFILE = FILES(_F)
+			APROD = FA(_F).PROD
+			AALG  = FA(_F).ALG
+			IF FA(_F).COVERAGE EQ 'LAC_250' THEN BEGIN & PX = 1600 & PY = 1600 & ENDIF
+			IF FA(_F).COVERAGE EQ 'LAC_500' THEN BEGIN & PX = 800 & PY = 800 & ENDIF
+			IF FA(_F).COVERAGE EQ 'LAC_1KM' THEN BEGIN & PX = 400 & PY = 400 & ENDIF
+
+			DATA = STRUCT_SD_READ(AFILE,STRUCT=STRUCT,ERROR=ERROR)
+			IF ERROR NE '' THEN CONTINUE
+			IF STRUCT.PROD NE FA(_F).PROD THEN BEGIN
+				CMD = 'COPY ' +  AFILE  + ' ' + 'D:\MODIS_HR-PAMLICO\SAVE2\' + FA(_F).NAME_EXT
+				SPAWN, CMD
+
+				STRUCT_SD_WRITE,FA(_F).FULLNAME,               PROD=FA(_F).PROD,                ALG=FA(_F).ALG,$
+                       IMAGE=STRUCT.IMAGE,     MISSING_CODE=STRUCT.missing_code,MISSING_NAME=STRUCT.missing_name, $
+                       MASK=STRUCT.MASK,       CODE_MASK=STRUCT.CODE_MASK, CODE_NAME_MASK=STRUCT.CODE_NAME_MASK, $
+                       SCALING=STRUCT.SCALING, INTERCEPT=STRUCT.INTERCEPT, SLOPE=STRUCT.SLOPE,       DATA_UNITS=STRUCT.DATA_UNITS,$
+                       PERIOD=STRUCT.PERIOD,   COVERAGE=STRUCT.COVERAGE, $
+         					     SENSOR=STRUCT.SENSOR,   SATELLITE=STRUCT.SATELLITE, SAT_EXTRA=STRUCT.SAT_EXTRA,$
+                       METHOD=STRUCT.METHOD,   SUITE=STRUCT.SUITE,         MAP=STRUCT.MAP, $
+                       INFILE=STRUCT.INFILE,   NOTES=STRUCT.NOTES,         GLOBAL=STRUCT.GLOBAL
+                    ;   INPUT_PARAMETERS=STRUCT.INPUT_PARAMETERS, 	         L2_INPUT_FILES=STRUCT.L2_INPUT_FILES
+        DATA = STRUCT_SD_READ(AFILE,STRUCT=STRUCT)
+	    ENDIF
+
+			SAVEFILE = DIR_SAVE + FA(_F).NAME_EXT
+			CMD = 'COPY ' +  AFILE  + ' ' + 'D:\MODIS_HR-PAMLICO\SAVE\' + FA(_F).NAME_EXT
+			IF STRUCT.PX NE PX OR STRUCT.PY NE PY THEN BEGIN
+				IMAGE = MAP_REMAP(STRUCT.IMAGE,MAP_IN='PAMLICO',MAP_OUT='PAMLICO',PX=PX,PY=PY)
+				MASK  = MAP_REMAP(STRUCT.MASK, MAP_IN='PAMLICO',MAP_OUT='PAMLICO',PX=PX,PY=PY)
+      	STRUCT_SD_WRITE, SAVEFILE,             PROD=STRUCT.PROD,$
+                       IMAGE=IMAGE,            MISSING_CODE=STRUCT.missing_code,MISSING_NAME=STRUCT.missing_name, $
+                       MASK=MASK,              CODE_MASK=STRUCT.CODE_MASK, CODE_NAME_MASK=STRUCT.CODE_NAME_MASK, $
+                       SCALING=STRUCT.SCALING, INTERCEPT=STRUCT.INTERCEPT, SLOPE=STRUCT.SLOPE,       DATA_UNITS=STRUCT.DATA_UNITS,$
+                       PERIOD=STRUCT.PERIOD,   ALG=STRUCT.ALG,             COVERAGE=STRUCT.COVERAGE, $
+         					     SENSOR=STRUCT.SENSOR,   SATELLITE=STRUCT.SATELLITE, SAT_EXTRA=STRUCT.SAT_EXTRA,$
+                       METHOD=STRUCT.METHOD,   SUITE=STRUCT.SUITE,         MAP=STRUCT.MAP, $
+                       INFILE=STRUCT.INFILE,   GLOBAL=STRUCT.GLOBAL
+                       ;INPUT_PARAMETERS=STRUCT.INPUT_PARAMETERS, 	         L2_INPUT_FILES=STRUCT.L2_INPUT_FILES
+			ENDIF ELSE IF FILE_TEST( 'D:\MODIS_HR-PAMLICO\SAVE\' + FA(_F).NAME_EXT) EQ 0 THEN SPAWN, CMD
+
+			IF AALG NE '' THEN AALG = '-' + AALG
+			OUTPNG = DIR_BROWSE + FA(_F).PERIOD + '-' + FA(_F).SENSOR + '-' + FA(_F).SATELLITE + '-' + FA(_F).METHOD + '-' + $
+			 				 FA(_F).COVERAGE + '-' + FA(_F).MAP + '-PXY_1600_1600' +  '-' + FA(_F).PROD + AALG + '.PNG'
+			IF APROD EQ 'CHLOR_A' OR APROD EQ 'FLH' OR APROD EQ 'A_CDOM' OR APROD EQ 'TURBIDITY' THEN IF $
+			 FILE_TEST(OUTPNG) EQ 0 THEN STRUCT_SD_2PNG,SAVEFILE,/ADD_LAND,/ADD_COAST, DIR_OUT = DIR_BROWSE
+		ENDFOR
+	ENDIF ;IF DO_FIX_MAPS GE 1 THEN BEGIN
+
+
+;	*******************************************************
+	IF DO_CDOM_MAKE GE 1 THEN BEGIN
+;	*******************************************************
+
+		OVERWRITE = DO_CDOM_MAKE GE 2
+		MAP = 'PAMLICO'
+		RESOLUTION = 'LAC_1KM'
+		METHODS = 'COLL5_TBD'
+
+		DIR_IN = DIR_SAVE
+		DIR_OUT = DIR_SAVE
+		ALGS = ['R412_R488','R488_R412','KM','Adg','KM_Adg']
+		ALGS = ['ADG_412']
+		NO_MASK = 1
+		FOR _M = 0L, N_ELEMENTS(METHODS)-1 DO BEGIN
+			METHOD = METHODS(_M)
+			F412 = FILELIST(DIR_IN + '!S*' + METHOD + '-' + RESOLUTION + '-' + MAP + '-RRS_412.SAVE') & FA412 = PARSE_IT(F412,/ALL)
+			F488 = FILELIST(DIR_IN + '!S*' + METHOD + '-' + RESOLUTION + '-' + MAP + '-RRS_488.SAVE') & FA488 = PARSE_IT(F488,/ALL)
+			F551 = FILELIST(DIR_IN + '!S*' + METHOD + '-' + RESOLUTION + '-' + MAP + '-RRS_551.SAVE') & FA551 = PARSE_IT(F551,/ALL)
+			F667 = FILELIST(DIR_IN + '!S*' + METHOD + '-' + RESOLUTION + '-' + MAP + '-RRS_667.SAVE') & FA667 = PARSE_IT(F667,/ALL)
+			FOR _F = 0L, N_ELEMENTS(F412)-1 DO BEGIN
+				A412 = F412(_F)
+				OK = WHERE(FA488.PERIOD EQ FA412(_F).PERIOD,COUNT) & IF COUNT EQ 1 THEN A488 = F488[OK] ELSE STOP
+				OK = WHERE(FA551.PERIOD EQ FA412(_F).PERIOD,COUNT) & IF COUNT EQ 1 THEN A551 = F551[OK] ELSE STOP
+				OK = WHERE(FA667.PERIOD EQ FA412(_F).PERIOD,COUNT) & IF COUNT EQ 1 THEN A667 = F667[OK] ELSE STOP
+
+				DATA412 = STRUCT_SD_READ(A412,STRUCT=S412,SUBS=SUBS412,COUNT=C412)
+				DATA488 = STRUCT_SD_READ(A488,STRUCT=S488,SUBS=SUBS488,COUNT=C488)
+				DATA551 = STRUCT_SD_READ(A551,STRUCT=S551,SUBS=SUBS551,COUNT=C551)
+				DATA667 = STRUCT_SD_READ(A667,STRUCT=S667,SUBS=SUBS667,COUNT=C667)
+
+				PROD = 'A_CDOM'
+				FOR ATH = 0L, N_ELEMENTS(ALGS)-1 DO BEGIN
+					_ALG = ALGS(ATH)
+					IMAGE = DATA412 & IMAGE(*,*) = MISSINGS(IMAGE)
+					BIMAGE = BYTE(IMAGE) & BIMAGE(*,*) = 0
+					ADD_EXTRA = ''
+					IF _ALG EQ 'R412_R488' OR _ALG EQ 'R488_R412' THEN BEGIN
+						IF MIN(SUBS412) GE 0 THEN BIMAGE(SUBS412) = BIMAGE(SUBS412) + 1 ELSE CONTINUE
+						IF MIN(SUBS488) GE 0 THEN BIMAGE(SUBS488) = BIMAGE(SUBS488) + 1 ELSE CONTINUE
+						SUBS = WHERE(BIMAGE EQ 2,COUNT) & IF COUNT EQ 0 THEN CONTINUE
+						SAVEFILE = REPLACE(FA412(_F).FULLNAME,'RRS_412','A_CDOM-'+_ALG)
+						IF _ALG EQ 'R412_R488' THEN BEGIN & IMAGE(SUBS) = S412.IMAGE(SUBS)/S488.IMAGE(SUBS) & ADD_EXTRA = 'R412:R488' & ENDIF
+						IF _ALG EQ 'R488_R412' THEN BEGIN & IMAGE(SUBS) = S488.IMAGE(SUBS)/S412.IMAGE(SUBS) & ADD_EXTRA = 'R488:R412' & ENDIF
+					ENDIF
+
+					IF _ALG EQ 'ADG_412' THEN BEGIN
+						IF MIN(SUBS551) GE 0 THEN BIMAGE(SUBS551) = BIMAGE(SUBS551) + 1 ELSE CONTINUE
+						IF MIN(SUBS667) GE 0 THEN BIMAGE(SUBS667) = BIMAGE(SUBS667) + 1 ELSE CONTINUE
+						SUBS = WHERE(BIMAGE EQ 2,COUNT) & IF COUNT EQ 0 THEN CONTINUE
+						SAVEFILE = REPLACE(FA412(_F).FULLNAME,'RRS_412','A_CDOM-'+_ALG)
+						IMAGE_X = IMAGE
+						IMAGE_X(SUBS) = 0.147 - (0.18 * (S551.IMAGE(SUBS)-S667.IMAGE(SUBS))/S551.IMAGE(SUBS))
+						IMAGE(SUBS) = IMAGE_X(SUBS) * EXP(0.013 * (667-412))
+						ADD_EXTRA = 'A!Ddg!N(412)'
+					ENDIF
+
+
+					IF FILE_TEST(SAVEFILE) EQ 0 OR KEYWORD_SET(OVERWRITE) THEN BEGIN
+						STRUCT_SD_WRITE, SAVEFILE, IMAGE=IMAGE, 		$
+													PROD=PROD,$
+													GLOBAL=S412.GLOBAL,			 $
+	                        MISSING_CODE=S412.missing_code,	MISSING_NAME=S412.missing_NAME,$
+	                        MASK=S412.MASK,CODE_MASK=S412.CODE_MASK,CODE_NAME_MASK=S412.CODE_NAME_MASK, $
+	                        SCALING='LINEAR',    INTERCEPT=0,SLOPE=1,DATA_UNITS=DATA_UNITS,$
+	                        TRANSFORMATION=TRANSFORMATION, $
+	                        STAT_CRITERIA=STAT_CRITERIA, $
+	                        PERIOD=S412.PERIOD, SENSOR=FA412(_F).SENSOR,  SATELLITE=FA412(_F).SATELLITE,  SAT_EXTRA=FA412(_F).SAT_EXTRA,$
+	                        METHOD=S412.METHOD, SUITE=S412.SUITE, MAP=S412.MAP, $
+
+	                        INFILE=[A412,A488],$
+	                        NOTES=NOTES,        ERROR=ERROR,$
+	                        HELP=HELP,$
+	                        _EXTRA=_extra
+
+						STRUCT_SD_2PNG, SAVEFILE, DIR_OUT=DIR_BROWSE, $
+														/ADD_COLORBAR, /ADDDATE,/ADD_SENSOR,/ADD_PROD,/ADD_METHOD,$
+	  												/ADD_LAND,/ADD_COAST,BACKGROUND=ABACKGROUND, $
+													  LAND_COLOR=ALAND_COLOR,FLAG_COLOR=AFLAG_COLOR,OUTSCAN_COLOR=aoutscan_color,$
+													  ALGFAIL_COLOR=AALGFAIL_COLOR,HI_LO_COLOR=AHI_LO_COLOR,PAL=PAL,FLAGS=_FLAGS,SOLO=SOLO ,$
+													  OVERWRITE=overwrite,/QUIET,NO_MASK=NO_MASK,ADD_EXTRA=ADD_EXTRA
+
+         	ENDIF
+      	ENDFOR
+			ENDFOR
+		ENDFOR
+	ENDIF
+
+;	*******************************************************
+	IF DO_RAW_2SAVE GE 1 THEN BEGIN
+;	*******************************************************
+
+		OVERWRITE = DO_RAW_2SAVE GE 2
+
+		FILES = FILE_SEARCH('E:\MODIS_AQUA\PS\RAWAUX\*.aux')
+		PRODS=['OC3MCHL','FLAG','STUMPFCHL','FLH','RRS_670']
+
+;		===> LOOP THROUGH EACH FILE
+    FOR NTH=0L, N_ELEMENTS(FILES)-1 DO BEGIN
+      AUXFILE = FILES[NTH]
+      FP = FILE_PARSE(AUXFILE)                                                ; Parse the file name
+      RAWFILE = FILE_SEARCH(FP.DIR+FP.NAME+'.raw')                            ; Find the corresponding .raw file
+      TEST_RAW = FILE_TEST(RAWFILE)                                           ; Test to make sure corresponding .raw file is present, if not skip
+      IF TEST_RAW EQ 0 THEN CONTINUE
+      PRINT & PRINT, 'WORKING ON: ' + FP.NAME & PRINT
+      STRUCT = READ_AUX_2STRUCT(AUXFILE,RAWFILE,ERROR=ERROR,ERR_MSG=ERR_MSG,PRODUCTS=PRODS)
+      ATTRI = STRUCT.ATTRIBUTES
+
+      DIR_OUT = 'E:\MODIS_AQUA\PS\SAVE\'
+      FOR PTH = 0L, N_ELEMENTS(PRODS)-1 DO BEGIN
+        PROD = STRUCT.SD.(PTH).NAME
+        ASTRUCT = STRUCT.SD.(PTH)
+        IMAGE = ASTRUCT.IMAGE
+        INT = ASTRUCT.INTERCEPT[0]
+        MT = ASTRUCT.MULTIPLIER[0]
+        OK = WHERE(IMAGE EQ MISSINGS(IMAGE)*(-1),COUNT)
+        IF COUNT GE 1 THEN IMAGE[OK] = MISSINGS(IMAGE)
+        OK = WHERE(IMAGE NE MISSINGS(IMAGE),COUNT)
+        IF COUNT GE 1 THEN IMAGE[OK] = (IMAGE[OK]-INT)/MT
+
+
+        IF STRUPCASE(PROD) EQ 'OC3MCHL' OR STRUPCASE(PROD) EQ 'STUMPFCHL' THEN BEGIN
+          OK = WHERE(IMAGE LT 0.001 OR IMAGE GT 90, COUNT)
+          IF COUNT GE 1 THEN IMAGE[OK] = MISSINGS(IMAGE)
+        ENDIF
+        IF STRUPCASE(PROD) EQ 'FLH' THEN BEGIN
+					OK = WHERE(IMAGE LT 0.0001 OR IMAGE GT 2, COUNT)
+					IF COUNT GE 1 THEN IMAGE[OK] = MISSINGS(IMAGE)
+				ENDIF
+        SAVEFILE = DIR_OUT + FP.NAME + '-PAMLICO-' + PROD + '.SAVE'
+        STRUCT_SD_WRITE, SAVEFILE, IMAGE=IMAGE, 		$
+												PROD=PROD,$
+												GLOBAL=GLOBAL,			 $
+                        MISSING_CODE=missing_code,	MISSING_NAME=missing_NAME,$
+                        MASK=MASK,          CODE_MASK=CODE_MASK,  			CODE_NAME_MASK=CODE_NAME_MASK, $
+                        SCALING='LINEAR',    INTERCEPT=0,SLOPE=1,DATA_UNITS=DATA_UNITS,$
+                        TRANSFORMATION=TRANSFORMATION, $
+                        STAT_CRITERIA=STAT_CRITERIA, $
+                        PERIOD=ATTRI.PERIOD, SENSOR='MODIS',  SATELLITE='AQUA',  SAT_EXTRA=SAT_EXTRA,$
+                        METHOD=METHOD,      SUITE=SUITE,          MAP=ATTRI.MAP, $
+
+                        INFILE=ATTRI.RAWFILE,$
+                        NOTES=NOTES,        ERROR=ERROR,$
+                        HELP=HELP,$
+                        _EXTRA=_extra
+
+				IF KEYWORD_SET(DO_BROWSES) THEN BEGIN
+	      	IF STRUPCASE(PROD) EQ 'FLH' THEN SPECIAL_SCALE = 'LOW' ELSE SPECIAL_SCALE = ''
+      		IF STRUPCASE(PROD) NE 'FLAG' THEN STRUCT_SD_2PNG,SAVEFILE,DIR_OUT=DIR_BROWSE,/ADD_COLORBAR, $
+      	  	                                COLORBAR_TITLE = PROD,/ADDDATE, SPECIAL_SCALE=SPECIAL_SCALE
+    	  ENDIF
+      ENDFOR
+    ENDFOR
+	ENDIF
+
+;	*******************************************************
+	IF DO_BROWSES GE 1 THEN BEGIN
+;	*******************************************************
+		_OVERWRITE = DO_BROWSES GE 2
+		FILES = FILELIST(DIR_SAVE + '*COLL5*CHLOR_A*.SAVE') & help, files
+;files = files(0:10)
+
+		no_mask = 0
+		pal = 'PAL_SW3'
+		STRUCT_SD_2PNG,	FILES, DIR_OUT=DIR_BROWSE, $
+										/ADD_COLORBAR, /ADDDATE,/ADD_SENSOR,/ADD_PROD,/ADD_METHOD,$
+  									/ADD_LAND,/ADD_COAST,BACKGROUND=ABACKGROUND, $
+										PAL=PAL,FLAGS=_FLAGS,SOLO=SOLO, SPECIAL_SCALE='VERY_HIGH',$
+										OVERWRITE=_overwrite,/QUIET,NO_MASK=NO_MASK,ADD_EXTRA=ADD_EXTRA,MISS_COLOR=245
+
+
+
+	ENDIF   ;IF DO_BROWSES GE 1 THEN BEGIN
+
+
+;	*******************************************************
+	IF DO_MAKE_SUBAREA_MAP_FIGURE GE 1 THEN BEGIN
+;	*******************************************************
+		OVERWRITE = DO_MAKE_SUBAREA_MAP_FIGURE GE 2
+		PAL_36,R,G,B
+		PX = 400
+		PY = 400
+		FILES = FILE_SEARCH(DIR_IMAGES + 'MASK_SUBAREA-PAMLICO-PXY_' + NUM2STR(PX) + '_' + NUM2STR(PY) + '-HYDE.SAVE') & help, files
+		PNGFILE = DIR_IMAGES + 'MASK_SUBAREA-PAMLICO-PXY_' + NUM2STR(PX) + '_' + NUM2STR(PY) + '-HYDE-FIGURE_EXAMPLE.PNG'
+		MASK = READ_LANDMASK(MAP='PAMLICO',/STRUCT,PX=PX,PY=PY,DIR='C:\IDL\IMAGES\')
+		DATA = STRUCT_SD_READ(FILES[0],STRUCT=STRUCT)
+		BIMAGE = BYTE(DATA)
+		OK = WHERE(STRMID(STRUCT.SUBAREA_NAME,0,4) EQ 'AREA')
+		NAMES = STRUCT.SUBAREA_NAME[OK]
+		CODES = STRUCT.SUBAREA_CODE[OK]
+		L1=[90, 170,250,350,250,350,194,198,220,245,265,225,280,350,260,350]
+		L2=[100,100,100,100,190,190,212,228,210,235,260,315,315,315,385,385]
+
+		FOR NTH = 0L, N_ELEMENTS(CODES)-1 DO BEGIN
+			ACODE = CODES[NTH]
+			ANAME = NAMES[NTH]
+			ANUM  = NUM2STR(ACODE-5)
+			OK = WHERE(DATA EQ ACODE,COUNT)
+			_PX = ROUND(SQRT(COUNT)) & _PY = _PX
+			IF STRLEN(ANUM) GE 2 THEN N = 0 ELSE N = 2
+			XPOS = ((L1[NTH]+N)*(PX/400.0))/FLOAT(PX)
+			YPOS = ((L2[NTH]+2)*(PY/400.0))/FLOAT(PY)
+			BIMAGE = MAP_ADD_TXT(BIMAGE,XPOS,YPOS,ANUM,COLOR=0, _EXTRA=_extra,CHARSIZE=4.0*PX/1600.0)
+		ENDFOR
+		BIMAGE(MASK.LAND) = 33
+		BIMAGE(MASK.COAST) = 0
+
+		WRITE_PNG, PNGFILE, BIMAGE, R,G,B
+
+	ENDIF
+
+; *****************************************************
+  IF DO_STATS GE 1 THEN BEGIN
+; *****************************************************
+
+		PRINT, 'S T E P:   DO_STATS' & PRINT, 'This step will Compute Statistical SUMs of Products'
+    OVERWRITE = DO_STATS EQ 2
+
+		_DIR_SAVE=DIR_SAVE
+		_DIR_STATS=DIR_STATS
+
+		PRODS 											= ['-CHLOR_A','-CHLOR_A','-TURBIDITY','-FLH',    '-A_CDOM', '-RRS_645']
+		ALGS  											= ['-OC2',    '-OC3M',   '-SHI',      '',        '',        '']
+		RESOLUTION 									= ['LAC_500', 'LAC_1KM', 'LAC_250',   'LAC_1KM', 'LAC_1KM', 'LAC_250']
+		PXS                         = [800,       400,       1600,         400,      400,        1600]
+		PYS                         = [800,       400,       1600,         400,      400,        1600]
+		METHODS 										= ['COLL5','COLL5_SWIR','COLL5_TBD']
+		STATS_TARGETS    						= RESOLUTION + '-*' + PRODS + ALGS
+    STAT_PERIOD_CODES_IN  			= ['!S',      '!M',      '!M',      '!Y',		                '!MONTH',               '!S']
+    STAT_PERIOD_CODES_OUT 			= ['!M',      '!MONTH',  '!Y',      '!YEAR',                '!ANNUAL',              '!ALL']
+ 		STAT_TYPE										=	['MEAN;NUM','MEAN;NUM','MEAN;NUM','MEAN;NUM;MIN;MAX;SPAN','MEAN;NUM;MIN;MAX;SPAN','MEAN;NUM;MIN;MAX;SPAN']
+
+  	PERIOD_CODES=['!D','!DD','!M','!MM','!Y','!MONTH','!YEAR','!ANNUAL','!ALL','!DIAG']
+  	MAP_OUT = 'PAMLICO'
+  	OUTSENSOR = ''
+
+
+
+    _DIR_SAVE=DIR_SAVE
+    IF KEYWORD_SET(DIRS_SAVE) THEN _DIR_SAVE=DIRS_SAVE
+    IF KEYWORD_SET(DO_STATS_INTERP) THEN BEGIN
+    	_DIR_SAVE=DIR_TS_IMAGES_SAVE
+    	_DIR_STATS=DIR_TS_IMAGES_STATS
+    ENDIF
+ 		IF FILE_TEST(_DIR_STATS,/DIRECTORY) EQ 0L THEN FILE_MKDIR,_DIR_STATS
+		IF N_ELEMENTS(STAT_PERIOD_CODES_IN) NE N_ELEMENTS(STAT_PERIOD_CODES_OUT) THEN STOP
+  	IF N_ELEMENTS(STAT_TYPE) NE N_ELEMENTS(STAT_PERIOD_CODES_OUT)  THEN $
+  	STAT_TYPE =  REPLICATE('MEAN;CNUM',N_ELEMENTS(STAT_PERIOD_CODES_OUT))
+
+		_MAP_OUT=MAP_OUT
+		MAP = 'PAMLICO'
+		FILE_TARGET = '*'+MAP+'*'
+
+		FOR _METHOD = 0, N_ELEMENTS(METHODS)-1 DO BEGIN
+			AMETHOD = METHODS(_METHOD)
+
+  	; following are the valid periods,['!D','!DD','!M','!MM','!Y','!MONTH','!YEAR','!ANNUAL','!ALL','!DIAG']
+	  	FOR _PERIOD = 0,N_ELEMENTS(PERIOD_CODES)-1 DO BEGIN
+	    	APERIOD=PERIOD_CODES(_PERIOD)
+	 			OK = WHERE(STRUPCASE(STAT_PERIOD_CODES_OUT) EQ STRUPCASE(APERIOD),COUNT)
+				IF COUNT NE 1 THEN CONTINUE
+				_PERIOD_CODE_IN=STAT_PERIOD_CODES_IN(OK[0])
+				_PERIOD_CODE_OUT=STAT_PERIOD_CODES_OUT(OK[0])
+				_STAT_TYPE=STAT_TYPE[OK]
+				STAT_TYPE_ARRAY=STRSPLIT(_STAT_TYPE,';',/EXTRACT)
+
+		    FOR _PROD=0,N_ELEMENTS(STATS_TARGETS)-1L DO BEGIN
+		    	_STAT_TYPE_ARRAY=STAT_TYPE_ARRAY
+		    	ATARGET = STATS_TARGETS(_PROD)
+		    	IF KEYWORD_SET(DO_STATS_INTERP) THEN ATARGET=ATARGET+'-INTERP'
+		      APROD= VALIDS('PRODS',ATARGET)
+		      AALG = VALIDS('ALGS',ATARGET)
+		      ACOVERAGE = VALID_COVERAGES(ATARGET)
+		      PX = PXS(_PROD)
+					PY = PYS(_PROD)
+
+
+	  			STAT_TRANSFORM=''
+		      CRITERIA_OPER=''
+		      CRITERIA_RANGE=''
+
+					IF APROD EQ 'CHLOR_A' OR APROD EQ 'CZCS_PIGMENT' OR APROD EQ 'POC' $
+					OR APROD EQ 'A_CDOM'  OR APROD EQ 'A_CDOM_300' OR APROD EQ 'A_CDOM_355' THEN STAT_TRANSFORM = 'ALOG'
+				 	IF APROD EQ 'CHLOR_A' THEN _STAT_TYPE_ARRAY = REPLACE(_STAT_TYPE_ARRAY,'CV','STD')
+
+		     	_file_target = AMETHOD + '-*' + ATARGET
+		     	_file_label  = MAP + DASH + APROD
+		     	IF AALG NE '' THEN _FILE_LABEL = _FILE_LABEL+DASH+AALG
+					IF ACOVERAGE NE '' THEN _file_label = ACOVERAGE+dash+_file_label
+					IF METHOD NE '' THEN _file_label=METHOD+dash+_file_label
+					IF OUTSENSOR NE '' THEN _file_label=OUTSENSOR+dash+_file_label
+
+				;	==========> GET FILES
+				 	IF _PERIOD_CODE_IN EQ '!S' OR _PERIOD_CODE_IN EQ '!D' THEN BEGIN
+				 		_infile_target=_file_target
+				 		IF N_ELEMENTS(_DIR_SAVE) GT 1 THEN _infile_target = MAP+aster+APROD
+
+						FOR NTH = 0,N_ELEMENTS(_DIR_SAVE) -1L DO BEGIN
+					  	ADIR = _DIR_SAVE[NTH]
+				   		IF NTH EQ 0 THEN FILES =  FILELIST(ADIR+_PERIOD_CODE_IN+'_*' +_infile_target+'*.SAVE') $
+				          ELSE FILES=[FILES,FILELIST(ADIR+_PERIOD_CODE_IN+'_*'+_infile_target+'*.SAVE')]
+				  	ENDFOR
+						FA=PARSE_IT(FILES,/ALL)
+						OK= WHERE(FA.STAT EQ '' OR FA.STAT EQ 'DATA' OR FA.STAT EQ 'MEAN', COUNT)
+						IF COUNT GE 1 THEN FA=FA[OK] ELSE CONTINUE
+
+				 	ENDIF ELSE BEGIN
+				 		FILES=FILELIST(_DIR_STATS+_PERIOD_CODE_IN+'_*' +_FILE_TARGET+'-MEAN.SAVE')
+				 		FA =  PARSE_IT(FILES)
+					ENDELSE
+
+				; Period '!D' might be in the stats folder
+					IF FA[0].FULLNAME EQ '' AND _PERIOD_CODE_IN EQ '!D' THEN BEGIN
+						FILES =  FILELIST(_DIR_STATS+_PERIOD_CODE_IN+'_*' +_FILE_TARGET+'-MEAN.SAVE')
+						FA=PARSE_IT(FILES)
+						IF FA[0].FULLNAME EQ '' THEN CONTINUE
+					ENDIF
+					FILES=FA.FULLNAME
+				 	SD_STATS_ALL,	FILES,PROD=aprod,PERIOD_CODE_IN=_period_code_in,PERIOD_CODE_OUT=_period_code_out,$
+												OUTSENSOR=outsensor,MAP_OUT=_MAP_OUT,PX=PX,PY=PY,ALG=aalg,FILE_LABEL=_file_label,$
+												STAT_TYPE=_stat_type_array,DATE_RANGE=date_range,DIR_STATS=_dir_stats,$
+	                 			CRITERIA_RANGE=CRITERIA_RANGE,CRITERIA_OPER=CRITERIA_OPER,STAT_TRANSFORM=STAT_TRANSFORM, $
+	                 			OVERWRITE=overwrite,NO_FLAGS=no_flags
+
+		    ENDFOR; FOR _PROD=0,N_ELEMENTS(STATS_PRODUCTS)-1L DO BEGIN
+			ENDFOR ;FOR _PERIOD = 0,N_ELEMENTS(PERIOD_CODES)
+		ENDFOR ;FOR _METHOD = 0, N_ELEMENTS(METHODS)-1 DO BEGIN
+
+stop
+    SKIP_DO_STATS:
+  ENDIF ; IF DO_STATS GE 1 THEN BEGIN
+
+; *****************************************************
+	IF DO_STATS_BROWSE GE 1 THEN BEGIN
+; *****************************************************
+    PRINT, 'S T E P:   DO_STATS_BROWSE'
+    PRINT, 'This step will make PNG image files from files in the STATS folder'
+    OVERWRITE  = DO_STATS_BROWSE EQ 2
+    PRODS 											= ['-A_CDOM','-CHLOR_A','-CHLOR_A','-TURBIDITY','-FLH','-RRS_645']
+		ALGS  											= ['',       '-OC2',    '-OC3M',   '-SHI',      '',    '']
+		RESOLUTION 									= ['LAC_1KM','LAC_500', 'LAC_1KM','LAC_250',  'LAC_1KM','LAC_250']
+		STATS_BROWSE_TARGETS				= RESOLUTION + '-*' + PRODS + ALGS
+		PERIOD_CODES								= ['!M_','!MONTH_','!Y_','!YEAR-','!ANNUAL-','!ALL-']
+
+    ADD_LAND=1
+    ADD_COAST=1
+    ADD_BATHY=0
+		ADD_COLORBAR=1
+    ADDDATE=1
+    ADD_PROD=1
+    ADD_METHOD=1
+    ADD_SENSOR=1
+    ADD_ALG=0
+    ADD_EXTRA = ''
+		_STAT_TYPE='MEAN'
+		MAP_OUT = 'PAMLICO'
+
+    _DIR_OUT=DIR_STATS_BROWSE
+	 	IF FILE_TEST(_DIR_OUT,/DIRECTORY) EQ 0L THEN FILE_MKDIR,_DIR_OUT
+  	FOR _PERIOD=0,N_ELEMENTS(PERIOD_CODES)-1L DO BEGIN
+    	_PAL=PAL
+      APERIOD=PERIOD_CODES(_PERIOD)
+
+      IF APERIOD EQ '!ALL' THEN APERIOD='!DD'
+      IF APERIOD EQ '!S' THEN BELOW=1 ELSE BELOW=0
+      IF APERIOD EQ '!ANNUAL' OR APERIOD EQ '!YEAR' OR APERIOD EQ 'ALL' THEN TXT ='-' ELSE TXT='_*-'
+
+			_ADD_EXTRA =''
+
+	    FOR _TARGET=0,N_ELEMENTS(STATS_BROWSE_TARGETS)-1L DO BEGIN
+        ATARGET=STATS_BROWSE_TARGETS(_TARGET)
+
+				IF VALIDS('PRODS',ATARGET) EQ 'TURBIDITY' OR VALIDS('PRODS',ATARGET) EQ 'FLH' THEN SPECIAL_SCALE = 'LOW'
+				IF VALIDS('PRODS',ATARGET) EQ 'CHLOR_A' THEN BEGIN & SPECIAL_SCALE = 'VERY_HIGH' & COLORBAR_TITLE = UNITS('CHLOROPHYLL') & ENDIF
+ 				FILES=FILELIST(DIR_STATS + APERIOD +'*'+ATARGET +'-'+ _STAT_TYPE +'.SAVE')
+
+				IF FILES[0] NE '' THEN $
+          STRUCT_SD_2PNG, FILES,$
+                  DIR_OUT=_DIR_OUT, $ ; Everything below is optional (see defaults in STRUCT_SD_2IMAGE.PRO)
+                  ADD_COLORBAR=ADD_COLORBAR, ADD_DATEBAR=ADD_DATEBAR, ADDDATE=ADDDATE, $
+                  ADD_SENSOR=ADD_SENSOR,ADD_PROD=ADD_PROD,ADD_METHOD=ADD_METHOD, ADD_EXTRA=_add_extra, ADD_BATHY=ADD_BATHY,$
+                  ADD_ALG=ADD_ALG,ADD_LAND=ADD_LAND,ADD_COAST=ADD_COAST,PAL=_pal,MAP_OUT=MAP_OUT,SPECIAL_SCALE=SPECIAL_SCALE, $
+                  BACKGROUND=Abackground,LAND_COLOR=Aland_color,FLAG_COLOR=Aflag_color,MISS_COLOR=Amiss_color,$
+                  OUTSCAN_COLOR=Aoutscan_color,OUTMAP_COLOR=Aoutmap_color,ALGFAIL_COLOR=Aalgfail_color,BATHY_COLOR=ABATHY_COLOR,$
+                  CRITERIA_COLOR=ACRITERIA_COLOR,CRITERIA_RANGE=CRITERIA_RANGE,CRITERIA_OPER=CRITERIA_OPER,$
+                  IMAGE_SCALE=image_scale,BELOW=_BELOW,OVERWRITE=overwrite,QUIET=quiet
+
+			ENDFOR ;FOR _PROD=0,N_ELEMENTS(PRODUCTS)-1L DO BEGIN
+		ENDFOR ;FOR _PERIOD=0,N_ELEMENTS(PERIOD_CODES)-1L DO BEGIN
+	ENDIF ; IF DO_STATS_BROWSE GE 1 THEN BEGIN
+
+
+; ***************************************************
+  IF DO_STATS_BROWSE_PAGE GE 1 THEN BEGIN
+; ***************************************************
+    PRINT, 'S T E P:   DO_STATS_BROWSE_PAGE'
+    OVERWRITE = DO_STATS_BROWSE_PAGE EQ 2
+
+  	ADD_LAND=1
+    ADD_COAST=1
+    ADD_SENSOR=0
+    ADD_PROD=0
+    ADD_COLORBAR =1
+    DEL_PLAIN_PNG=1 ; if add_colorbar is set then delete the png without the colorbar
+    JANUARY=1       ; line up January in first col
+    CHANGE_LABEL=1 ; apply landmask over image,remove sensor info & enlarge Year, Month
+    ABATHY_COLOR=254
+
+		PRODS 											= ['-CHLOR_A','-CHLOR_A','-TURBIDITY','-FLH','-A_CDOM','-RRS_645']
+		ALGS  											= ['-OC2',    '-OC3M',   '-SHI',      '',    '',       '']
+		RESOLUTION 									= ['LAC_500','LAC_1KM','LAC_250',  'LAC_1KM','LAC_1KM','LAC_250']
+		TARGETS             				= RESOLUTION + '-*' + PRODS + ALGS
+		PERIOD_CODES								= ['!M','!MONTH','!Y','!YEAR','!ANNUAL','!ALL']
+		METHODS 										= ['COLL5','COLL5_SWIR','COLL5_TBD']
+		SENSOR                      = 'MODIS'
+    ADDDATE=1
+    ADD_PROD=1
+    ADD_METHOD=1
+    ADD_ALG=1
+    ADD_EXTRA = ''
+		STAT_TYPE='MEAN'
+		MAP_OUT = 'PAMLICO'
+    MAPS_INFO=MAPS_SIZE(MAP_OUT)
+
+	  FLAGS = ['CLDICE','NEGLW']
+
+   	PERIOD_TYPES= ['!MONTH_4_3','!MONTH_12_1','!Y_2_3','!M_12_6']
+
+
+		FOR _MTH = 0L, N_ELEMENTS(METHODS)-1 DO BEGIN
+			AMETHOD = METHODS(_MTH)
+  		_file_target = SENSOR+dash+AMETHOD+dash
+
+	    FOR _PERIOD=0,N_ELEMENTS(PERIOD_TYPES)-1L DO BEGIN
+	    	_IMAGE_SCALE = 1.0
+	      TXT= STRSPLIT(PERIOD_TYPES(_PERIOD),'_',/EXTRACT)
+	      PERIOD=TXT[0]
+	      COLS=LONG(TXT[1])
+	      ROWS=LONG(TXT(2))
+				IF FIX(TXT(2)) GT 10 THEN _IMAGE_SCALE=0.5
+				_DIR_IN=DIR_STATS_BROWSE
+	    	_DIR_OUT=DIR_STATS_BROWSE_PAGE
+				IF FILE_TEST(_DIR_OUT,/DIRECTORY) EQ 0L THEN FILE_MKDIR,_DIR_OUT
+
+				FOR _TARGET=0,N_ELEMENTS(TARGETS)-1L DO BEGIN
+	      	ATARGET=TARGETS(_TARGET)
+	 				FLAGS_CHECK = SD_FLAGS(ATARGET,SENSOR=SENSOR)
+	 				IF VALIDS('PRODS',ATARGET) EQ 'TURBIDITY' OR VALIDS('PRODS',ATARGET) EQ 'FLH' THEN SPECIAL_SCALE = 'LOW'
+	 				IF VALIDS('PRODS',ATARGET) EQ 'CHLOR_A' THEN BEGIN & SPECIAL_SCALE = 'VERY_HIGH' & COLORBAR_TITLE = UNITS('CHLOROPHYLL') & ENDIF
+	 				FOR _TYPE =0,N_ELEMENTS(STAT_TYPE)-1 DO BEGIN
+	 					ATYPE = STAT_TYPE(_TYPE)
+	 					_PAL=PAL
+	 					_USE_PROD=''
+
+						FILES=FILELIST(_DIR_IN + PERIOD + '_' + aster+ _FILE_TARGET + aster + ATARGET+ aster + ATYPE +'.PNG')
+
+						IF FILES[0] NE '' THEN $
+		 					SD_STATS_BROWSE_PAGE,FILES=files,DIR_OUT=_dir_out,DIR_JUNK=dir_junk,DATE_RANGE=DATE_RANGE,$
+				          	COLS=cols,ROWS=rows,CHANGE_LABEL=change_label,PAL=_pal,BACKGROUND=background,$
+				          	LAND_COLOR=land_color,DIR_COLORBAR=dir_colorbar,ADD_COLORBAR=add_colorbar,BATHY_COLOR=_ABATHY_COLOR,$
+				          	ADD_LAND=ADD_LAND,ADD_COAST=ADD_COAST,ADD_LAKES=ADD_LAKES,$
+				          	DEL_PLAIN_PNG=del_plain_png,JANUARY=JANUARY,IMAGE_SCALE=_IMAGE_SCALE,USE_PROD=_USE_PROD, $
+				          	; ADD_SENSOR=ADD_SENSOR,ADD_PROD=ADD_PROD,$
+			          		COLORBAR_TITLE=COLORBAR_TITLE,SPECIAL_SCALE=SPECIAL_SCALE,OVERWRITE=overwrite
+
+
+		    	ENDFOR; FOR _TYPE=0,N_ELEMENTS(_STAT_TYPES)-1L DO BEGIN
+				ENDFOR;   FOR _TARGET=0,N_ELEMENTS(TARGETS)-1L DO BEGIN
+	    ENDFOR ;FOR _PERIOD=0,N_ELEMENTS(PERIOD_TYPES)-1L DO BEGIN
+    ENDFOR ;FOR _MTH = 0L, N_ELEMENTS(METHODS)-1 DO BEGIN
+  ENDIF ; IF DO_STATS_BROWSE_PAGE GE 1 THEN BEGIN
+; |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+
+
+; *****************************************************************
+  IF DO_TS_SUBAREAS GE 1 THEN BEGIN
+; *****************************************************************
+    PRINT, 'S T E P:   DO_TS_SUBAREAS'
+    PRINT, 'This step will Extract a STATISTICAL Time Series from SeaWiFS at specific SUBAREAS'
+    OVERWRITE = DO_TS_SUBAREAS EQ 2
+
+		SUBAREA_FILES = ['MASK_SUBAREA-PAMLICO-PXY_1600_1600-HYDE.SAVE',$
+           					 'MASK_SUBAREA-PAMLICO-PXY_400_400-HYDE.SAVE',$
+           					 'MASK_SUBAREA-PAMLICO-PXY_800_800-HYDE.SAVE']
+		SA = PARSE_IT(SUBAREA_FILES,/ALL)
+		SUBAREA_CODES=[6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21]
+
+
+		PERIOD_OUT=''
+		TS_SUBAREAS_TARGETS     		= ['-RRS_645','-TURBIDITY-SHI','LAC_500-*-CHLOR_A-OC2','-CHLOR_A-OC3M','-A_CDOM','-FLH']
+;TS_SUBAREAS_TARGETS     		= ['-A_CDOM']
+  	TS_SUBAREAS_PERIODS     		= ['!Y','!M','!MONTH','!YEAR']
+ ;	TS_SUBAREAS_PERIODS     		= ['!M']
+  	METHODS                     = ['COLL5','COLL5_SWIR','COLL5_TBD']
+ ; 	METHODS                     = ['COLL5_TBD']
+
+
+		FOR _M =0L, N_ELEMENTS(METHODS)-1 DO BEGIN
+			METHOD = METHODS(_M)
+
+
+ 			FOR _PROD = 0L,N_ELEMENTS(TS_SUBAREAS_TARGETS)-1L DO BEGIN
+			; LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+  			ATARGET = TS_SUBAREAS_TARGETS(_PROD)
+  			APROD = VALIDS('PRODS',ATARGET)
+  			AALG  = VALIDS('ALGS',ATARGET)
+
+				FOR _PER=0,N_ELEMENTS(TS_SUBAREAS_PERIODS)-1L DO BEGIN
+					APERIOD=TS_SUBAREAS_PERIODS(_PER)
+					IF APERIOD EQ '!S' OR APERIOD EQ '!D' THEN _DIR_IN = DIR_SAVE ELSE _DIR_IN = DIR_STATS
+					IF APERIOD EQ '!S' OR APERIOD EQ '!D' THEN STAT_TYPE = '' ELSE STAT_TYPE = '-MEAN'
+					_TARGET = METHOD + '-*' + ATARGET + STAT_TYPE
+					IF ATARGET EQ 'LAC_500-*-CHLOR_A-OC2' THEN ASUBAREA_FILE = SUBAREA_FILES(2) ELSE ASUBAREA_FILE = SUBAREA_FILES[1]
+					IF ATARGET EQ '-TURBIDITY-SHI' OR ATARGET EQ '-RRS_645' THEN ASUBAREA_FILE = SUBAREA_FILES[0]
+
+       		TS_SUBAREAS, DIR_IN=_DIR_IN,FILE_TARGET=_TARGET,PROD=APROD,SUBAREA_PERIOD=APERIOD,$
+                   SUBAREA_FILE=ASUBAREA_FILE, SUBAREA_CODES=subarea_codes,METHOD=METHOD,DIR_IMAGES=DIR_IMAGES,$
+                   DIR_OUT=DIR_TS_SUBAREAS_SAVE,OVERWRITE=overwrite,CSV=CSV,PERIOD_OUT=PERIOD_OUT,MAP_IN=MAP
+				ENDFOR;FOR _PER=0,N_ELEMENTS(TS_SUBAREA_PERIODS)-1L DO BEGIN
+    	ENDFOR; FOR _PROD = 0L,N_ELEMENTS(TS_SUBAREAS_PRODUCTS)-1L DO BEGIN
+    ENDFOR; FOR NTH=0,N_ELEMENTS(SUBAREA_FILE)-1L DO BEGIN
+  ENDIF ; IF DO_TS_SUBAREAS EQ 1 THEN BEGIN
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+; *****************************************************************
+  IF DO_SUBAREA_TIMELINES GE 1 THEN BEGIN
+; *****************************************************************
+    PRINT, 'S T E P:   DO_SUBAREA_TIMELINES'
+    PRINT, 'This step will Extract a STATISTICAL Time Series from SeaWiFS at specific SUBAREAS'
+    OVERWRITE = DO_SUBAREA_TIMELINES EQ 2
+
+		RIVER_DATA = 'D:\PROJECTS\HABS\PAMLICO\DATA\River_discharge.csv'
+    WIND_DATA  = 'D:\PROJECTS\HABS\PAMLICO\DATA\NARR_p25degree_PamlicoSound_mm_means.csv'
+		DATES = DATE_2JD([20020101,20080101])
+		AX = DATE_AXIS(DATES,/MONTH)
+		AYR = DATE_AXIS(DATES,/YEAR)
+		LEG_POS = [0.72,0.87,0.75,0.97]
+		YMARGIN = [0.3,0.3]
+		XMARGIN = [2.5,0.75]
+		CHARSIZE = 2.5
+
+
+		DIR_SAVE = 'E:\MODIS_HR-PAMLICO\TS_SUBAREAS\save\'
+		DIR_PLOT = 'E:\MODIS_HR-PAMLICO\TS_SUBAREAS\PLOTS\'
+		PSPRINT,FILENAME=DIR_PLOT + 'SUBAREA_PLOTS.PS',/COLOR,/Full,/TIMES,/LANDSCAPE
+		!P.MULTI=[0,1,3]
+		PAL_36,R,G,B
+		TARGETS = ['CHLOR_A-OC3M','CHLOR_A-OC2']
+		METHODS = 'COLL5_TBD'
+		COLORS = [1,5,9,12,19,22,1,5,9,12,19,22,5,9,19,22]
+		FOR _M = 0L, N_ELEMENTS(METHODS)-1 DO BEGIN
+			AMETHOD = METHODS(_M)
+			FOR _T = 0L, N_ELEMENTS(TARGETS)-1 DO BEGIN
+				ATARGET = TARGETS(_T)
+				AFILE = FILE_SEARCH(DIR_SAVE + '!M-MASK_SUBAREA-PAMLICO-PXY_*' + AMETHOD + '-' + ATARGET + '*.SAVE')
+				IF N_ELEMENTS(AFILE) NE 1 OR AFILE[0] EQ '' THEN STOP
+				FA = PARSE_IT(AFILE,/ALL)
+				DATA = IDL_RESTORE(AFILE)
+				BSET = WHERE_SETS(DATA.SUBAREA_CODE)
+				YTITLE = UNITS(FA[0].PROD,/NO_NAME)
+
+				FOR _B = 0L, N_ELEMENTS(BSET)-1 DO BEGIN
+					SUBS = WHERE_SETS_SUBS(BSET(_B))
+					SET  = DATA(SUBS)
+					FP = PARSE_IT(SET.FIRST_NAME,/ALL)
+					OK = WHERE(FP.STAT EQ 'MEAN' AND SET.MEAN NE MISSINGS(SET.MEAN),COUNT)
+					IF COUNT LE 1 THEN CONTINUE
+					Y = SET[OK].MEAN
+					X = DATE_2JD(FP[OK].DATE_START)
+					IF _B EQ 0 OR _B EQ 6 OR _B EQ 12 THEN BEGIN
+						IF _B EQ 0 THEN YRANGE = [0.05,10]
+						IF _B EQ 6 THEN YRANGE = [5,100]
+						IF _B EQ 12 THEN YRANGE = [0.1,10]
+						IF ATARGET EQ 'CHLOR_A-OC3M' THEN TITLE = 'Chlorophyll OC3M'
+						IF ATARGET EQ 'CHLOR_A-OC2' THEN TITLE = 'Chlorophyll OC2'
+						IF _B EQ 0 THEN TITLE = TITLE ELSE TITLE = ''
+						IF _B EQ 12 THEN XTICKNAME = AX.TICKNAME ELSE XTICKNAME = REPLICATE(' ',N_ELEMENTS(AX.TICKNAME))
+						PLOT,AX.JD,[1,1],YTITLE=YTITLE,YRANGE=YRANGE,/XSTYLE,/YSTYLE,YMARGIN=YMARGIN,XMARGIN=XMARGIN,/YLOG,$
+								XTICKS=AX.TICKS,XTICKNAME=XTICKNAME,XTICKV=AX.TICKV,XTICK_GET=XTICK_GET,CHARSIZE=CHARSIZE,/NODATA, TITLE=TITLE
+						GRIDS,X=AYR.TICKV, /NO_Y, THICK=3
+						TXT = ''
+						CLR = 0
+					ENDIF
+					OPLOT,X,Y,COLOR=COLORS(_B),PSYM=-3,SYMSIZE=0.75,THICK=5
+					TXT = [TXT,SET[0].SUBAREA_NAME]
+					CLR = [CLR,COLORS(_B)]
+					IF _B EQ 5 OR _B EQ 11 OR _B EQ 15 THEN BEGIN
+						TXT = TXT(1:*)
+						CLR = CLR(1:*)
+						IF _B EQ 15 THEN POS = [0.02,0.65,0.05,0.95] ELSE POS = [0.02,0.5,0.05,0.95]
+						LEG,pos = POS, color=CLR,LCOLOR=0,label=TXT,THICK=5,LSIZE=1.2,FONT=FONT
+					ENDIF
+				ENDFOR
+			ENDFOR
+		ENDFOR
+
+		TARGETS = ['FLH','A_CDOM','TURBIDITY-SHI','RRS_645']
+		METHODS = 'COLL5_TBD'
+		COLORS = [1,5,9,12,19,22,1,5,9,12,19,22,5,9,19,22]
+		FOR _M = 0L, N_ELEMENTS(METHODS)-1 DO BEGIN
+			AMETHOD = METHODS(_M)
+			FOR _T = 0L, N_ELEMENTS(TARGETS)-1 DO BEGIN
+				ATARGET = TARGETS(_T)
+				AFILE = FILE_SEARCH(DIR_SAVE + '!M-MASK_SUBAREA-PAMLICO-PXY_*' + AMETHOD + '-' + ATARGET + '*.SAVE')
+				IF N_ELEMENTS(AFILE) NE 1 OR AFILE[0] EQ '' THEN STOP
+				FA = PARSE_IT(AFILE,/ALL)
+				DATA = IDL_RESTORE(AFILE)
+				BSET = WHERE_SETS(DATA.SUBAREA_CODE)
+
+				FOR _B = 0L, N_ELEMENTS(BSET)-1 DO BEGIN
+					SUBS = WHERE_SETS_SUBS(BSET(_B))
+					SET  = DATA(SUBS)
+					FP = PARSE_IT(SET.FIRST_NAME,/ALL)
+					OK = WHERE(FP.STAT EQ 'MEAN' AND SET.MEAN NE MISSINGS(SET.MEAN),COUNT)
+					Y = SET[OK].MEAN
+					X = DATE_2JD(FP[OK].DATE_START)
+					IF _B EQ 0 OR _B EQ 6 OR _B EQ 12 THEN BEGIN
+						IF FP[0].PROD EQ 'FLH' THEN BEGIN & YRANGE = [0.001,1] & TITLE = 'FLH' & YTITLE = UNITS(FA[0].PROD,/NO_NAME) & ENDIF
+						IF FP[0].PROD EQ 'A_CDOM' THEN BEGIN & YRANGE = [0.1,10] & TITLE = 'A_cdom' & YTITLE = UNITS(FA[0].PROD,/NO_NAME) & ENDIF
+						IF FP[0].PROD EQ 'TURBIDITY' THEN BEGIN & YRANGE = [0.8,10] & YTITLE = 'Turbidity Index' & TITLE = 'Turbidity Index' & ENDIF
+						IF FP[0].PROD EQ 'RRS_645' THEN BEGIN & YRANGE = [0.00001,0.1] & YTITLE = UNITS('RRS_645',/NO_NAME) & TITLE = 'RRS_645' & ENDIF
+			;			IF FP[0].PROD EQ 'RRS_645' AND _B EQ 6 THEN YRANGE = [0.001,0.1]
+						IF _B EQ 0 THEN TITLE = TITLE ELSE TITLE = ''
+						IF _B EQ 12 THEN XTICKNAME = AX.TICKNAME ELSE XTICKNAME = REPLICATE(' ',N_ELEMENTS(AX.TICKNAME))
+
+						PLOT,AX.JD,[1,1],YTITLE=YTITLE,YRANGE=YRANGE,/XSTYLE,/YSTYLE,YMARGIN=YMARGIN,XMARGIN=XMARGIN,/YLOG,$
+								XTICKS=AX.TICKS,XTICKNAME=XTICKNAME,XTICKV=AX.TICKV,XTICK_GET=XTICK_GET,CHARSIZE=CHARSIZE,/NODATA, TITLE=TITLE
+						GRIDS,X=AYR.TICKV, /NO_Y, THICK=3
+						IF FP[0].PROD EQ 'TURBIDITY' THEN OPLOT, AX.JD,[1.3,1.3], COLOR=0, THICK=3, LINESTYLE=2
+						TXT = ''
+						CLR = 0
+					ENDIF
+					IF COUNT GT 1 THEN OPLOT,X,Y,COLOR=COLORS(_B),PSYM=-3,SYMSIZE=0.75,THICK=5
+					TXT = [TXT,SET[0].SUBAREA_NAME]
+					CLR = [CLR,COLORS(_B)]
+					IF _B EQ 5 OR _B EQ 11 OR _B EQ 15 THEN BEGIN
+						TXT = TXT(1:*)
+						CLR = CLR(1:*)
+						IF _B EQ 15 THEN POS = [0.02,0.65,0.05,0.95] ELSE POS = [0.02,0.5,0.05,0.95]
+						LEG,pos = POS, color=CLR,LCOLOR=0,label=TXT,THICK=5,LSIZE=1.2,FONT=FONT
+					ENDIF
+				ENDFOR
+			ENDFOR
+		ENDFOR
+
+
+		!P.MULTI=[0,1,3]
+		DATES2 = DATE_2JD([20020101,20070101])
+		AX2 = DATE_AXIS(DATES2,/MONTH)
+		AYR2 = DATE_AXIS(DATES,/YEAR)
+		XTICKNAME = REPLICATE(' ',N_ELEMENTS(AX.TICKNAME))
+
+	;	!P.MULTI=[0,1,2]
+    WINDS = READ_CSV(WIND_DATA)
+    WDATE = WINDS.MONTH_DATE
+    OK = WHERE(STRMID(WDATE,0,4) GE 2002)
+    WDATE = WDATE[OK]
+    WDATA = FLOAT(WINDS[OK].MAG_STRS)
+    WAVG  = TS_SMOOTH(WDATA, 3)
+    OK = WHERE(WINDS.MAG_STRS EQ MISSINGS(WINDS.MAG_STRS),COUNT)
+    IF COUNT GE 1 THEN WDATA[OK] = MISSINGS(0.0)
+    PLOT,AX2.JD,[1,1],YTITLE='Wind Stress (Pascals)',YRANGE=[0,0.06],/XSTYLE,/YSTYLE,YMARGIN=YMARGIN,XMARGIN=XMARGIN,$
+				 XTICKS=AX2.TICKS,XTICKNAME=XTICKNAME,XTICKV=AX2.TICKV,XTICK_GET=XTICK_GET,CHARSIZE=CHARSIZE,/NODATA, TITLE=' '
+		GRIDS,X=AYR2.TICKV, /NO_Y,THICK=3
+		TXT = ['Stress Magnitude','Running Average']
+		OPLOT,DATE_2JD(WDATE),WDATA,COLOR=33,PSYM=-4,SYMSIZE=0.75,THICK=5
+		OPLOT,DATE_2JD(WDATE),WAVG, COLOR=5, PSYM=-3,SYMSIZE=0.75,THICK=8
+		POS = [0.75,0.875,0.8,0.95] ;[0.02,0.5,0.05,0.95]
+		LEG,pos = POS, color=[33,5],LCOLOR=0,label=TXT,PSYM=[-4,-3],THICK=[5,8],LSIZE=1.25,FONT=FONT
+
+		RIVER = READ_CSV(RIVER_DATA)
+		RDATE = RIVER.DATE
+		RDATA = FLOAT(RIVER.DISCHARGE_CMS)
+		OK = WHERE(RIVER.DISCHARGE_CMS EQ MISSINGS(RIVER.DISCHARGE_CMS))
+		RDATA[OK] = MISSINGS(0.0)
+		PLOT,AX2.JD,[1,1],YTITLE='River Discharge (cm s!E-1!N)',YRANGE=[0,350],/XSTYLE,/YSTYLE,YMARGIN=YMARGIN,XMARGIN=XMARGIN,$
+				 XTICKS=AX2.TICKS,XTICKNAME=AX2.TICKNAME,XTICKV=AX2.TICKV,XTICK_GET=XTICK_GET,CHARSIZE=CHARSIZE,/NODATA, TITLE=' '
+		GRIDS,X=AYR2.TICKV, /NO_Y,THICK=3
+		OPLOT,DATE_2JD(RDATE),RDATA,COLOR=5,PSYM=-4,SYMSIZE=0.75,THICK=5
+
+
+
+
+		!P.MULTI = [0,1,1]
+		NO_MASK = 1
+		PARAMS = [2,3,4,8]
+		APROD = 'CHLOR_A'
+		ANOMS='RATIO'
+		DIR_RATIO = 'E:\MODIS_HR-PAMLICO\ratio\'
+		FILE_A = DIR_STATS + '!ANNUAL-MODIS-COLL5_TBD-LAC_1KM-PAMLICO-CHLOR_A-OC3M-MEAN.SAVE'
+		NEW = STRUCT_SD_REMAP(FILES=FILE_A,STRUCT=STRUCT,DIR_OUT=DIR_STATS, MAP_OUT='PAMLICO',PX_OUT=800, PY_OUT=800)
+		TARGET_A = DIR_STATS + '!ANNUAL-MODIS-COLL5_TBD-LAC_1KM-PAMLICO-PXY_800_800-CHLOR_A-OC3M-MEAN.SAVE'
+		TARGET_B = DIR_STATS + '!ANNUAL-MODIS-COLL5_TBD-LAC_500-PAMLICO-CHLOR_A-OC2-MEAN.SAVE'
+		TITLE = 'Chlorophyll OC3M vs OC2'
+		YTITLE = 'Log!D10!N Chl OC3M ' + UNITS('CHLOR_A',/NO_NAME)
+		XTITLE = 'Log!D10!N Chl OC2 '  + UNITS('CHLOR_A',/NO_NAME)
+		STRUCT_SD_HIST2D,	AFILES=TARGET_B, BFILES=TARGET_A, HIST2D_MODEL='RMA',NO_MASK=NO_MASK,/ISOTROPIC,CHARSIZE=1.5,$;XRANGE=[-2,1],YRANGE=[-2,1],$
+											/LOG_FREQ, TITLE=TITLE, PARAMS=PARAMS, ERROR=ERROR,ERR_MSG=ERR_MSG, _EXTRA=_extra,YTITLE=YTITLE,XTITLE=XTITLE
+
+
+
+
+
+
+
+
+		PSPRINT
+STOP
+		PSFILES = DIR_PLOT + 'SUBAREA_PLOTS.PS'
+		PATH_GS_PS = 'C:\GSTOOLS\gs8.54\bin\'
+		PATH_GS_PDF = 'C:\GSTOOLS\'
+		DIR_OUT = 'E:\MODIS_HR-PAMLICO\TS_SUBAREAS\plots\'
+		GRACE = [100,100,100,100]
+		IMAGE_TRIM, PSFILES, GRACE=GRACE,DPI=600, DIR_OUT=DIR_OUT,OVERWRITE=OVERWRITE,PATH_GS_PS=PATH_GS_PS,PATH_GS_PDF=PATH_GS_PDF
+stop
+		ADD_EXTRA  = 'Chlorophyll Ratio' + '!COC3M:OC2'
+
+		PAL = 'PAL_RATIO'
+		USE_PROD = 'RATIO'
+		RATIO_SAVEFILE = DIR_RATIO + 'SAVE\!ANNUAL-MODIS-COLL5_TBD-PAMLICO-CHLOR_A-OC3M_OC3-MEAN-RATIO.SAVE'
+		RATIO_PNG = DIR_RATIO_BROWSE + '!ANNUAL-MODIS-COLL5_TBD-PAMLICO-PXY_1600_1600-CHLOR_A-OC3M_OC3-MEAN-RATIO.PNG'
+		MAKE_ANOM_SAVES,DIR_OUT=DIR_RATIO_SAVE,SAVEFILE=RATIO_SAVEFILE,FILEA=TARGET_A,FILEB=TARGET_B,ANOM=ANOMS,OVERWRITE=OVERWRITE,NO_MASK=0
+		STRUCT_SD_2PNG, RATIO_SAVEFILE,DIR_OUT=DIR_RATIO_BROWSE,USE_PROD=USE_PROD,$
+										/ADD_COLORBAR, /ADD_LAND, /ADD_COAST, BACKGROUND=ABACKGROUND,$
+        	  				LAND_COLOR=ALAND_COLOR,FLAG_COLOR=AFLAG_COLOR,OUTSCAN_COLOR=aoutscan_color,$
+          					ALGFAIL_COLOR=AALGFAIL_COLOR,HI_LO_COLOR=AHI_LO_COLOR,PAL=PAL,FLAGS=_FLAGS,SOLO=SOLO,$
+          					OVERWRITE=overwrite,/QUIET, ADD_EXTRA=ADD_EXTRA, COLORBAR_TITLE = 'Ratio'
+
+STOP
+	ENDIF  ;DO_SUBAREA_TIMELINES
+
+
+
+;	*******************************************************
+	IF DO_COMPARISON_FIGURES GE 1 THEN BEGIN
+;	*******************************************************
+		_OVERWRITE = DO_COMPARISON_FIGURES GE 2
+
+		NO_MASK = 1
+		PARAMS = [2,3,4,8]
+		_TARGETS = ['LAC_500*CHLOR_A-OC2','LAC_250*RRS_645','LAC_1KM*CHLOR_A-OC3M']
+	;	TARGETS = ['LAC_250*RRS_645','LAC_1KM*CHLOR_A']
+		_TITLE = 'MODIS HR SWIR COMPARISON'
+
+		METHOD_A = '-COLL5-'
+		METHOD_B = '-COLL5_SWIR-'
+		METHOD_C = '-COLL5_TBD'
+
+		FOR _TAR = 0L, N_ELEMENTS(_TARGETS)-1 DO BEGIN
+			TARGET = _TARGETS(_TAR)
+			AFILES = FILE_SEARCH(DIR_SAVE   + '*' + METHOD_A + '*' + TARGET + '*.save')
+			BFILES = FILE_SEARCH(DIR_SAVE   + '*' + METHOD_B + '*' + TARGET + '*.save')
+			CFILES = FILE_SEARCH(DIR_SAVE   + '*' + METHOD_C + '*' + TARGET + '*.save')
+			APNGS  = FILE_SEARCH(DIR_BROWSE + '*' + METHOD_A + '*' + TARGET + '*.png')
+			BPNGS  = FILE_SEARCH(DIR_BROWSE + '*' + METHOD_B + '*' + TARGET + '*.png')
+			CPNGS  = FILE_SEARCH(DIR_BROWSE + '*' + METHOD_C + '*' + TARGET + '*.png')
+			FA = PARSE_IT(AFILES,/ALL) & IF FA[0].FULLNAME EQ '' THEN STOP
+			FB = PARSE_IT(BFILES,/ALL) & IF FB[0].FULLNAME EQ '' THEN STOP
+			FC = PARSE_IT(CFILES,/ALL) & IF FC[0].FULLNAME EQ '' THEN STOP
+			PA = PARSE_IT(APNGS,/ALL)
+			PB = PARSE_IT(BPNGS,/ALL)
+			PC = PARSE_IT(CPNGS,/ALL)
+			FN = [FA,FB,FC]
+			FP = [PA,PB,PC]
+
+			SETS = WHERE_SETS(FA.PERIOD,FB.PERIOD,FC.PERIOD)
+			OK = WHERE(SETS.N GE 3,COUNT) &	IF COUNT GE 1 THEN SETS = SETS[OK] ELSE STOP
+
+			FOR _SET = 0L, N_ELEMENTS(SETS)-1 DO BEGIN
+				SUBS = WHERE_SETS_SUBS(SETS(_SET),GROUPS=GROUPS)
+				IF N_ELEMENTS(GROUPS) NE 3 THEN CONTINUE
+				OKA = WHERE(GROUPS EQ 0,COUNTA)
+				OKB = WHERE(GROUPS EQ 1,COUNTB)
+				OKC = WHERE(GROUPS EQ 2,COUNTC)
+				IF COUNTA + COUNTB + COUNTC LE 2 THEN CONTINUE
+				IF COUNTA GE 1 THEN SUBA = SUBS(OKA)
+				IF COUNTB GE 1 THEN SUBB = SUBS(OKB)
+				IF COUNTC GE 1 THEN SUBC = SUBS(OKC)
+				TARGETS = [FN(SUBA).FULLNAME,FN(SUBB).FULLNAME,FN(SUBC).FULLNAME]
+				FA = FN(SUBA)
+				FB = FN(SUBB)
+				FC = FN(SUBC)
+				NAMES 			= [FA.NAME,				FB.NAME,			FC.NAME]
+				INAMES      = [FA.INAME,			FB.INAME,			FC.INAME]
+				PRODS 			= [FA.PROD,				FB.PROD,			FC.PROD]
+				PERIODS 		= [FA.PERIOD,			FB.PERIOD,		FC.PERIOD]
+				SENSORS 		= [FA.SENSOR,			FB.SENSOR,		FC.SENSOR]
+				METHODS 		= [FA.METHOD,			FB.METHOD,		FC.METHOD]
+				COVERAGES 	= [FA.COVERAGE,		FB.COVERAGE,	FC.COVERAGE]
+				SATELLITES 	= [FA.SATELLITE,	FB.SATELLITE,	FC.SATELLITE]
+				MAPS 				= [FA.MAP,				FB.MAP,				FC.MAP]
+
+        COMPARE = [[0,1],[1,2],[0,2]]
+        FOR _COMP = 0L, N_ELEMENTS(COMPARE(0,*))-1 DO BEGIN
+          COMP = COMPARE(*,_COMP)
+          _A = COMP[0]
+          _B = COMP[1]
+          TARGET_A = TARGETS(_A)
+          TARGET_B = TARGETS(_B)
+					IF PERIODS(_A)    EQ PERIODS(_B)    THEN PERIOD    = PERIODS(_A)    ELSE PERIOD    = PERIODS(_A)    + '_' + PERIODS(_B)
+					IF PRODS(_A)      EQ PRODS(_B)      THEN PROD      = PRODS(_A)      ELSE PROD      = PRODS(_A)      + '_' + PRODS(_B)
+					IF SENSORS(_A)    EQ SENSORS(_B)    THEN SENSOR    = SENSORS(_A)    ELSE SENSOR    = SENSORS(_A)    + '_' + SENSORS(_B)
+					IF METHODS(_A)    EQ METHODS(_B)    THEN METHOD    = METHODS(_A)    ELSE METHOD    = METHODS(_A)    + '_' + METHODS(_B)
+					IF COVERAGES(_A)  EQ COVERAGES(_B)  THEN COVERAGE  = COVERAGES(_A)  ELSE COVERAGE  = COVERAGES(_A)  + '_' + COVERAGES(_B)
+					IF SATELLITES(_A) EQ SATELLITES(_B) THEN SATELLITE = SATELLITES(_A) ELSE SATELLITE = SATELLITES(_A) + '_' + SATELLITES(_B)
+					IF MAPS(_A)       EQ MAPS(_B)       THEN MAP       = MAPS(_A)       ELSE MAP       = MAPS(_A)       + '_' + MAPS(_B)
+
+					FILENAME = PERIOD + '-' + SENSOR + '-' + SATELLITE + '-' + METHOD + '-' + COVERAGE + '-' + MAP + '-' + PROD + '-'
+					H2D_PS_FILENAME = DIR_HIST2D + FILENAME  + 'HIST2D.PS'
+
+					IF FILE_TEST(H2D_PS_FILENAME) EQ 0 OR _OVERWRITE EQ 1 THEN $
+						STRUCT_SD_HIST2D,	AFILES=TARGET_A, BFILES=TARGET_B, $
+															DIR_OUT=DIR_HIST2D, HIST2D_MODEL='RMA', $
+															NO_MASK=NO_MASK,/ISOTROPIC, /LOG_FREQ, TITLE=_TITLE, PARAMS=PARAMS, $
+															/DO_PS, PS_FILENAME=H2D_PS_FILENAME, $
+															ERROR=ERROR,ERR_MSG=ERR_MSG, _EXTRA=_extra
+					IF FILE_TEST(H2D_PS_FILENAME) EQ 0 THEN CONTINUE
+					GRACE = [100,100,100,100]
+					DPI = 600
+					H2D_PNG = DIR_HIST2D_PNG + 'TRIM\'+FILENAME + 'HIST2D-PS_1-trim.PNG'
+					IF _OVERWRITE EQ 1 OR FILE_TEST(DIR_HIST2D_PNG + 'TRIM\'+FILENAME + 'HIST2D-PS_1-trim.PNG') EQ 0 THEN $
+						IMAGE_TRIM, H2D_PS_FILENAME, DIR_OUT=DIR_HIST2D_PNG, DPI=DPI, BACKGROUND=BACKGROUND,GRACE=GRACE, OVERWRITE=_overwrite
+
+					APROD = STRMID(PROD,0,3)
+					IF APROD EQ 'CHL' THEN BEGIN
+			   		ANOMS='RATIO'
+						ADD_EXTRA  = 'Ratio  ' + METHODS(_A) + '-' + PRODS(_A) + ':' + METHODS(_B) + '-' + PRODS(_B) 	+ '  (' + COVERAGE + ')'
+						PAL = 'PAL_RATIO'
+						USE_PROD = 'RATIO_15'
+			   	ENDIF ELSE BEGIN
+			   		ANOMS = 'DIF'
+			   		ADD_EXTRA  = 'Difference  ' + METHODS(_A) + '-' + PRODS(_A) + ' - ' + METHODS(_B) + '-' + PRODS(_B) 	+ '  (' + COVERAGE + ')'
+			   		PAL = 'PAL_DIF'
+			   		USE_PROD = 'DIF_1'
+			   	ENDELSE
+					RATIO_SAVEFILE = DIR_RATIO + 'SAVE\' + FILENAME + 'RATIO.SAVE'
+					RATIO_PNG = DIR_RATIO_BROWSE + PERIOD + '-' + SENSOR + '-' + SATELLITE + '-' + METHOD + '-' + COVERAGE + '-' + MAP + '-PXY_1600_1600-' + PROD + '-RATIO.PNG'
+					IF FILE_TEST(RATIO_SAVEFILE) EQ 0 OR _OVERWRITE EQ 1 THEN BEGIN
+			    	MAKE_ANOM_SAVES,DIR_OUT=DIR_RATIO_SAVE,SAVEFILE=RATIO_SAVEFILE,FILEA=TARGET_A,FILEB=TARGET_B,ANOM=ANOMS,OVERWRITE=_OVERWRITE,NO_MASK=NO_MASK
+			    	STRUCT_SD_2PNG, RATIO_SAVEFILE,DIR_OUT=DIR_RATIO_BROWSE,USE_PROD=USE_PROD,$
+			    									/ADD_COLORBAR, /ADDDATE,/ADD_PROD,/ADD_SENSOR, /ADD_METHOD, $
+		          	     				/ADD_LAND, /ADD_COAST, BACKGROUND=ABACKGROUND,$
+		            	  				LAND_COLOR=ALAND_COLOR,FLAG_COLOR=AFLAG_COLOR,OUTSCAN_COLOR=aoutscan_color,$
+		              					ALGFAIL_COLOR=AALGFAIL_COLOR,HI_LO_COLOR=AHI_LO_COLOR,PAL=PAL,FLAGS=_FLAGS,SOLO=SOLO,$
+		              					OVERWRITE=_overwrite,/QUIET ,ADD_EXTRA=ADD_EXTRA
+		       ENDIF
+					OK = WHERE(FP.INAME EQ INAMES(_A) AND FP.PROD EQ PRODS(_A) AND FP.METHOD EQ METHODS(_A) AND FP.COVERAGE EQ COVERAGES(_A),COUNT) & IF COUNT GE 1 THEN PNG_A = FP[OK].FULLNAME ELSE BEGIN
+						STRUCT_SD_2PNG, TARGET_A, DIR_OUT=DIR_BROWSE, $
+														/ADD_COLORBAR, /ADDDATE,/ADD_SENSOR,/ADD_PROD,/ADD_METHOD,$
+	  												/ADD_LAND,/ADD_COAST,BACKGROUND=ABACKGROUND, $
+													  LAND_COLOR=ALAND_COLOR,FLAG_COLOR=AFLAG_COLOR,OUTSCAN_COLOR=aoutscan_color,$
+													  ALGFAIL_COLOR=AALGFAIL_COLOR,HI_LO_COLOR=AHI_LO_COLOR,PAL=PAL,FLAGS=_FLAGS,SOLO=SOLO ,$
+													  OVERWRITE=overwrite,/QUIET,NO_MASK=NO_MASK
+						PNG_A = FILE_SEARCH(DIR_A + 'BROWSE\' + INAMES(_A) + '-' +  METHODS(_A) + '-' + COVERAGES(_A) + '-' + MAPS(_A) + '*' + PRODS(_A) + '.png')
+						IF N_ELEMENTS(PNG_A) GT 1 OR PNG_A[0] EQ '' THEN  STOP
+					ENDELSE
+					OK = WHERE(FP.INAME EQ INAMES(_B) AND FP.PROD EQ PRODS(_B) AND FP.METHOD EQ METHODS(_B) AND FP.COVERAGE EQ COVERAGES(_B),COUNT) & IF COUNT GE 1 THEN PNG_B = FP[OK].FULLNAME ELSE BEGIN
+							STRUCT_SD_2PNG, TARET_B, DIR_OUT=DIR_BROWSE, $
+														/ADD_COLORBAR, /ADDDATE,/ADD_SENSOR,/ADD_PROD,/ADD_METHOD,$
+	  												/ADD_LAND,/ADD_COAST,BACKGROUND=ABACKGROUND, $
+													  LAND_COLOR=ALAND_COLOR,FLAG_COLOR=AFLAG_COLOR,OUTSCAN_COLOR=aoutscan_color,$
+													  ALGFAIL_COLOR=AALGFAIL_COLOR,HI_LO_COLOR=AHI_LO_COLOR,PAL=PAL,FLAGS=_FLAGS,SOLO=SOLO ,$
+													  OVERWRITE=overwrite,/QUIET,NO_MASK=NO_MASK
+						PNG_B = FILE_SEARCH(DIR_B + 'BROWSE\' + INAMES(_B) + '-' +  METHODS(_B) + '-' + COVERAGES(_B) + '-' + MAPS(_B) + '*' + PRODS(_B) + '.png')
+						IF N_ELEMENTS(PNG_B) GT 1 OR PNG_B[0] EQ '' THEN  STOP
+					ENDELSE
+					FILES = [PNG_A,PNG_B,H2D_PNG,RATIO_PNG]
+					FNA = FILE_PARSE(FILES)
+					FOR NTH = 0L, N_ELEMENTS(FILES)-1 DO BEGIN
+						PNGFILE = DIR_TRUE+FNA[NTH].NAME + '-TRUE.PNG'
+						IF FILE_TEST(PNGFILE) EQ 0 OR _OVERWRITE EQ 1 AND FILE_TEST(FILES[NTH]) EQ 1 THEN BEGIN
+							IMAGE = READ_PNG(FILES[NTH],R,G,B)
+							TRUE = IMAGE_2TRUE(IMAGE,R,G,B)
+							WRITE_PNG,PNGFILE ,TRUE,R,G,B
+						ENDIF
+					ENDFOR
+				ENDFOR
+			ENDFOR
+		ENDFOR
+	ENDIF			; IF DO_COMPARISON_FIGURES GE 1 THEN BEGIN
+
+
+;	*******************************************************
+	IF DO_IMAGE_MERGE GE 1 THEN BEGIN
+;	*******************************************************
+		_OVERWRITE = DO_IMAGE_MERGE GE 2
+
+
+		PAL_SW3,R,G,B
+		PAL = 'PAL_SW3'
+		BACKGROUND = 255
+		SPACE = 20
+		PX = 1600
+		PY = 1600
+		!P.FONT = 0
+		FIGSIZE = 1.5
+
+		FILES = FILE_SEARCH(DIR_TRUE+'*.PNG')
+		FN = PARSE_IT(FILES,/ALL)
+		BLANK = 'D:\IDL\IMAGES\BLANK_1600_BY_1600_IMAGE.PNG'
+
+		CHL_500 = 'LAC_500-PAMLICO-PXY_1600_1600-CHLOR_A-OC2-TRUE.PNG'
+		CHL_1KM = 'LAC_1KM-PAMLICO-PXY_1600_1600-CHLOR_A-OC3M-TRUE.PNG'
+		RRS_645 = 'LAC_250-PAMLICO-PXY_1600_1600-RRS_645-TRUE.PNG'
+		METHOD_1 = '-COLL5-'
+		METHOD_2 = '-COLL5_SWIR-'
+		METHOD_3 = '-COLL5_TBD-'
+		HIST_2D = '-LAC_1KM-PAMLICO-CHLOR_A-HIST2D-PS_1-trim-TRUE.PNG'
+		RATIO =   '-LAC_1KM-PAMLICO-PXY_1600_1600-CHLOR_A-RATIO-TRUE.PNG'
+		COMBO_1 = 'COLL5_COLL5_SWIR'
+		COMBO_2 = 'COLL5_COLL5_TBD'
+		COMBO_3 = 'COLL5_SWIR_COLL5_TBD'
+
+		SETS = WHERE_SETS(FN.INAME)
+		FOR NTH = 0L, N_ELEMENTS(SETS)-1 DO BEGIN
+			INAME = SETS[NTH].VALUE
+			SUBS = WHERE_SETS_SUBS(SETS[NTH])
+			AFILES = FILES(SUBS)
+			AP = FN(SUBS)
+;			OK = WHERE_STRING(AFILES, METHOD_1 + RRS_645, COUNT_1) & IF COUNT_1 EQ 1 THEN FILE_1 = AFILES[OK] ELSE FILE_1 = BLANK
+;			OK = WHERE_STRING(AFILES, METHOD_2 + RRS_645, COUNT_2) & IF COUNT_2 EQ 1 THEN FILE_2 = AFILES[OK] ELSE FILE_2 = BLANK
+;			OK = WHERE_STRING(AFILES, METHOD_3 + RRS_645, COUNT_3) & IF COUNT_3 EQ 1 THEN FILE_3 = AFILES[OK] ELSE FILE_3 = BLANK
+;			OK = WHERE_STRING(AFILES, METHOD_1 + CHL_500, COUNT_4) & IF COUNT_4 EQ 1 THEN FILE_4 = AFILES[OK] ELSE FILE_4 = BLANK
+;			OK = WHERE_STRING(AFILES, METHOD_2 + CHL_500, COUNT_5) & IF COUNT_5 EQ 1 THEN FILE_5 = AFILES[OK] ELSE FILE_5 = BLANK
+;			OK = WHERE_STRING(AFILES, METHOD_3 + CHL_500, COUNT_6) & IF COUNT_6 EQ 1 THEN FILE_6 = AFILES[OK] ELSE FILE_6 = BLANK
+;			OK = WHERE_STRING(AFILES, METHOD_1 + CHL_1KM, COUNT_7) & IF COUNT_7 EQ 1 THEN FILE_7 = AFILES[OK] ELSE FILE_7 = BLANK
+;			OK = WHERE_STRING(AFILES, METHOD_2 + CHL_1KM, COUNT_8) & IF COUNT_8 EQ 1 THEN FILE_8 = AFILES[OK] ELSE FILE_8 = BLANK
+;			OK = WHERE_STRING(AFILES, METHOD_3 + CHL_1KM, COUNT_9) & IF COUNT_9 EQ 1 THEN FILE_9 = AFILES[OK] ELSE FILE_9 = BLANK
+;
+;			_FILES = [FILE_1,FILE_2,FILE_3,FILE_4,FILE_5,FILE_6,FILE_7,FILE_8,FILE_9]
+;			OK = WHERE(_FILES EQ BLANK,COUNT) & IF COUNT GE 1 THEN STOP
+;			PNGFILE = DIR_COMPOSITE + INAME + '-PAMLICO-COMPOSITE.PNG'
+;			ROWS = 3
+;			COLS = 3
+;			IF FILE_TEST(PNGFILE) EQ 0  OR _OVERWRITE EQ 1 THEN $
+;			IMAGE_WELD_PAGE,FILES=_FILES,ROWS=ROWS,COLS=COLS,PNGFILE=pngfile,SPACE=SPACE,PX=PX,py=PY,BACKGROUND=BACKGROUND,/NOTRIM
+
+			OK = WHERE_STRING(AFILES, COMBO_1 + HIST_2D, COUNT_1) & IF COUNT_1 EQ 1 THEN _FILE_1 = AFILES[OK] ELSE _FILE_1 = BLANK
+			OK = WHERE_STRING(AFILES, COMBO_2 + HIST_2D, COUNT_2) & IF COUNT_2 EQ 1 THEN _FILE_2 = AFILES[OK] ELSE _FILE_2 = BLANK
+			OK = WHERE_STRING(AFILES, COMBO_3 + HIST_2D, COUNT_3) & IF COUNT_3 EQ 1 THEN _FILE_3 = AFILES[OK] ELSE _FILE_3 = BLANK
+			OK = WHERE_STRING(AFILES, COMBO_1 + RATIO, COUNT_4)   & IF COUNT_4 EQ 1 THEN _FILE_4 = AFILES[OK] ELSE _FILE_4 = BLANK
+			OK = WHERE_STRING(AFILES, COMBO_2 + RATIO, COUNT_5)   & IF COUNT_5 EQ 1 THEN _FILE_5 = AFILES[OK] ELSE _FILE_5 = BLANK
+			OK = WHERE_STRING(AFILES, COMBO_3 + RATIO, COUNT_6)   & IF COUNT_6 EQ 1 THEN _FILE_6 = AFILES[OK] ELSE _FILE_6 = BLANK
+
+			_FILES = [_FILE_1,_FILE_2,_FILE_3]
+			OK = WHERE(_FILES EQ BLANK,COUNT) & IF COUNT GE 1 THEN STOP
+			PNGFILE1 = DIR_COMPOSITE + INAME + '-PAMLICO-COMPOSITE_HISTS.PNG'
+			ROWS = 1
+			COLS = 3
+			IF FILE_TEST(PNGFILE1) EQ 0  OR _OVERWRITE EQ 1 THEN $
+			IMAGE_WELD_PAGE,FILES=_FILES,ROWS=ROWS,COLS=COLS,PNGFILE=pngfile1,SPACE=SPACE,PX=PX,py=PY,BACKGROUND=BACKGROUND,/NOTRIM
+			_FILES = [_FILE_4,_FILE_5,_FILE_6]
+			OK = WHERE(_FILES EQ BLANK,COUNT) & IF COUNT GE 1 THEN STOP
+			PNGFILE2 = DIR_COMPOSITE + INAME + '-PAMLICO-COMPOSITE_RATIOS.PNG'
+			ROWS = 1
+			COLS = 3
+			IF FILE_TEST(PNGFILE2) EQ 0  OR _OVERWRITE EQ 1 THEN $
+			IMAGE_WELD_PAGE,FILES=_FILES,ROWS=ROWS,COLS=COLS,PNGFILE=pngfile2,SPACE=SPACE,PX=PX,py=PY,BACKGROUND=BACKGROUND,/NOTRIM
+			ROWS = 2
+			COLS = 1
+			PFILES = [PNGFILE1,PNGFILE2]
+			PNGFILE3 = DIR_COMPOSITE + INAME + '-PAMLICO-COMPOSITE-RATIO_HIST2D.PNG'
+			IF FILE_TEST(PNGFILE3) EQ 0 OR _OVERWRITE EQ 1 THEN $
+			IMAGE_WELD_PAGE,FILES=PFILES,ROWS=ROWS,COLS=COLS,PNGFILE=pngfile3,SPACE=SPACE,PX=PX,py=PY,BACKGROUND=BACKGROUND,/NOTRIM
+
+		ENDFOR
+STOP
+	ENDIF
+
+
+
+;	*******************************************************
+	IF DO_SAT_SHIP GE 1 THEN BEGIN
+;	*******************************************************
+		OVERWRITE = DO_SAT_SHIP GE 2
+
+		MAP = 'PAMLICO'
+		AROUND = 1
+		SHIP_FILE = 'D:\PROJECTS\HABS\PAMLICO\DATA\PAMLICO_INSITU_SHIP_DATA.CSV'
+		SHIP_FILE = 'D:\PROJECTS\HABS\PAMLICO\DATA\PAMLICO_INSITU_SHIP_DATA-1_tim.csv'
+		HOURS = 24.0
+
+
+		PRODS 			= ['CHLOR_A','CHLOR_A']
+		ALGS  			= ['OC2',    'OC3M'  ]
+		RESOLUTION 	= ['LAC_500','LAC_1KM']
+		METHOD      = ['COLL5_TBD','COLL5_TBD']
+		OUTNAMES    = RESOLUTION + '_' + PRODS + '_' + ALGS
+		DIR_SAVE    = 'E:\MODIS_HR-PAMLICO\SAVE\'
+		DIR_OUT = 'D:\PROJECTS\HABS\PAMLICO\DATA\'
+
+		FOR NTH = 0L, N_ELEMENTS(PRODS)-1 DO BEGIN
+			APROD = PRODS[NTH]
+			RES   = RESOLUTION[NTH]
+			FILES = FILELIST(DIR_SAVE + '!S_*' + METHOD + '*' + RES + '*' + APROD + '*' + ALGS[NTH] + '*.SAVE')
+			IF RES EQ 'LAC_1KM' THEN BEGIN & PX = 400 & PY = 400 & ENDIF
+			IF RES EQ 'LAC_500' THEN BEGIN & PX = 800 & PY = 800 & ENDIF
+			IF RES EQ 'LAC_250' THEN BEGIN & PX = 1600 & PY = 1600 & ENDIF
+
+			SD_SAT_SHIP,SHIP_FILE=SHIP_FILE,SAT_FILES=FILES,DIR_OUT=DIR_OUT,RANGE=RANGE,DIR_DATA=DIR_DATA,$
+	                MAP=MAP, AROUND=AROUND,PRODUCTS=APROD,HOURS=HOURS,PX=PX,PY=PY,OUTNAME=OUTNAMES[NTH],$
+  								TRANSFORMATION=TRANSFORMATION,CSV=CSV,OVERWRITE=overwrite
+		ENDFOR
+STOP
+		SKIP_SAT_SHIP:
+	ENDIF
+
+;	*******************************************************
+	IF DO_STATION_EXTRACT GE 1 THEN BEGIN
+;	*******************************************************
+		OVERWRITE = DO_STATION_EXTRACT GE 2
+
+		MAP = 'PAMLICO'
+		AROUND = 1
+		SHIP_FILE = 'D:\PROJECTS\HABS\PAMLICO\DATA\PAMLICO_INSITU_SHIP_DATA.CSV'
+		HOURS = 24.0
+
+
+		PRODS 			= ['CHLOR_A','CHLOR_A','TURBIDITY','FLH']
+		ALGS  			= ['OC2',    'OC3M',   'SHI',      '']
+		RESOLUTION 	= ['LAC_500','LAC_1KM','LAC_250',  'LAC_1KM']
+		OUTNAMES    = RESOLUTION + '_' + PRODS + '_' + ALGS
+		DIR_SAVE    = 'E:\MODIS_HR-PAMLICO\SAVE\'
+		DIR_OUT = 'D:\PROJECTS\HABS\PAMLICO\DATA\'
+
+		FOR NTH = 0L, N_ELEMENTS(PRODS)-1 DO BEGIN
+			APROD = PRODS[NTH]
+			RES   = RESOLUTION[NTH]
+			FILES = FILELIST(DIR_SAVE + '!S_*' + RES + '*' + APROD + '*' + ALGS[NTH] + '*.SAVE')
+			IF RES EQ 'LAC_1KM' THEN BEGIN & PX = 400 & PY = 400 & ENDIF
+			IF RES EQ 'LAC_500' THEN BEGIN & PX = 800 & PY = 800 & ENDIF
+			IF RES EQ 'LAC_250' THEN BEGIN & PX = 1600 & PY = 1600 & ENDIF
+
+			SD_SAT_SHIP,SHIP_FILE=SHIP_FILE,SAT_FILES=FILES,DIR_OUT=DIR_OUT,RANGE=RANGE,DIR_DATA=DIR_DATA,$
+	                MAP=MAP, AROUND=AROUND,PRODUCTS=APROD,HOURS=HOURS,PX=PX,PY=PY,OUTNAME=OUTNAMES[NTH],$
+  								TRANSFORMATION=TRANSFORMATION,CSV=CSV,OVERWRITE=overwrite
+		ENDFOR
+
+		SKIP_STATION_EXTRACT:
+	ENDIF
+
+
+;	*******************************************************
+	IF DO_SAT_SHIP_JOIN GE 1 THEN BEGIN
+;	*******************************************************
+		OVERWRITE = DO_SAT_SHIP_JOIN GE 2
+
+ 		EXIST = FILE_TEST(SAT_SHIP_CHL)
+ 		IF EXIST AND OVERWRITE EQ 0 THEN GOTO, SKIP_SAT_SHIP_JOIN	;>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+	;	SHIP_FILE 	= 'D:\PROJECTS\HABS\PAMLICO\DATA\PS_INSITU_CHL.csv'
+	;	SHIP 				= IDL_RESTORE(SHIP_FILE)
+	;	OK = WHERE(SHIP.LAT NE MISSINGS(SHIP.LAT)) & SHIP = SHIP[OK]
+		OC3MCHL 		= IDL_RESTORE('D:\PROJECTS\HABS\PAMLICO\DATA\SD_SAT_SHIP-PAMLICO-CHLOR_A-LAC_1KM_CHLOR_A_OC3M.SAVE')
+		OC2CHL 	    = IDL_RESTORE('D:\PROJECTS\HABS\PAMLICO\DATA\SD_SAT_SHIP-PAMLICO-CHLOR_A-LAC_500_CHLOR_A_OC2.SAVE')
+
+		TAGS = ['FIRST_NAME','FILE_MTIME','EXCLUDE','TRANSFORMATION','SHIP_DATA','SAT_DATA','N','MIN','MAX','MED','MEAN','VAR','STD','CV']
+
+		;OK = WHERE(OC3MCHL.N GT 0,COUNT) & IF COUNT GE 1 THEN OC3MCHL = OC3MCHL(OK)
+		NEWTAGS = 'OC3MCHL_'+TAGS
+		NEW = STRUCT_RENAME(OC3MCHL,TAGS,NEWTAGS)
+		FP = PARSE_IT(OC3MCHL.FIRST_NAME,/ALL)
+		ANAME = FP.NAME
+		PER = REPLICATE(CREATE_STRUCT('PERIOD','','DELTA_T',0.0),N_ELEMENTS(FP))
+		PER.PERIOD = '!S_' +  YDOY_2DATE(STRMID(ANAME,3,4),STRMID(ANAME,7,3),STRMID(ANAME,10,2),STRMID(ANAME,12,2))
+		OC3MCHL_NEW = STRUCT_MERGE(NEW,PER)
+
+	;	OK = WHERE(STUMPFCHL.N GT 0,COUNT) & IF COUNT GE 1 THEN STUMPFCHL = STUMPFCHL(OK)
+		NEWTAGS = 'OC2CHL_'+TAGS
+		NEW = STRUCT_RENAME(OC2CHL,TAGS,NEWTAGS)
+		FP = PARSE_IT(OC2CHL.FIRST_NAME,/ALL)
+		ANAME = FP.NAME
+		PER = REPLICATE(CREATE_STRUCT('PERIOD',''),N_ELEMENTS(FP))
+		PER.PERIOD = '!S_' +  YDOY_2DATE(STRMID(ANAME,3,4),STRMID(ANAME,7,3),STRMID(ANAME,10,2),STRMID(ANAME,12,2))
+		OC2CHL_NEW = STRUCT_MERGE(NEW,PER)
+
+
+;		NEWTAGS = 'FLH_'+TAGS
+;		NEW = STRUCT_RENAME(FLH,TAGS,NEWTAGS)
+;		FP = PARSE_IT(FLH.FIRST_NAME,/ALL)
+;		ANAME = FP.NAME
+;		PER = REPLICATE(CREATE_STRUCT('PERIOD',''),N_ELEMENTS(FP))
+;		PER.PERIOD = '!S_' +  YDOY_2DATE(STRMID(ANAME,3,4),STRMID(ANAME,7,3),STRMID(ANAME,10,2),STRMID(ANAME,12,2))
+;		FLH_NEW = STRUCT_MERGE(NEW,PER)
+
+		TAGNAMES=['PERIOD','SOURCE','CRUISE','STATION','DATE_SHIP','DEPTH','LON','LAT']
+;		NEW = STRUCT_JOIN(OC3MCHL_NEW,STUMPFCHL_NEW,FLH_NEW,TAGNAMES=TAGNAMES)
+		NEW = STRUCT_JOIN(OC3MCHL_NEW,OC2CHL_NEW,TAGNAMES=TAGNAMES)
+
+		OK = WHERE(NEW.PERIOD NE MISSINGS(NEW.PERIOD) AND NEW.DATE_SHIP NE MISSINGS(NEW.DATE_SHIP),COMPLEMENT=COMPLEMENT, NCOMPLEMENT=NCOMPLEMENT )
+		NEW[OK].DELTA_T = (PERIOD_2JD(NEW[OK].PERIOD) - DATE_2JD(NEW[OK].DATE_SHIP)) * 24
+		IF NCOMPLEMENT GE 1 THEN NEW(COMPLEMENT).DELTA_T = MISSINGS(0.0)
+
+  ; OK = WHERE(NEW.FLH_N EQ 0 AND NEW.STUMPFCHL_N EQ 0 AND NEW.OC3MCHL_N EQ 0,COUNT,COMPLEMENT=COMPLEMENT,NCOMPLEMENT=NCOMPLEMENT)
+   	OK = WHERE(NEW.OC2CHL_N EQ 0 AND NEW.OC3MCHL_N EQ 0,COUNT,COMPLEMENT=COMPLEMENT,NCOMPLEMENT=NCOMPLEMENT)
+    IF NCOMPLEMENT GE 1 THEN NEW = NEW(COMPLEMENT)
+
+		SAVE, FILENAME=SAT_SHIP_CHL,NEW,/COMPRESS
+
+		SKIP_SAT_SHIP_JOIN:
+	ENDIF
+
+
+;	*******************************************************
+	IF DO_CHL_SAT_FIG GE 1 THEN BEGIN
+;	*******************************************************
+		OVERWRITE = DO_CHL_SAT_FIG GE 2
+
+		EXIST = FILE_TEST(CHL_SAT_FIGS1)
+ 		IF EXIST AND OVERWRITE EQ 0 THEN GOTO, SKIP_CHL_SAT_FIG  ; >>>>>>>>>>>>>>>>>>>>>>>>>
+
+;		CHL_1KM = IDL_RESTORE('D:\PROJECTS\HABS\PAMLICO\DATA\SD_SAT_SHIP-PAMLICO-CHLOR_A_LAC_1KM_CHLOR_A_OC3M.SAVE')
+;		CHL_500 = IDL_RESTORE('D:\PROJECTS\HABS\PAMLICO\DATA\SD_SAT_SHIP-PAMLICO-CHLOR_A_LAC_500_CHLOR_A_OC2.SAVE')
+		CHL1 		= IDL_RESTORE('D:\PROJECTS\HABS\PAMLICO\DATA\SD_SAT_SHIP-PAMLICO-CHLOR_A-LAC_1KM_CHLOR_A_OC3M.SAVE')
+		CHL5    = IDL_RESTORE('D:\PROJECTS\HABS\PAMLICO\DATA\SD_SAT_SHIP-PAMLICO-CHLOR_A-LAC_500_CHLOR_A_OC2.SAVE')
+
+;
+		FP_1KM = PARSE_IT(CHL1.FIRST_NAME,/ALL)
+		FP_500 = PARSE_IT(CHL5.FIRST_NAME,/ALL)
+
+	;	SAT = IDL_RESTORE(SAT_SHIP_CHL)
+	;	FP  = PARSE_IT(SAT.FIRST_NAME,/ALL)
+;		SHIP = IDL_RESTORE(INSITU_DATA)
+
+		PAL_36
+
+		HPARAMS=[0,1,3,6,5]
+		HYMARGIN = [1,1]
+		HXMARGIN = [5,7]
+		HCHARSIZE = 1.5
+		BAR_COLOR = 31
+		PARAMS = [2,3,4,8]
+		CHARSIZE = 1.75
+		XMARGIN = [4,2]
+		YMARGIN = [1,1]
+		SYM_COLOR = 32
+		STATS_CHARSIZE = 1.15
+		SYMSIZE = 1.5
+		REG_THICK = 12
+		THICK = 2
+		FONT = 0
+	;	CIR = CIRCLE(0,0,1,49)
+	;	USERSYM, CIR(0,*),CIR(1,*),THICK=3,/FILL
+		CIRCLE,32, COLOR=32
+		PSYM = 8
+		ONE_COLOR = 0
+		ONE_THICK = 5
+		ONE_LINESTYLE = 2
+		CTICKNAME = ['0.01','0.1','1','10','100']
+
+		PSPRINT,FILENAME=CHL_SAT_FIGS1,/COLOR,/HALF,/TIMES
+		CTICKNAME=['0.1','1','10','100']
+		STATS_POS = [0.03,0.97]
+		!P.MULTI = [0,1,1]
+
+		YTITLE = 'MODIS !7Chlorophyll !8a!7 (mg m!E-3!N)'; !C(Turbidity Switch)'
+		XTITLE = '!8 in situ !7Chlorophyll !8a!7 (mg m!E-3!N)'
+		OK = WHERE(CHL1.MEAN NE MISSINGS(0.0) AND CHL1.N GE 4 AND CHL1.SHIP_DATA NE MISSINGS(0.0) AND $
+		         	 CHL1.MEAN GT 0.1 AND CHL1.MEAN LT 100,COUNT)
+
+		SAT = CHL1[OK].MEAN
+		SHIP = CHL1[OK].SHIP_DATA
+		SATMIN = CHL1[OK].MIN
+		SATMAX = CHL1[OK].MAX
+		YEAR = FP_1KM.YEAR_START
+		MONTH = FP_1KM.MONTH_START
+		LABELS = STRMID(YEAR,2,2)
+
+		JD = PERIOD_2JD(FP_1KM[OK].PERIOD)
+		SHIP_TIME = DATE_2JD(CHL1[OK].DATE_SHIP)
+		TIME = (JD - SHIP_TIME)*24
+
+		OK12 = WHERE(ABS(TIME) LE 12, COUNT12)
+		X12  = SHIP(OK12) & Y12 = SAT(OK12) & N12 = COUNT12 & YEAR12 = YEAR(OK12) & MONTH12 = MONTH(OK12)
+		MIN12 = SATMIN(OK12) & MAX12 = SATMAX(OK12)
+		OK24 = WHERE(ABS(TIME) LE 24, COUNT24)
+		X24  = SHIP(OK24) & Y24 = SAT(OK24) & N24 = COUNT24 & YEAR24 = YEAR(OK24) & MONTH24 = MONTH(OK24)
+		MIN24 = SATMIN(OK24) & MAX24 = SATMAX(OK24)
+
+		PLOTXY, X12,Y12,DECIMALS=3,/LOGLOG,/QUIET,TYPES=4,PARAMS=PARAMS,CHARSIZE=CHARSIZE,psym=psym,STATS_COLOR=0,XTITLE=XTITLE, $
+				YTITLE=YTITLE,SYM_COLOR=SYM_COLOR,SYMSIZE=symsize,XRANGE=[0.1,100],YRANGE=[0.1,100],STATS_CHARSIZE=STATS_CHARSIZE,REG_COLOR=0,REG_THICK=REG_THICK,/GRID_NONE,XMARGIN=XMARGIN,YMARGIN=YMARGIN,$
+				XTICKNAME=CTICKNAME,YTICKNAME=CTICKNAME,/ONE2ONE,ONE_COLOR=one_color,ONE_THICK=one_thick, ONE_LINESTYLE=one_linestyle,STATS_POS=STATS_POS
+		OK = WHERE(YEAR12 EQ '2002')			& CIRCLE,32, COLOR=22 &	OPLOT, X12[OK],Y12[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		OK = WHERE(YEAR12 EQ '2003')			& CIRCLE,32, COLOR=12 &	OPLOT, X12[OK],Y12[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		OK = WHERE(YEAR12 EQ '2004')			& CIRCLE,32, COLOR=20 &	OPLOT, X12[OK],Y12[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		OK = WHERE(YEAR12 EQ '2005')			& CIRCLE,32, COLOR=9 &	OPLOT, X12[OK],Y12[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+	;	OK = WHERE(YEAR12 EQ '2006')			& CIRCLE,32, COLOR=9 &	OPLOT, X12[OK],Y12[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+	;	OK = WHERE(YEAR12 EQ '2007')			& CIRCLE,32, COLOR=20 &	OPLOT, X12[OK],Y12[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		ERRPLOT,X12,MIN12,MAX12,THICK=3,COLOR=252
+	;	XYOUTS2,X12,Y12,LABELS(OK12), ALIGN=[0.45,0.65],COLOR=0,CHARSIZE=0.95
+		LEG_POS = [0.74,0.12,0.78,0.25]
+		LEG,pos=LEG_POS,color=[22,12,20,9],label=['2002','2003','2004','2005'],THICK=THICK,LSIZE=STATS_CHARSIZE,FONT=FONT
+		TITLE = '+/- 12 HOURS'
+		COOR = COORD_2PLOT(0.72,0.05)
+		XYOUTS, COOR.X,COOR.Y,TITLE, ALIGN=-0.1, CHARSIZE=STATS_CHARSIZE, COLOR=0, CHARTHICK=1
+
+		PLOTXY, X12,Y12,DECIMALS=3,/LOGLOG,/QUIET,TYPES=4,PARAMS=PARAMS,CHARSIZE=CHARSIZE,psym=psym,STATS_COLOR=0,XTITLE=XTITLE, $
+				YTITLE=YTITLE,SYM_COLOR=SYM_COLOR,SYMSIZE=symsize,XRANGE=[0.1,100],YRANGE=[0.1,100],STATS_CHARSIZE=STATS_CHARSIZE,REG_COLOR=0,REG_THICK=REG_THICK,/GRID_NONE,XMARGIN=XMARGIN,YMARGIN=YMARGIN,$
+				XTICKNAME=CTICKNAME,YTICKNAME=CTICKNAME,/ONE2ONE,ONE_COLOR=one_color,ONE_THICK=one_thick, ONE_LINESTYLE=one_linestyle,STATS_POS=STATS_POS
+
+;		OK = WHERE(MONTH12 EQ '12' OR MONTH12 EQ '01' OR MONTH12 EQ '02')	& CIRCLE,32, COLOR=1  &	OPLOT, X12[OK],Y12[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		OK = WHERE(MONTH12 EQ '03' OR MONTH12 EQ '04' OR MONTH12 EQ '05')	& CIRCLE,32, COLOR=12  &	OPLOT, X12[OK],Y12[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		OK = WHERE(MONTH12 EQ '06' OR MONTH12 EQ '07' OR MONTH12 EQ '08')	& CIRCLE,32, COLOR=22 &	OPLOT, X12[OK],Y12[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		OK = WHERE(MONTH12 EQ '09' OR MONTH12 EQ '10' OR MONTH12 EQ '11')	& CIRCLE,32, COLOR=9 &	OPLOT, X12[OK],Y12[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+
+
+		ERRPLOT,X12,MIN12,MAX12,THICK=3,COLOR=252
+	;	XYOUTS2,X12,Y12,LABELS(OK12), ALIGN=[0.45,0.65],COLOR=0,CHARSIZE=0.95
+		LEG_POS = [0.74,0.12,0.78,0.22]
+		LEG,pos=LEG_POS,color=[12,22,9],label=['Spring','Summer','Fall'],THICK=THICK,LSIZE=STATS_CHARSIZE,FONT=FONT
+		TITLE = '+/- 12 HOURS'
+		COOR = COORD_2PLOT(0.72,0.05)
+		XYOUTS, COOR.X,COOR.Y,TITLE, ALIGN=-0.1, CHARSIZE=STATS_CHARSIZE, COLOR=0, CHARTHICK=1
+
+
+
+		PLOTXY, X24,Y24,DECIMALS=3,/LOGLOG,/QUIET,TYPES=4,PARAMS=PARAMS,CHARSIZE=CHARSIZE,psym=psym,STATS_COLOR=0,XTITLE=XTITLE, $
+			YTITLE=YTITLE,SYM_COLOR=SYM_COLOR,SYMSIZE=symsize, XRANGE=[0.1,100], YRANGE=[0.1,100],STATS_CHARSIZE=STATS_CHARSIZE,REG_COLOR=0,REG_THICK=REG_THICK,/GRID_NONE,XMARGIN=XMARGIN,YMARGIN=YMARGIN,$
+			XTICKNAME=CTICKNAME,YTICKNAME=CTICKNAME,/ONE2ONE,ONE_COLOR=one_color,ONE_THICK=one_thick, ONE_LINESTYLE=one_linestyle,STATS_POS=STATS_POS
+		OK = WHERE(YEAR24 EQ '2002')			& CIRCLE,32, COLOR=22 &	OPLOT, X24[OK],Y24[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		OK = WHERE(YEAR24 EQ '2003')			& CIRCLE,32, COLOR=12 &	OPLOT, X24[OK],Y24[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		OK = WHERE(YEAR24 EQ '2004')			& CIRCLE,32, COLOR=20 &	OPLOT, X24[OK],Y24[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		OK = WHERE(YEAR24 EQ '2005')			& CIRCLE,32, COLOR=9 &	OPLOT, X24[OK],Y24[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		ERRPLOT,X24,MIN24,MAX24,THICK=3,COLOR=252
+		LEG_POS = [0.74,0.12,0.78,0.25]
+		LEG,pos=LEG_POS,color=[22,12,20,9],label=['2002','2003','2004','2005'],THICK=THICK,LSIZE=STATS_CHARSIZE,FONT=FONT
+
+		TITLE = '+/- 24 HOURS'
+		COOR = COORD_2PLOT(0.72,0.05)
+		XYOUTS, COOR.X,COOR.Y,TITLE, ALIGN=-0.1, CHARSIZE=STATS_CHARSIZE, COLOR=0, CHARTHICK=1
+		LABEL = 'B'
+		COOR = COORD_2PLOT(0.945,0.87)
+;		XYOUTS, COOR.X,COOR.Y,LABEL, ALIGN=-0.1, CHARSIZE=2, COLOR=0, CHARTHICK=1
+	PSPRINT
+	IMAGE_TRIM, CHL_SAT_FIGS1, DIR_OUT='D:\PROJECTS\HABS\PAMLICO\PLOTS\', DPI=600, BACKGROUND=BACKGROUND,GRACE=[100,100,100,100], OVERWRITE=overwrite
+
+	PSPRINT,FILENAME=CHL_SAT_FIGS5,/COLOR,/HALF,/TIMES
+		CTICKNAME=['0.1','1','10','100']
+		STATS_POS = [0.03,0.97]
+		!P.MULTI = [0,1,1]
+
+		YTITLE = 'MODIS !7Chlorophyll !8a!7 (mg m!E-3!N)'; !C(Turbidity Switch)'
+		XTITLE = '!8 in situ !7Chlorophyll !8a!7 (mg m!E-3!N)'
+		OK = WHERE(CHL5.MEAN NE MISSINGS(0.0) AND CHL5.N GE 4 AND CHL5.SHIP_DATA NE MISSINGS(0.0) AND $
+		         	 CHL5.MEAN GT 0.1 AND CHL5.MEAN LT 100,COUNT)
+
+		SAT = CHL5[OK].MEAN
+		SATMIN = CHL5[OK].MIN
+		SATMAX = CHL5[OK].MAX
+		SHIP = CHL5[OK].SHIP_DATA
+		YEAR = FP_500.YEAR_START
+		MONTH = FP_500.MONTH_START
+		LABELS = STRMID(YEAR,2,2)
+
+		JD = PERIOD_2JD(FP_500[OK].PERIOD)
+		SHIP_TIME = DATE_2JD(CHL5[OK].DATE_SHIP)
+		TIME = (JD - SHIP_TIME)*24
+
+		OK12 = WHERE(ABS(TIME) LE 12, COUNT12)
+		X12  = SHIP(OK12) & Y12 = SAT(OK12) & N12 = COUNT12 & YEAR12 = YEAR(OK12) & MONTH12 = MONTH(OK12)
+		MIN12 = SATMIN(OK12) & MAX12 = SATMAX(OK12)
+		OK24 = WHERE(ABS(TIME) LE 24, COUNT24)
+		X24  = SHIP(OK24) & Y24 = SAT(OK24) & N24 = COUNT24 & YEAR24 = YEAR(OK24) & MONTH24 = MONTH(OK24)
+		MIN24 = SATMIN(OK24) & MAX24 = SATMAX(OK24)
+
+		PLOTXY, X12,Y12,DECIMALS=3,/LOGLOG,/QUIET,TYPES=4,PARAMS=PARAMS,CHARSIZE=CHARSIZE,psym=psym,STATS_COLOR=0,XTITLE=XTITLE, $
+				YTITLE=YTITLE,SYM_COLOR=SYM_COLOR,SYMSIZE=symsize,XRANGE=[0.1,100],YRANGE=[0.1,100],STATS_CHARSIZE=STATS_CHARSIZE,REG_COLOR=0,REG_THICK=REG_THICK,/GRID_NONE,XMARGIN=XMARGIN,YMARGIN=YMARGIN,$
+				XTICKNAME=CTICKNAME,YTICKNAME=CTICKNAME,/ONE2ONE,ONE_COLOR=one_color,ONE_THICK=one_thick, ONE_LINESTYLE=one_linestyle,STATS_POS=STATS_POS
+		OK = WHERE(YEAR12 EQ '2002')			& CIRCLE,32, COLOR=22 &	OPLOT, X12[OK],Y12[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		OK = WHERE(YEAR12 EQ '2003')			& CIRCLE,32, COLOR=12 &	OPLOT, X12[OK],Y12[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		OK = WHERE(YEAR12 EQ '2004')			& CIRCLE,32, COLOR=20 &	OPLOT, X12[OK],Y12[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		OK = WHERE(YEAR12 EQ '2005')			& CIRCLE,32, COLOR=9 &	OPLOT, X12[OK],Y12[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		ERRPLOT,X12,MIN12,MAX12,THICK=3,COLOR=252
+		LEG_POS = [0.74,0.12,0.78,0.25]
+		LEG,pos=LEG_POS,color=[22,12,20,9],label=['2002','2003','2004','2005'],THICK=THICK,LSIZE=STATS_CHARSIZE,FONT=FONT
+		TITLE = '+/- 12 HOURS'
+		COOR = COORD_2PLOT(0.72,0.05)
+		XYOUTS, COOR.X,COOR.Y,TITLE, ALIGN=-0.1, CHARSIZE=STATS_CHARSIZE, COLOR=0, CHARTHICK=1
+		LABEL = 'A'
+		COOR = COORD_2PLOT(0.945,0.86)
+;		XYOUTS, COOR.X,COOR.Y,LABEL, ALIGN=-0.1, CHARSIZE=2, COLOR=0, CHARTHICK=1
+
+; YTI = '                                                                      OC3 MODIS Chlorophyll !8a!7 (mg m!E-3!N)'
+		PLOTXY, X24,Y24,DECIMALS=3,/LOGLOG,/QUIET,TYPES=4,PARAMS=PARAMS,CHARSIZE=CHARSIZE,psym=psym,STATS_COLOR=0,XTITLE=XTITLE, $
+			YTITLE=YTITLE,SYM_COLOR=SYM_COLOR,SYMSIZE=symsize, XRANGE=[0.1,100], YRANGE=[0.1,100],STATS_CHARSIZE=STATS_CHARSIZE,REG_COLOR=0,REG_THICK=REG_THICK,/GRID_NONE,XMARGIN=XMARGIN,YMARGIN=YMARGIN,$
+			XTICKNAME=CTICKNAME,YTICKNAME=CTICKNAME,/ONE2ONE,ONE_COLOR=one_color,ONE_THICK=one_thick, ONE_LINESTYLE=one_linestyle,STATS_POS=STATS_POS
+		OK = WHERE(YEAR24 EQ '2002')			& CIRCLE,32, COLOR=22 &	OPLOT, X24[OK],Y24[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		OK = WHERE(YEAR24 EQ '2003')			& CIRCLE,32, COLOR=12 &	OPLOT, X24[OK],Y24[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		OK = WHERE(YEAR24 EQ '2004')			& CIRCLE,32, COLOR=20 &	OPLOT, X24[OK],Y24[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		OK = WHERE(YEAR24 EQ '2005')			& CIRCLE,32, COLOR=9 &	OPLOT, X24[OK],Y24[OK],SYMSIZE=SYMSIZE,PSYM=PSYM
+		ERRPLOT,X24,MIN24,MAX24,THICK=3,COLOR=252
+		TITLE = '+/- 24 HOURS'
+		COOR = COORD_2PLOT(0.72,0.05)
+		XYOUTS, COOR.X,COOR.Y,TITLE, ALIGN=-0.1, CHARSIZE=STATS_CHARSIZE, COLOR=0, CHARTHICK=1
+		LABEL = 'B'
+		COOR = COORD_2PLOT(0.945,0.87)
+;		XYOUTS, COOR.X,COOR.Y,LABEL, ALIGN=-0.1, CHARSIZE=2, COLOR=0, CHARTHICK=1
+	PSPRINT
+	IMAGE_TRIM, CHL_SAT_FIGS5, DIR_OUT='D:\PROJECTS\HABS\PAMLICO\PLOTS\', DPI=600, BACKGROUND=BACKGROUND,GRACE=[100,100,100,100], OVERWRITE=overwrite
+STOP
+
+
+
+
+
+
+
+		METHODS = ['COLL5','COLL5_SWIR','COLL5_TBD']
+		!P.MULTI = [0,2,3]
+
+		FOR _M = 0L, N_ELEMENTS(METHODS)-1 DO BEGIN
+			AMETHOD = METHODS(_M)
+			IF AMETHOD EQ 'COLL5' THEN YTITLE = 'MODIS !7Chlorophyll !8a!7 (mg m!E-3!N) !C(Default)'
+			IF AMETHOD EQ 'COLL5_SWIR' THEN YTITLE = 'MODIS !7Chlorophyll !8a!7 (mg m!E-3!N) !C(SWIR Correction)'
+			IF AMETHOD EQ 'COLL5_TBD' THEN YTITLE = 'MODIS !7Chlorophyll !8a!7 (mg m!E-3!N) !C(Turbidity Switch)'
+			IF _M EQ 2 THEN XTITLE = '!8 in situ !7Chlorophyll !8a!7 (mg m!E-3!N)' ELSE XTITLE = ' '
+			OK = WHERE(CHL_1KM.MEAN NE MISSINGS(0.0) AND CHL_1KM.N GE 4 AND CHL_1KM.SHIP_DATA NE MISSINGS(0.0) AND $
+		           	 CHL_1KM.MEAN GT 0.1 AND CHL_1KM.MEAN LT 100 AND FP_1KM.METHOD EQ AMETHOD,COUNT)
+
+			SAT = CHL_1KM[OK].MEAN
+			SHIP = CHL_1KM[OK].SHIP_DATA
+
+			JD = PERIOD_2JD(FP_1KM[OK].PERIOD)
+			SHIP_TIME = DATE_2JD(CHL_1KM[OK].DATE_SHIP)
+			TIME = (JD - SHIP_TIME)*24
+
+			OK12 = WHERE(ABS(TIME) LE 12, COUNT12)
+			X12  = SHIP(OK12) & Y12 = SAT(OK12) & N12 = COUNT12
+			OK24 = WHERE(ABS(TIME) LE 24, COUNT24)
+			X24  = SHIP(OK24) & Y24 = SAT(OK24) & N24 = COUNT24
+
+			PLOTXY, X12,Y12,DECIMALS=3,/LOGLOG,/QUIET,TYPES=4,PARAMS=PARAMS,CHARSIZE=CHARSIZE,psym=psym,STATS_COLOR=0,XTITLE=XTITLE, $
+				YTITLE=YTITLE,SYM_COLOR=SYM_COLOR,SYMSIZE=symsize,XRANGE=[0.1,100],YRANGE=[0.1,100],STATS_CHARSIZE=STATS_CHARSIZE,REG_COLOR=0,REG_THICK=REG_THICK,/GRID_NONE,XMARGIN=XMARGIN,YMARGIN=YMARGIN,$
+				XTICKNAME=CTICKNAME,YTICKNAME=CTICKNAME,/ONE2ONE,ONE_COLOR=one_color,ONE_THICK=one_thick, ONE_LINESTYLE=one_linestyle,STATS_POS=STATS_POS
+			TITLE = '+/- 12 HOURS'
+			COOR = COORD_2PLOT(0.52,0.1)
+			XYOUTS, COOR.X,COOR.Y,TITLE, ALIGN=-0.1, CHARSIZE=STATS_CHARSIZE, COLOR=0, CHARTHICK=1
+			LABEL = 'A'
+			COOR = COORD_2PLOT(0.945,0.86)
+	;		XYOUTS, COOR.X,COOR.Y,LABEL, ALIGN=-0.1, CHARSIZE=2, COLOR=0, CHARTHICK=1
+
+	   ; YTI = '                                                                      OC3 MODIS Chlorophyll !8a!7 (mg m!E-3!N)'
+			PLOTXY, X24,Y24,DECIMALS=3,/LOGLOG,/QUIET,TYPES=4,PARAMS=PARAMS,CHARSIZE=CHARSIZE,psym=psym,STATS_COLOR=0,XTITLE=XTITLE, $
+				YTITLE=' ',SYM_COLOR=SYM_COLOR,SYMSIZE=symsize, XRANGE=[0.1,100], YRANGE=[0.1,100],STATS_CHARSIZE=STATS_CHARSIZE,REG_COLOR=0,REG_THICK=REG_THICK,/GRID_NONE,XMARGIN=XMARGIN,YMARGIN=YMARGIN,$
+				XTICKNAME=CTICKNAME,YTICKNAME=CTICKNAME,/ONE2ONE,ONE_COLOR=one_color,ONE_THICK=one_thick, ONE_LINESTYLE=one_linestyle,STATS_POS=STATS_POS
+			TITLE = '+/- 24 HOURS'
+			COOR = COORD_2PLOT(0.52,0.1)
+			XYOUTS, COOR.X,COOR.Y,TITLE, ALIGN=-0.1, CHARSIZE=STATS_CHARSIZE, COLOR=0, CHARTHICK=1
+			LABEL = 'B'
+			COOR = COORD_2PLOT(0.945,0.87)
+	;		XYOUTS, COOR.X,COOR.Y,LABEL, ALIGN=-0.1, CHARSIZE=2, COLOR=0, CHARTHICK=1
+
+		ENDFOR
+		FOR _M = 0L, N_ELEMENTS(METHODS)-1 DO BEGIN
+			AMETHOD = METHODS(_M)
+			IF AMETHOD EQ 'COLL5' THEN YTITLE = 'MODIS !7Chlorophyll !8a!7 (mg m!E-3!N) !C(Default)'
+			IF AMETHOD EQ 'COLL5_SWIR' THEN YTITLE = 'MODIS !7Chlorophyll !8a!7 (mg m!E-3!N) !C(SWIR Correction)'
+			IF AMETHOD EQ 'COLL5_TBD' THEN YTITLE = 'MODIS !7Chlorophyll !8a!7 (mg m!E-3!N) !C(Turbidity Switch)'
+			IF _M EQ 2 THEN XTITLE = '!8 in situ !7Chlorophyll !8a!7 (mg m!E-3!N)' ELSE XTITLE = ' '
+			OK = WHERE(CHL_500.MEAN NE MISSINGS(0.0) AND CHL_500.N GE 4 AND CHL_500.SHIP_DATA NE MISSINGS(0.0) AND $
+		           CHL_500.MEAN GT 0.1 AND CHL_500.MEAN LT 100 AND FP_500.METHOD EQ AMETHOD,COUNT)
+
+			SAT = CHL_500[OK].MEAN
+			SHIP = CHL_500[OK].SHIP_DATA
+
+			JD = PERIOD_2JD(FP_500[OK].PERIOD)
+			SHIP_TIME = DATE_2JD(CHL_500[OK].DATE_SHIP)
+			TIME = (JD - SHIP_TIME)*24
+
+			OK12 = WHERE(ABS(TIME) LE 12, COUNT12)
+			X12  = SHIP(OK12) & Y12 = SAT(OK12) & N12 = COUNT12
+			OK24 = WHERE(ABS(TIME) LE 24, COUNT24)
+			X24  = SHIP(OK24) & Y24 = SAT(OK24) & N24 = COUNT24
+
+			PLOTXY, X12,Y12,DECIMALS=3,/LOGLOG,/QUIET,TYPES=4,PARAMS=PARAMS,CHARSIZE=CHARSIZE,psym=psym,STATS_COLOR=0,XTITLE=XTITLE, $
+				YTITLE=YTITLE,SYM_COLOR=SYM_COLOR,SYMSIZE=symsize,XRANGE=[0.1,100],YRANGE=[0.1,100],STATS_CHARSIZE=STATS_CHARSIZE,REG_COLOR=0,REG_THICK=REG_THICK,/GRID_NONE,XMARGIN=XMARGIN,YMARGIN=YMARGIN,$
+				XTICKNAME=CTICKNAME,YTICKNAME=CTICKNAME,/ONE2ONE,ONE_COLOR=one_color,ONE_THICK=one_thick, ONE_LINESTYLE=one_linestyle,STATS_POS=STATS_POS
+			TITLE = '+/- 12 HOURS'
+			COOR = COORD_2PLOT(0.52,0.1)
+			XYOUTS, COOR.X,COOR.Y,TITLE, ALIGN=-0.1, CHARSIZE=STATS_CHARSIZE, COLOR=0, CHARTHICK=1
+			LABEL = 'A'
+			COOR = COORD_2PLOT(0.945,0.86)
+	;		XYOUTS, COOR.X,COOR.Y,LABEL, ALIGN=-0.1, CHARSIZE=2, COLOR=0, CHARTHICK=1
+
+	 ;   YTI = '                                                                      OC3 MODIS Chlorophyll !8a!7 (mg m!E-3!N)'
+			PLOTXY, X24,Y24,DECIMALS=3,/LOGLOG,/QUIET,TYPES=4,PARAMS=PARAMS,CHARSIZE=CHARSIZE,psym=psym,STATS_COLOR=0,XTITLE=XTITLE, $
+				YTITLE=' ',SYM_COLOR=SYM_COLOR,SYMSIZE=symsize, XRANGE=[0.1,100], YRANGE=[0.1,100],STATS_CHARSIZE=STATS_CHARSIZE,REG_COLOR=0,REG_THICK=REG_THICK,/GRID_NONE,XMARGIN=XMARGIN,YMARGIN=YMARGIN,$
+				XTICKNAME=CTICKNAME,YTICKNAME=CTICKNAME,/ONE2ONE,ONE_COLOR=one_color,ONE_THICK=one_thick, ONE_LINESTYLE=one_linestyle,STATS_POS=STATS_POS
+			TITLE = '+/- 24 HOURS'
+			COOR = COORD_2PLOT(0.52,0.1)
+			XYOUTS, COOR.X,COOR.Y,TITLE, ALIGN=-0.1, CHARSIZE=STATS_CHARSIZE, COLOR=0, CHARTHICK=1
+			LABEL = 'B'
+			COOR = COORD_2PLOT(0.945,0.87)
+	;		XYOUTS, COOR.X,COOR.Y,LABEL, ALIGN=-0.1, CHARSIZE=2, COLOR=0, CHARTHICK=1
+
+		ENDFOR
+
+
+STOP
+
+   PLOTXY, X12,C12,DECIMALS=3,/LOGLOG,/QUIET,TYPES=4,PARAMS=PARAMS,CHARSIZE=CHARSIZE,psym=psym,STATS_COLOR=0,XTITLE=' ', $
+			YTITLE=' ',SYM_COLOR=SYM_COLOR,SYMSIZE=symsize,XRANGE=[0.1,100],YRANGE=[0.1,100],STATS_CHARSIZE=STATS_CHARSIZE,REG_COLOR=0,REG_THICK=REG_THICK,/GRID_NONE,XMARGIN=XMARGIN,YMARGIN=YMARGIN,$
+			XTICKNAME=CTICKNAME,YTICKNAME=CTICKNAME,/ONE2ONE,ONE_COLOR=one_color,ONE_THICK=one_thick, ONE_LINESTYLE=one_linestyle,STATS_POS=STATS_POS
+		TITLE = '+/- 12 HOURS'
+		COOR = COORD_2PLOT(0.72,0.1)
+		XYOUTS, COOR.X,COOR.Y,TITLE, ALIGN=-0.1, CHARSIZE=STATS_CHARSIZE, COLOR=0, CHARTHICK=1
+		LABEL = 'A'
+		COOR = COORD_2PLOT(0.945,0.86)
+		XYOUTS, COOR.X,COOR.Y,LABEL, ALIGN=-0.1, CHARSIZE=2, COLOR=0, CHARTHICK=1
+		TT = T_TEST_2SLOPES(X1=X12,Y1=Y12,X2=X24,Y2=Y24,ALPHA=0.01,SLOPE_P=SLOPE_P,INT_P=INT_P)
+
+    YTI = '                                                                    Stumpf MODIS Chlorophyll !8a!7 (mg m!E-3!N)'
+		PLOTXY, X24,C24,DECIMALS=3,/LOGLOG,/QUIET,TYPES=4,PARAMS=PARAMS,CHARSIZE=CHARSIZE,psym=psym,STATS_COLOR=0,XTITLE='!8 in situ !7Chlorophyll !8a!7 (mg m!E-3!N)', $
+			YTITLE=YTI,SYM_COLOR=SYM_COLOR,SYMSIZE=symsize, XRANGE=[0.1,100], YRANGE=[0.1,100],STATS_CHARSIZE=STATS_CHARSIZE,REG_COLOR=0,REG_THICK=REG_THICK,/GRID_NONE,XMARGIN=XMARGIN,YMARGIN=YMARGIN,$
+			XTICKNAME=CTICKNAME,YTICKNAME=CTICKNAME,/ONE2ONE,ONE_COLOR=one_color,ONE_THICK=one_thick, ONE_LINESTYLE=one_linestyle,STATS_POS=STATS_POS
+		TITLE = '+/- 24 HOURS'
+		COOR = COORD_2PLOT(0.72,0.1)
+		XYOUTS, COOR.X,COOR.Y,TITLE, ALIGN=-0.1, CHARSIZE=STATS_CHARSIZE, COLOR=0, CHARTHICK=1
+		LABEL = 'B'
+		COOR = COORD_2PLOT(0.945,0.87)
+		XYOUTS, COOR.X,COOR.Y,LABEL, ALIGN=-0.1, CHARSIZE=2, COLOR=0, CHARTHICK=1
+
+
+		OK = WHERE(SAT.FLH_MEAN NE MISSINGS(0.0) AND SAT.FLH_N GE 4 AND SAT.FLH_SHIP_DATA NE MISSINGS(0.0))
+
+		SAT_TIME = PERIOD_2JD(SAT[OK].PERIOD)
+		SHIP_TIME = DATE_2JD(SAT[OK].DATE_SHIP)
+		TIME = (SAT_TIME - SHIP_TIME)*24
+		SATF = SAT[OK].FLH_MEAN
+		FLH  = SAT[OK].FLH_SHIP_DATA
+		OK12 = WHERE(ABS(TIME) LE 12, COUNT12)
+		X12 = CHL(OK12) & Y12 = SATC(OK12) & N12 = COUNT12
+		OK24 = WHERE(ABS(TIME) LE 24, COUNT24)
+		X24 = CHL(OK24) & Y24 = SATC(OK24) & N24 = COUNT24
+		STATS_POS = [0.03,0.97]
+
+
+		PLOTXY, X12,Y12,DECIMALS=3,/LOGLOG,/QUIET,TYPES=4,PARAMS=PARAMS,CHARSIZE=CHARSIZE,psym=psym,STATS_COLOR=0,XTITLE=' ', $
+			YTITLE=' ',SYM_COLOR=SYM_COLOR,SYMSIZE=symsize,STATS_CHARSIZE=STATS_CHARSIZE,REG_COLOR=0,REG_THICK=REG_THICK,/GRID_NONE,XMARGIN=XMARGIN,YMARGIN=YMARGIN,$
+			XTICKNAME=CTICKNAME,YTICKNAME=CTICKNAME,/ONE2ONE,ONE_COLOR=one_color,ONE_THICK=one_thick, ONE_LINESTYLE=one_linestyle,STATS_POS=STATS_POS
+		TITLE = '+/- 12 HOURS'
+		COOR = COORD_2PLOT(0.72,0.1)
+		XYOUTS, COOR.X,COOR.Y,TITLE, ALIGN=-0.1, CHARSIZE=STATS_CHARSIZE, COLOR=0, CHARTHICK=1
+		LABEL = 'A'
+		COOR = COORD_2PLOT(0.945,0.86)
+		XYOUTS, COOR.X,COOR.Y,LABEL, ALIGN=-0.1, CHARSIZE=2, COLOR=0, CHARTHICK=1
+
+    YTI = '                                                                    MODIS FLH'
+		PLOTXY, X24,Y24,DECIMALS=3,/LOGLOG,/QUIET,TYPES=4,PARAMS=PARAMS,CHARSIZE=CHARSIZE,psym=psym,STATS_COLOR=0,XTITLE='!8 in situ !7FLH', $
+			YTITLE=YTI,SYM_COLOR=SYM_COLOR,SYMSIZE=symsize, STATS_CHARSIZE=STATS_CHARSIZE,REG_COLOR=0,REG_THICK=REG_THICK,/GRID_NONE,XMARGIN=XMARGIN,YMARGIN=YMARGIN,$
+			XTICKNAME=CTICKNAME,YTICKNAME=CTICKNAME,/ONE2ONE,ONE_COLOR=one_color,ONE_THICK=one_thick, ONE_LINESTYLE=one_linestyle,STATS_POS=STATS_POS
+		TITLE = '+/- 24 HOURS'
+		COOR = COORD_2PLOT(0.72,0.1)
+		XYOUTS, COOR.X,COOR.Y,TITLE, ALIGN=-0.1, CHARSIZE=STATS_CHARSIZE, COLOR=0, CHARTHICK=1
+		LABEL = 'B'
+		COOR = COORD_2PLOT(0.945,0.87)
+		XYOUTS, COOR.X,COOR.Y,LABEL, ALIGN=-0.1, CHARSIZE=2, COLOR=0, CHARTHICK=1
+
+
+
+
+PSPRINT
+STOP
+
+		SKIP_CHL_SAT_FIG:
+	ENDIF
+
+
+
+
+END

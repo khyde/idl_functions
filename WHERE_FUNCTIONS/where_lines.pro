@@ -1,0 +1,50 @@
+; $ID:	WHERE_LINES.PRO,	2020-06-26-15,	USER-KJWH	$
+
+  FUNCTION WHERE_LINES, TEXT ,TARGETS=TARGETS, DELIM=DELIM,ANY=ANY,COUNT=COUNT
+;+
+; NAME:
+;       WHERE_LINES
+;
+; PURPOSE:
+;       Locate subscripts (LINES) of a text array having specified words
+;
+;
+; INPUTS:
+;       TEXT
+;
+; KEYWORD PARAMETERS:
+;
+; OUTPUTS:
+;
+;
+; MODIFICATION HISTORY:
+;       Written by:  J.E.O'Reilly, Jan 4,2005
+;-
+
+	ROUTINE_NAME='WHERE_LINES'
+	ERROR=0
+
+	IF N_ELEMENTS(DELIM) EQ 0 THEN _DELIM = '-' ELSE _DELIM = DELIM
+
+	W=WORDS(TEXT,LINE=LINE,DELIM=_DELIM)
+	OK=WHERE_IN(W,STRTRIM(TARGETS,2),COUNT)
+	IF COUNT EQ 0 THEN RETURN, []    ; Removed RETURN, -1 to be compatible with IDL 8.1 - may not be compatible with ealier versions of IDL
+
+	W=W[OK] & LINE=LINE[OK]
+
+	TXT = STRTRIM(LINE,2)+'$'+W
+  S=SORT(TXT) & U=UNIQ(TXT(S)) & LINES=LINE(S(U))
+  SETS = WHERE_SETS(LINES)
+
+	IF  KEYWORD_SET(ANY) THEN BEGIN
+		COUNT=N_ELEMENTS(SETS)
+		RETURN, SETS.VALUE
+	ENDIF	ELSE BEGIN
+		OK=WHERE(SETS.N EQ N_ELEMENTS(TARGETS),COUNT)
+		IF COUNT GE 1 THEN BEGIN
+			RETURN, SETS[OK].VALUE
+		ENDIF
+	ENDELSE
+
+
+  END; #####################  End of Routine ################################

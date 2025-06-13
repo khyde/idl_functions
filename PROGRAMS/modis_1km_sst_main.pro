@@ -1,0 +1,418 @@
+; $ID:	MODIS_1KM_SST_MAIN.PRO,	2020-07-08-15,	USER-KJWH	$
+
+;	This Program is a MAIN for Managing the MODIS 1KM data
+;
+; History:
+;	June 26, 2001	Written by:	J.E. O'Reilly
+; Sept 20, 2007 td, adopted from goes_sst_main
+;-
+; *************************************************************************
+PRO MODIS_1KM_SST_MAIN  , AUTO=AUTO
+  ROUTINE_NAME='MODIS_1KM_SST_MAIN'
+
+
+; *** Computer & Operating System & Date & Default Graphics Window ***
+  computer=GET_COMPUTER()  & os = STRUPCASE(!VERSION.OS) & DATE=DATE_NOW()
+  IF os EQ 'WIN32' THEN SET_PLOT,'WIN'
+
+; *** Constants ***
+	SLASH=DELIMITER(/path) & SP=DELIMITER(/SPACE) & UL=DELIMITER(/UL) & DASH=DELIMITER(/DASH)
+
+; *** Data Set & File Parameters ***
+	DATA_SET = 'SST-MODIS-LAC-EC'
+
+
+  SENSOR 		= 'MODIS'
+	METHOD 		= 'COLL5'
+	SATELLITE = ['AQU','TER']
+	SUITE  		= ''
+;	MAP 			= 'NEC'
+	MAP 			= 'EC'
+	PROD 			= 'SST'
+	PAL 			= 'PAL_PETES24J'
+  IF MAP    EQ 'NEC' 	OR MAP EQ 'EC'	THEN BEGIN
+    PX=1024 & PY=1024
+  ENDIF
+
+; *** Data Parameters ***
+  min_sst 						= 0.0
+  max_sst 						= 35.0
+
+; *** Main Disk ***
+  DISK = 'T:'
+  DIR_Z ='T:\SST-MODIS-LAC-L2\'
+
+
+  DIR_SUFFIX = ''
+
+; *** Main Path ***
+  path = DISK + SLASH+ DATA_SET  + SLASH ;;;
+
+; *** Program Directories ***
+	DIR_PROGRAMS       	= 'D:\IDL\PROGRAMS\'
+	DIR_DATA					 	= 'D:\IDL\DATA\'
+	DIR_INVENTORY			 	= 'D:\IDL\INVENTORY\'
+	DIR_IMAGES				 	= 'D:\IDL\IMAGES\'
+  DIR_GZIP 						= 'C:\GZIP\'
+  DIR_landmask 				= 'D:\IDL\IMAGES\'
+  DIR_NECW_NAV_MASTER = 'D:\IDL\DATA\'
+  DISK_CD 						=	'Z:'
+
+; *** Data Directories ***
+	DIR_TEMP  			= PATH+'temp'					+dir_suffix+SLASH
+  DIR_BROWSE			= PATH+'browse'				+	DIR_SUFFIX+SLASH
+  DIR_LOG					= PATH+'log' 					+ DIR_SUFFIX+SLASH
+  DIR_REPORT 			= PATH+'report'				+ DIR_SUFFIX+SLASH
+  DIR_HISTO 			= PATH+'HISTO'				+ DIR_SUFFIX+SLASH
+  DIR_PLOTS 			= PATH+'plots'				+ DIR_SUFFIX+SLASH
+  DIR_EXCLUDE			=	PATH+'exclude_browse'			+	DIR_SUFFIX+SLASH
+  DIR_SAVE 				= PATH+'SAVE'					+	DIR_SUFFIX+SLASH
+  DIR_STATS 			= PATH+'STATS'				+	DIR_SUFFIX+SLASH
+  DIR_STATS_BROWSE= PATH+'STATS_BROWSE'	+	DIR_SUFFIX+SLASH
+
+  DIR_ALL = [DIR_LOG,DIR_HISTO, DIR_REPORT,DIR_BROWSE, DIR_PLOTS, DIR_EXCLUDE,DIR_SUSPECT,DIR_TEMP,DIR_SAVE,DIR_STATS,DIR_STATS_BROWSE]
+
+
+	IF MAP EQ 'NEC' THEN BEGIN
+	  land_mask_file  						= DIR_landmask+'MASK_LAND-NEC-PXY_1024_1024.PNG'
+	ENDIF
+	IF MAP EQ 'EC' THEN BEGIN
+	  land_mask_file  						= DIR_landmask+'MASK_LAND-EC-PXY_1024_1024.PNG'
+	ENDIF
+
+
+; *** Colors ***
+ 	BACKGROUND=252 &
+	IF N_ELEMENTS(LAND_COLOR) 	NE 1 THEN LAND_COLOR=252
+ 	IF N_ELEMENTS(CLOUD_COLOR) 	NE 1 THEN CLOUD_COLOR=254
+	IF N_ELEMENTS(MISS_COLOR) 	NE 1 THEN MISS_COLOR=253
+	OUR_MISS_COLOR=251
+	HI_LO_COLOR=255
+
+
+; ****************************************************************************************
+; ********************* U S E R    S W I T C H E S  *************************************
+; ****************************************************************************************
+; Switches controlling which Processing STEPS to do.  The steps are in order of execution
+; Switches: 0 = Off, 1 = On,  2= On and Overwrite any Output Files
+
+; =====>
+	DO_CHECK_DIRS  			  				= 0  ; Normally, keep this switch on
+	DO_MODIS_1KM_RENAME						= 0
+	DO_Z_2SAVE										= 0
+	DO_MAKE_QUAL2_DILATE6_SAVE    = 1
+
+; *********************************************
+	IF DO_CHECK_DIRS GE 1 THEN BEGIN
+; *********************************************
+    PRINT, 'S T E P:    DO_CHECK_DIRS'
+    FOR N=0,N_ELEMENTS(DIR_ALL)-1 DO BEGIN & AFILE = STRMID(DIR_ALL(N),0,STRLEN(DIR_ALL(N))-1) &
+    	IF FILE_TEST(AFILE,/DIRECTORY) EQ 0L THEN FILE_MKDIR,AFILE &  ENDFOR
+  ENDIF
+; |||||||||||||||||||||||||||||||||||||||||||||||||
+
+; *********************************************
+	IF DO_MODIS_1KM_RENAME GE 1 THEN BEGIN
+; *********************************************
+    PRINT, 'S T E P:    MODIS_1KM_RENAME';
+
+		FILES = FILELIST('T:\MODIS_1KM_SST_11UM\Z\' + '!S*.bz2')
+		HELP, FILES
+		FP = PARSE_IT(FILES,/ALL)
+		SAT = FP.SATELLITE
+		SATNAME = SAT
+		OK = WHERE(SAT EQ 'AQU') & SATNAME[OK] = 'A'
+		OK = WHERE(SAT EQ 'TER') & SATNAME[OK] = 'T'
+		DATE = FP.DATE_START
+		YR = STRMID(DATE,0,4)
+		DOY = DATE_2DOY(STRMID(DATE,0,8))
+		DOY = FIX(DOY)
+		DOY = NUM2STR(DOY)
+		TIME = STRMID(DATE,8,6)
+		ADD = DOY
+		OK = WHERE(STRLEN(DOY) EQ 1) & ADD[OK] = '00'
+		OK = WHERE(STRLEN(DOY) EQ 2) & ADD[OK] = '0'
+		OK = WHERE(STRLEN(DOY) EQ 3) & ADD[OK] = ''
+
+		NEWNAME = SATNAME + YR + ADD + DOY + TIME + '.L2_LAC_SST'
+		OLDNAME = FP.NAME
+		NAME_CHANGE = [OLDNAME,NEWNAME]
+		FOR NTH = 0L, N_ELEMENTS(FILES)-1 DO BEGIN
+			FILE_RENAME, FILES[NTH], NAME_CHANGE = [OLDNAME[NTH],NEWNAME[NTH]]
+		ENDFOR
+		FILES = FILELIST('T:\MODIS_1KM_SST_11UM\Z\' + '*L2_LAC_SST*')
+		FILE_UPDATE, FILES, 'T:\MODIS_1KM_SST_4UM\Z\'
+
+STOP
+	;	MODIS_1KM_RENAME = [AFILES,TFILES]
+
+	ENDIF
+
+
+; *********************************************
+	IF DO_Z_2SAVE GE 1 THEN BEGIN
+; *********************************************
+    PRINT, 'S T E P:    DO_Z_2SAVE';
+    OVERWRITE =  DO_Z_2SAVE GE 2
+
+STOP
+
+		DIR_OUT=DIR_SAVE
+   	TARGETS = DIR_Z + '*L2_LAC_SST4*'
+		NODATA_CSV = 'D:\IDL\INVENTORY\MODIS_1KM_SST_NODATA.CSV'
+  	KEEP_HDF=0
+  	MAPS=['NEC']
+    MAPS=['EC']
+  	PRODS = ['SST','SST4']
+  	PRODS='SST4'
+  	MAKE_BROWSE = 1
+  	REVERSE_FILES=0
+		DATE_RANGE=['20000101000000','20200131235959']
+
+STOP
+
+
+		IF COMPUTER EQ 'SWORDFISH' THEN BEGIN
+    	DATE_RANGE=['20000101000000','20081231235959']
+			NODATA_CSV = 'D:\IDL\INVENTORY\MODIS_1KM_SST_EC_NODATA.CSV'
+		ENDIF
+
+
+
+
+		DATE_START=DATE_RANGE[0]
+	  DATE_END=DATE_RANGE[1]
+
+;		===> INPUT FROM HDD GZ  OUTPUT TO HARD DRIVE SAVE FOLDER
+;    TARGETS = REPLACE(DIR_Z,DISK+'\',DRIVE_HDD) + 'SST1*'
+		FILES=FILELIST(TARGETS)
+    IF FILES[0] EQ '' THEN STOP
+    FA = PARSE_IT(FILES)
+    DATES=satdate_2date(FA.FIRST_NAME)
+
+		OK= WHERE(DATES GE DATE_START AND DATES LE DATE_END,COUNT)
+		IF COUNT GE 1 THEN BEGIN
+			FA=FA[OK]
+			FILES=FA.FULLNAME
+			SST_L2_2MAPPED_2SAVE, FILES=files, DIR_OUT=dir_out, DIR_BROWSE=dir_browse, PRODS=prods, MAPS=maps, NO_REMAP=no_remap, NO_MASK=no_mask, MAKE_BROWSE=make_browse, NODATA_CSV=nodata_csv,$
+													KEEP_HDF=keep_hdf, OVERWRITE=overwrite, SENSOR=sensor, PX_OUT=px_out, PY_OUT=py_out, ADD_COVERAGE=add_coverage, _EXTRA=_extra, REVERSE_FILES=reverse_files
+		ENDIF
+  ENDIF
+;	||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+;**************************************************
+	IF DO_QUAL2_DILATE6_SAVE GE 1 THEN BEGIN
+;**************************************************
+		DATA_SET='MODIS-LAC-EC'
+		MAP=VALID_MAPS(DATA_SET)
+
+		DIR_IN= 'T:\MODIS-LAC-EC\SAVE\'
+		DIR_OUT='T:\MODIS-LAC-EC\SAVE_QUAL2\'
+STOP
+
+		FILES=FILE_SEARCH(DIR_IN+'!S_200011*4UM.save')
+		FOR  _file=0,n_elements(files)-1l do begin
+
+			FN=FILE_ALL(FILES(_FILE))
+			DT= PERIOD_FORMAT(FN.PERIOD,/BELOW,/NAME,/SHORT)
+
+		; find corresponding save file
+		  SAVEFILE=STRUPCASE(DIR_SAVE+FN.NAME_EXT)
+		  SAVEFILE=REPLACE(SAVEFILE,'.PNG','.SAVE')
+
+			struct=READALL(SAVEFILE)
+			QUAL_IMAGE=struct.SST.MASK
+
+			IF DO_MASK_PNG GE 1 THEN BEGIN
+			; write png for MASK
+				_PAL='PAL_36'
+				PNGFILE='T:\SST_COMPARE\BROWSE\'+FN.NAME+'-MASK.PNG'
+				LABEL=DT+'!C'+'MODIS-4um-1km'+'!C'+'MASK'
+				BIMAGE=QUAL_IMAGE
+				BIMAGE(0:*)=0B
+				OK_QUAL_0 = WHERE(QUAL_IMAGE EQ 0, COUNT_QUAL_0)
+			  OK_QUAL_1 = WHERE(QUAL_IMAGE EQ 1, COUNT_QUAL_1)
+			  OK_QUAL_2 = WHERE(QUAL_IMAGE EQ 2, COUNT_QUAL_2)
+			  OK_QUAL_3 = WHERE(QUAL_IMAGE EQ 3, COUNT_QUAL_3)
+			  OK_QUAL_4 = WHERE(QUAL_IMAGE EQ 4, COUNT_QUAL_4)
+			  OK_QUAL_5 = WHERE(QUAL_IMAGE EQ 5, COUNT_QUAL_5)
+			  OK_QUAL_6 = WHERE(QUAL_IMAGE EQ 6, COUNT_QUAL_6)
+
+			;  our SST-MODIS-1KM-NEC saves contain mask image for QUAL1 where CODEs 0B 1B designate good data
+			;		===> NOT_MASK (good data , 0b)
+				;	CODE_NAME = 'NOT_MASK'	   ACODE = 0B
+			  ; CODE_NAME = 'NOT_MASK'     ACODE = 1B
+				;	CODE_NAME = 'SUSPECT_SST'  ACODE = 2B
+				; CODE_NAME = 'BAD_SST'      ACODE = 3B
+				;	CODE_NAME = 'SST_FAIL'     ACODE = 4B
+				; CODE_NAME = 'L2_FLAGS'     ACODE = 5B
+			 	; CODE_NAME = 'LAND'         ACODE = 6B
+			  IF COUNT_QUAL_0 GE 1 THEN BIMAGE(OK_QUAL_0) = 3B
+			  IF COUNT_QUAL_1 GE 1 THEN BIMAGE(OK_QUAL_1) = 5B
+			  IF COUNT_QUAL_2 GE 1 THEN BIMAGE(OK_QUAL_2) = 15B
+			  IF COUNT_QUAL_3 GE 1 THEN BIMAGE(OK_QUAL_3) = 20B
+				IF COUNT_QUAL_4 GE 1 THEN BIMAGE(OK_QUAL_4) = 25B
+			  IF COUNT_QUAL_5 GE 1 THEN BIMAGE(OK_QUAL_5) = 32B
+			  IF COUNT_QUAL_6 GE 1 THEN BIMAGE(OK_QUAL_6) = 35B
+
+				BIMAGE = MAP_ADD_TXT(BIMAGE,0.01,0.75,LABEL, 	COLOR=0,charsize=(4.0*FLOAT(1024)/1024),CHARTHICK=2)
+				CALL_PROCEDURE,_PAL,R,G,B
+				PRINT, 'WRITING: '+PNGFILE
+				WRITE_PNG,PNGFILE,BIMAGE,R,G,B
+			ENDIF;		IF DO_MASK_PNG GE 1 THEN BEGIN
+
+			IF DO_NO_MASK_PNG GE 1 THEN BEGIN
+			; write png with NO MASK APPLIED
+				_PAL='PAL_SW3'
+				PNGFILE='T:\SST_COMPARE\BROWSE\'+FN.NAME+'-no_mask.PNG'
+				LABEL=DT+'!C'+'MODIS-4um-1km'+'!C'+'no mask'
+				BIMAGE=struct_sd_2image(struct,/no_mask)
+				_BIMAGE=BIMAGE
+				_BIMAGE(OK_LAND)=LAND_COLOR
+				_BIMAGE = MAP_ADD_TXT(_BIMAGE,0.01,0.75,LABEL, 	COLOR=0,charsize=(4.0*FLOAT(1024)/1024),CHARTHICK=2)
+
+				CALL_PROCEDURE,_PAL,R,G,B
+				PRINT, 'WRITING: '+PNGFILE
+				WRITE_PNG,PNGFILE,_BIMAGE,R,G,B
+			ENDIF;		IF DO_NO_MASK_PNG GE 1 THEN BEGIN
+
+			IF DO_QUAL1_PNG GE 1 THEN BEGIN
+		; 	write png with qual1 masking mask code GT 1
+				_PAL='PAL_SW3'
+				PNGFILE='T:\SST_COMPARE\BROWSE\'+FN.NAME+'-QUAL1.PNG'
+				LABEL=DT+'!C'+'MODIS-4um-1km'+'!C'+'QUAL1 mask'
+				_BIMAGE=BIMAGE
+				ok_qual1=where(qual_image GT 1,count)
+				IF COUNT GE 1 THEN _BIMAGE(OK_QUAL1)=FLAG_COLOR
+				_BIMAGE(OK_LAND)=LAND_COLOR
+				_BIMAGE = MAP_ADD_TXT(_BIMAGE,0.01,0.75,LABEL, 	COLOR=0,charsize=(4.0*FLOAT(1024)/1024),CHARTHICK=2)
+				CALL_PROCEDURE,_PAL,R,G,B
+				PRINT, 'WRITING: '+PNGFILE
+				WRITE_PNG,PNGFILE,_BIMAGE,R,G,B
+			ENDIF;		IF DO_QUAL1_PNG GE 1 THEN BEGIN
+
+			IF DO_QUAL2_PNG GE 1 THEN BEGIN
+		; 	write png with qual2 masking mask code GT 2
+				_PAL='PAL_SW3'
+				PNGFILE='T:\SST_COMPARE\BROWSE\'+FN.NAME+'-QUAL2.PNG'
+				LABEL=DT+'!C'+'MODIS-4um-1km'+'!C'+'QUAL2 mask'
+				ok_qual2=where(qual_image GT 2,count)
+				_BIMAGE=BIMAGE
+				IF COUNT GE 1 THEN _BIMAGE(OK_QUAL2)=FLAG_COLOR
+				_BIMAGE(OK_LAND)=LAND_COLOR
+				_BIMAGE = MAP_ADD_TXT(_BIMAGE,0.01,0.75,LABEL, 	COLOR=0,charsize=(4.0*FLOAT(1024)/1024),CHARTHICK=2)
+				CALL_PROCEDURE,_PAL,R,G,B
+				PRINT, 'WRITING: '+PNGFILE
+				WRITE_PNG,PNGFILE,_BIMAGE,R,G,B
+			ENDIF;		IF DO_QUAL2_PNG GE 1 THEN BEGIN
+
+
+			IF KEYWORD_SET(DO_QUAL2_DILATE_PNG) THEN BEGIN
+	;	; 	write png with qual2 masking mask code 3 DILATED
+				_PAL='PAL_SW3'
+				PNGFILE='T:\SST_COMPARE\BROWSE\'+FN.NAME+'-QUAL2_DILATED_3.PNG'
+				LABEL=DT+'!C'+'MODIS-4um-1km'+'!C'+'QUAL2_dilated_3 mask'
+				BIMAGE=struct_sd_2image(struct,/no_mask)
+				_BIMAGE=BIMAGE
+				_QUAL_IMAGE=QUAL_IMAGE
+	;			ok_qual2=where(_qual_image GT 2,count)
+	;			_QUAL_IMAGE(OK_QUAL2)=3
+	;			CLOUDIER, IMAGE=_QUAL_IMAGE,CLOUDS=3,MASK=MASK,BOX=3,/QUIET
+	;			OK_CLOUD = WHERE(MASK EQ 1,COUNT_CLOUD)
+	;
+	;			IF COUNT_CLOUD GE 1 THEN _BIMAGE(OK_CLOUD)=FLAG_COLOR
+	;			_BIMAGE(OK_LAND)=LAND_COLOR
+	;			_BIMAGE = MAP_ADD_TXT(_BIMAGE,0.01,0.75,LABEL, 	COLOR=0,charsize=(4.0*FLOAT(1024)/1024),CHARTHICK=2)
+	;			CALL_PROCEDURE,_PAL,R,G,B
+	;			PRINT, 'WRITING: '+PNGFILE
+	;			WRITE_PNG,PNGFILE,_BIMAGE,R,G,B
+	;
+	;
+	;			PNGFILE='T:\SST_COMPARE\BROWSE\'+FN.NAME+'-QUAL2_DILATED_4.PNG'
+	;			LABEL=DT+'!C'+'MODIS-4um-1km'+'!C'+'QUAL2_dilated_4 mask'
+	;			_BIMAGE=BIMAGE
+	;			_QUAL_IMAGE=QUAL_IMAGE
+	;			ok_qual2=where(_qual_image GT 2,count)
+	;			_QUAL_IMAGE(OK_QUAL2)=3
+	;			CLOUDIER, IMAGE=_QUAL_IMAGE,CLOUDS=3,MASK=MASK,BOX=4,/QUIET
+	;			OK_CLOUD = WHERE(MASK EQ 1,COUNT_CLOUD)
+	;
+	;			IF COUNT_CLOUD GE 1 THEN _BIMAGE(OK_CLOUD)=FLAG_COLOR
+	;			_BIMAGE(OK_LAND)=LAND_COLOR
+	;			_BIMAGE = MAP_ADD_TXT(_BIMAGE,0.01,0.75,LABEL, 	COLOR=0,charsize=(4.0*FLOAT(1024)/1024),CHARTHICK=2)
+	;			CALL_PROCEDURE,_PAL,R,G,B
+	;			PRINT, 'WRITING: '+PNGFILE
+	;			WRITE_PNG,PNGFILE,_BIMAGE,R,G,B
+	;
+	;			PNGFILE='T:\SST_COMPARE\BROWSE\'+FN.NAME+'-QUAL2_DILATED_5.PNG'
+	;			LABEL=DT+'!C'+'MODIS-4um-1km'+'!C'+'QUAL2_dilated_5 mask'
+	;			_BIMAGE=BIMAGE
+	;			_QUAL_IMAGE=QUAL_IMAGE
+	;			ok_qual2=where(_qual_image GT 2,count)
+	;			_QUAL_IMAGE(OK_QUAL2)=3
+	;			CLOUDIER, IMAGE=_QUAL_IMAGE,CLOUDS=3,MASK=MASK,BOX=5,/QUIET
+	;			OK_CLOUD = WHERE(MASK EQ 1,COUNT_CLOUD)
+	;
+	;			IF COUNT_CLOUD GE 1 THEN _BIMAGE(OK_CLOUD)=FLAG_COLOR
+	;			_BIMAGE(OK_LAND)=LAND_COLOR
+	;			_BIMAGE = MAP_ADD_TXT(_BIMAGE,0.01,0.75,LABEL, 	COLOR=0,charsize=(4.0*FLOAT(1024)/1024),CHARTHICK=2)
+	;			CALL_PROCEDURE,_PAL,R,G,B
+	;			PRINT, 'WRITING: '+PNGFILE
+	;			WRITE_PNG,PNGFILE,_BIMAGE,R,G,B
+	;
+	;			PNGFILE='T:\SST_COMPARE\BROWSE\'+FN.NAME+'-QUAL2_DILATED_6.PNG'
+	;			LABEL=DT+'!C'+'MODIS-4um-1km'+'!C'+'QUAL2_dilated_6 mask'
+	;			_BIMAGE=BIMAGE
+	;			_QUAL_IMAGE=QUAL_IMAGE
+	;			ok_qual2=where(_qual_image GT 2,count)
+	;			_QUAL_IMAGE(OK_QUAL2)=3
+	;			CLOUDIER, IMAGE=_QUAL_IMAGE,CLOUDS=3,MASK=MASK,BOX=6,/QUIET
+	;			OK_CLOUD = WHERE(MASK EQ 1,COUNT_CLOUD)
+	;
+	;			IF COUNT_CLOUD GE 1 THEN _BIMAGE(OK_CLOUD)=FLAG_COLOR
+	;			_BIMAGE(OK_LAND)=LAND_COLOR
+	;			_BIMAGE = MAP_ADD_TXT(_BIMAGE,0.01,0.75,LABEL, 	COLOR=0,charsize=(4.0*FLOAT(1024)/1024),CHARTHICK=2)
+	;			CALL_PROCEDURE,_PAL,R,G,B
+	;			PRINT, 'WRITING: '+PNGFILE
+	;			WRITE_PNG,PNGFILE,_BIMAGE,R,G,B
+
+				PNGFILE='T:\SST_COMPARE\BROWSE\'+FN.NAME+'-QUAL2_DILATED_10.PNG'
+				LABEL=DT+'!C'+'MODIS-4um-1km'+'!C'+'QUAL2_dilated_10 mask'
+				_BIMAGE=BIMAGE
+				_QUAL_IMAGE=QUAL_IMAGE
+				ok_qual2=where(_qual_image GT 2,count)
+				_QUAL_IMAGE(OK_QUAL2)=3
+				CLOUDIER, IMAGE=_QUAL_IMAGE,CLOUDS=3,MASK=MASK,BOX=10,/QUIET
+				OK_CLOUD = WHERE(MASK EQ 1,COUNT_CLOUD)
+
+				IF COUNT_CLOUD GE 1 THEN _BIMAGE(OK_CLOUD)=FLAG_COLOR
+				_BIMAGE(OK_LAND)=LAND_COLOR
+				_BIMAGE = MAP_ADD_TXT(_BIMAGE,0.01,0.75,LABEL, 	COLOR=0,charsize=(4.0*FLOAT(1024)/1024),CHARTHICK=2)
+				CALL_PROCEDURE,_PAL,R,G,B
+				PRINT, 'WRITING: '+PNGFILE
+				WRITE_PNG,PNGFILE,_BIMAGE,R,G,B
+
+			ENDIF;IF KEYWORD_SET(DO_QUAL2_DILATE_PNG) THEN BEGIN
+
+			BIMAGE=''
+			_BIMAGE=''
+			QUAL_IMAGE=''
+			struct=''
+		ENDFOR
+	ENDIF; IF DO_QUAL2_DILATE6_SAVE GE 1 THEN BEGIN
+;|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+
+
+
+
+DONE:
+PRINT,'END OF MODIS_1KM_SST_MAIN.PRO'
+
+
+
+END; #####################  End of Routine ################################

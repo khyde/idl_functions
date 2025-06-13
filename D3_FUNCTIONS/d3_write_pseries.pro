@@ -1,0 +1,59 @@
+; $ID:	D3_WRITE_PSERIES.PRO,	2020-06-03-17,	USER-KJWH	$
+;+
+;;#############################################################################################################
+	PRO D3_WRITE_PSERIES,D3_FILE
+;
+;
+;
+;
+; PURPOSE: THIS FUNCTION WRITES PSERIES DATA FROM A D3 STRUCTURE 
+; 
+; 
+; CATEGORY:	D3 FAMILY		 
+;
+; CALLING SEQUENCE: RESULT = D3_WRITE_PSERIES(D3_FILE)
+;
+; INPUTS: D3_FILE  [FROM D3_READ]
+
+; OPTIONAL INPUTS:
+;		NONE:	
+;		
+; KEYWORD PARAMETERS:
+;   NONE
+
+; OUTPUTS: 
+;		
+;; EXAMPLES:
+;  PRINT, D3_WRITE_PSERIES()
+;	NOTES:
+
+;		
+;
+;
+; MODIFICATION HISTORY:
+;			WRITTEN FEB 15, 2014 J.O'REILLY
+;#################################################################################
+;-
+;*************************
+ROUTINE_NAME  = 'D3_WRITE_PSERIES'
+;*************************
+D3_FILE = !S.IDL_TEMP + 'JUNK.SAV'
+S = IDL_RESTORE(D3_FILE)
+IF IDLTYPE(S) NE 'STRUCT' THEN MESSAGE,'A D3 FILE IS REQUIRED'
+STOP
+PX = S.PX
+PY = S.PY
+
+;FFFFFFFFFFFFFFFFFFFFFFFFF
+FOR _PY = 0,PY-1L DO BEGIN 
+    ;FFFFFFFFFFFFFFFFFFFFFFFFF
+    FOR _PX = 0,PX-1L DO BEGIN
+      PSERIES = REFORM(S.DATA(_PX,_PY,*))
+P      
+    ENDFOR;FOR _PX = 0,PX-1L DO BEGIN
+    ;FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF 
+ ENDFOR;FOR _PY = 0,PY-1L DO BEGIN
+;FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+;RETURN,S
+DONE:          
+	END; #####################  END OF ROUTINE ################################

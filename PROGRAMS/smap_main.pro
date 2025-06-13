@@ -1,0 +1,90 @@
+; $ID:	SMAP_MAIN.PRO,	2020-07-01-12,	USER-KJWH	$
+;#############################################################################################################
+	PRO SMAP_MAIN
+	
+;  PRO SMAP_MAIN
+;+
+; NAME:
+;		SMAP_MAIN
+;
+; PURPOSE: 
+;
+; CATEGORY:
+;		PLOT
+;		 
+;
+; CALLING SEQUENCE: SMAP_MAIN
+;
+; INPUTS: NONE
+;		
+;		
+; OPTIONAL INPUTS:
+;		NONE:	
+;		
+; KEYWORD PARAMETERS:
+;		NONE:
+
+; OUTPUTS: 
+;		
+;; EXAMPLES:
+;
+;  SMAP_MAIN
+;
+; MODIFICATION HISTORY:
+;			WRITTEN OCT 13,2013 J.O'REILLY
+;			
+;			
+;			
+;#################################################################################
+;
+;
+;-
+;***************************
+ROUTINE_NAME  = 'SMAP_MAIN'
+;***************************
+;SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
+DO_MAKE_MAPS_DATA         = 1
+;SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
+
+
+;*************************************
+IF DO_MAKE_MAPS_DATA  GE 1 THEN BEGIN
+;*************************************
+  M=MAPS_SIZE('SMI')
+  ST,M
+V = VALID_MAPS()
+  DB=REPLICATE(M,N_ELEMENTS(V)) & DB=STRUCT_2MISSINGS(DB)
+  ;FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+  FOR NTH = 0,N_ELEMENTS(V) -1 DO BEGIN
+    AMAP = V[NTH] & PFILE,AMAP,/U ;& WAIT,0.5
+    D=MAPS_SIZE(AMAP)
+    IF D.ERROR EQ '' THEN DB[NTH] = D ELSE PRINT,'ERROR:  ' + AMAP
+  ENDFOR;FOR NTH = 0,N_ELEMENTS(M) -1 DO BEGIN
+  ;FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+  
+  ST,DB & PN,DB
+  
+  ;### ADD 67 LMES
+  L = GET_LME_DB() & IF N_ELEMENTS(L) NE 67 THEN STOP
+  PN,L
+  D=STRUCT_2MISSINGS(D)
+  D=REPLICATE(STRUCT_2MISSINGS(D),N_ELEMENTS(L)) & PN,D
+  D.MAP = L.MAP
+  D.MAP_OUT = L.MAP
+  
+  D.INIT = 'MAP_SET'
+  D.PX = 512
+  D.PY = 512
+  D.PX_OUT = 512
+  D.PY_OUT = 512
+  DB = [DB,D] & PN,DB
+  ;###> WRITE BOTH A CSVFILE AND A SAVEFILE TO THE IDL/DATA FOLDER
+  CSVFILE = GET_PATH() + 'IDL\DATA\MAPS_DATA.CSV' 
+  STRUCT_2CSV,CSVFILE,DB & PFILE,CSVFILE,/W
+  SAVEFILE = GET_PATH() + 'IDL\DATA\MAPS_DATA.SAVE' 
+  SAVE,FILENAME = SAVEFILE,DB,/COMPRESS,/VERBOSE  & PFILE,SAVEFILE,/W
+  ,'DO_MAKE_MAPS_DATA'
+ENDIF;IF DO_MAKE_MAPS_DATA  GE 1 THEN BEGIN
+;||||||||||||||||||||||||||||||||||||||||||
+
+END; #####################  END OF ROUTINE ################################

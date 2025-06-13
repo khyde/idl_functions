@@ -1,0 +1,267 @@
+; $ID:	EDAB_EPU.PRO,	2021-04-15-17,	USER-KJWH	$
+
+PRO EDAB_EPU, EPU_2018=SOE_2018
+
+  ;+
+  ; NAME:
+  ;		EDAB_EPU
+  ;
+  ; PURPOSE:;
+  ;		MAIN program for creating data for the EDAB Ecological Production Unit analysis
+  ;
+  ; CATEGORY:
+  ;		MAIN
+  ;
+  ; CALLING SEQUENCE:
+  ;
+  ;	ROUTINE_NAME
+  ;
+  ; INPUTS:
+  ;
+  ; OPTIONAL INPUTS:
+  ;
+  ; KEYWORD PARAMETERS:
+  ;
+  ; OUTPUTS:
+  ;		This function creates data and plots for EDAB SOE reports
+  ;
+  ;	NOTES:
+  ;
+  ;
+  ; MODIFICATION HISTORY:
+  ;			Written February 13, 2018 by K.J.W.Hyde, 28 Tarzwell Drive, NMFS, NOAA 02882 (kimberly.hyde@noaa.gov)
+  ;-
+  ;	****************************************************************************************************
+  ROUTINE_NAME = 'EDAB_EPU'
+
+
+  ;	===> Initialize ERROR to a null string. If errors are encountered ERROR will be set to a message.
+  ;			 The calling routine can check error (e.g.IF ERROR NE 0 then there was a problem and do this or that)
+  ERROR = ''
+  SL = GET_PATH()
+  DIR_PROJECTS = !S.PROJECTS + 'EDAB' + SL + 'EPU' + SL
+
+  IF TOTAL([ANY(EPU_2018)]) EQ 0 THEN BEGIN
+    IF NONE(EPU_2018)        THEN EPU_2018           = 'Y' ; 2018 EPU Exctractions
+  ENDIF
+
+  SL = PATH_SEP()
+
+; ********************************************
+  IF KEY(EPU_2018) THEN BEGIN
+; ********************************************
+    SNAME = 'EPU_2018'
+    PRINT, 'Running: ' + SNAME
+    SWITCHES,EPU_2018,STOPP=STOPP,OVERWRITE=OVERWRITE,VERBOSE=VERBOSE,INIT=INIT,R_FILES=R_FILES,R_DATASETS=R_DATASETS,R_MAPS=R_MAPS,DATERANGE=DATERANGE
+
+    DATA_EXTRACTS       = 'Y'
+    VERSION = 'V2018_1'
+    OMAP = 'L3B2'
+    PMAP = 'NES'
+    SUBAREA = 'NES_ECOREGIONS'
+    SHP_NAME = 'NES_TENMIN'
+    
+    DIR_PRO = DIR_PROJECTS + VERSION + SL + SHP_NAME + SL
+    DIR_DATA = DIR_PRO + 'DATA_EXTRACTS' + SL & DIR_TEST, DIR_DATA
+    DIR_PORG = DIR_PRO + 'PNGS' + SL + 'ORG_FILES'       + SL & DIR_TEST, DIR_PORG
+    DIR_PTEN = DIR_PRO + 'PNGS' + SL + 'TEN_MIN_SQUARES' + SL & DIR_TEST, DIR_PTEN
+    
+    ATT_TAG = 'LL'
+    SHP_FILES = FLS(!S.IDL_SHAPEFILES + SUBAREA + SL + SHP_NAME + '.shp')
+    STRUCT = READ_SHPFILE(SHP_FILES, MAPP=OMAP, ATT_TAG=ATT_TAG, COLOR=COLOR, VERBOSE=VERBOSE, NORMAL=NORMAL, AROUND=AROUND)
+    SHPS=STRUCT.(0)
+    OUTLINE = SHPS.OUTLINE
+    
+    LONLAT_FILE = DIR_DATA + 'LONLAT_' + SHP_NAME + '_EXTRACTS.csv'
+    LL = REPLICATE(CREATE_STRUCT('SHAPEFILE','', 'LL_SUBAREA','', 'LAT_MIN', 0.0, 'LAT_MAX', 0.0, 'LON_MIN',0.0, 'LON_MAX', 0.0, 'N_PIXELS', 0L),N_TAGS(SHPS)-1)
+    FOR N=0, N_TAGS(SHPS)-2 DO BEGIN
+      IF IDLTYPE(SHPS.(N)) NE 'STRUCT' THEN CONTINUE
+      SH = SHPS.(N)
+      BRK = STR_BREAK(SH.SUBAREA,'_')
+      LL(N).SHAPEFILE = SHP_NAME
+      LL(N).LL_SUBAREA     = STRING(SH.SUBAREA)
+      LL(N).LAT_MIN   = MIN(SH.OUTLINE_LATS)
+      LL(N).LAT_MAX   = MAX(SH.OUTLINE_LATS) 
+      LL(N).LON_MIN   = MIN(SH.OUTLINE_LONS)
+      LL(N).LON_MAX   = MAX(SH.OUTLINE_LONS)
+      LL(N).N_PIXELS  = N_ELEMENTS(SH.SUBS)
+    ENDFOR
+    IF ~EXISTS(LONLAT_FILE) THEN STRUCT_2CSV, LONLAT_FILE, LL
+    
+    PNGFILE = DIR_PTEN + SHP_NAME + '.PNG'
+    IF ~EXISTS(PNGFILE) THEN BEGIN
+      M = MAPS_BLANK(OMAP)
+      FOR N=0, N_TAGS(SHPS)-2 DO BEGIN
+        M(SHPS.(N).SUBS) = FIX(N)
+      ENDFOR
+      M = MAPS_REMAP(M,MAP_IN=OMAP,MAP_OUT='NES')
+      B = PRODS_2BYTE(M,PROD='NUM_0_1500',/ADD_LAND,/ADD_COAST,MP='NES')
+      I = IMAGE(B, RGB_TABLE=CPAL_READ('PAL_BR'),DIMENSIONS=[1368,1436],POSITION=[0,100,1368,1436],/DEVICE,/BUFFER)
+      CBAR, 'NUM_0_1500', IMG=I, COMMA=COMMA, FONT_SIZE=CB_SIZE, CB_TYPE=CB_TYPE, CB_POS=[0.25,0.03,0.75,0.04], CB_TITLE='Ten Minute Square Number',PAL='PAL_BR'
+      I.SAVE, PNGFILE
+      I.CLOSE
+    ENDIF  
+    
+    PNGFILE = DIR_PTEN + 'N_PIXELS-' + SHP_NAME + '.PNG'
+    IF ~EXISTS(PNGFILE) THEN BEGIN
+      M = MAPS_BLANK(OMAP)
+      FOR N=0, N_TAGS(SHPS)-2 DO M(SHPS.(N).SUBS) = N_ELEMENTS(SHPS.(N).SUBS)
+      M = MAPS_REMAP(M,MAP_IN=OMAP,MAP_OUT='NES')
+      B = PRODS_2BYTE(M,PROD='NUM_0_75',/ADD_LAND,/ADD_COAST,MP='NES')
+      I = IMAGE(B, RGB_TABLE=CPAL_READ('PAL_BR'),DIMENSIONS=[1368,1436],POSITION=[0,100,1368,1436],/DEVICE,/BUFFER)
+      CBAR, 'NUM_0_75', IMG=I, COMMA=COMMA, FONT_SIZE=CB_SIZE, CB_TYPE=CB_TYPE, CB_POS=[0.25,0.03,0.75,0.04], CB_TITLE='Number of Pixels per Ten Minute Square',PAL='PAL_BR'
+      I.SAVE, PNGFILE
+      I.CLOSE
+    ENDIF
+          
+    IF KEY(DATA_EXTRACTS) THEN BEGIN
+      AMAP = 'L3B2'
+      OMAP = 'NES'
+      CHL_ALG='PAN'
+      PPD_ALG='VGPM2'
+      PPD_PAN=0
+      TXT_TAGS = [];['PERIOD','MATH']
+      
+      SATS = (['MODISA'])
+      BUFFER = 0
+      VERBOSE = 0
+      YEARS = YEAR_RANGE('1998','2017',/STRING)
+      DR = ['2010','2017']
+      
+      FOR P=0, N_ELEMENTS(CHL_ALG)-1 DO BEGIN
+        AFILES = []
+        IF KEY(PPD_PAN) THEN PSAT = REPLACE('MODISA_PAN','') ELSE PSAT = 'MODISA'
+        CHL_PROD = []
+        CASE CHL_ALG(P) OF
+          'OCI': BEGIN & SPROD = 'CHLOR_A-OCI' & NPROD = 'CHL' & CHL_PROD = 'chlor_a' & END
+          'OCX': BEGIN & SPROD = 'CHLOR_A-OCX' & NPROD = 'CHL' & CHL_PROD = 'chl_ocx' & END
+          'PAN': BEGIN & SPROD = 'CHLOR_A-PAN' & NPROD = 'CHL_PAN' & END
+        ENDCASE
+        PPROD = 'PPD-' + PPD_ALG
+
+        AFILES = [AFILES,FLS(!S.OC  + 'MODISA'  + SL + AMAP + SL + 'STATS' + SL + SPROD + SL + 'A_*STATS*SAV',DATERANGE=DR)]
+        AFILES = [AFILES,FLS(!S.OC  + 'MODISA'  + SL + AMAP + SL + 'STATS' + SL + 'MICRO-PAN' + SL + 'A_*STATS*SAV',DATERANGE=DR)]
+        AFILES = [AFILES,FLS(!S.OC  + 'MODISA'  + SL + AMAP + SL + 'STATS' + SL + 'MICRO_PERCENTAGE-PAN' + SL + 'A_*STATS*SAV',DATERANGE=DR)]
+        AFILES = [AFILES,FLS(!S.OC  + 'MODISA'  + SL + AMAP + SL + 'STATS' + SL + 'NANOPICO-PAN' + SL + 'A_*STATS*SAV',DATERANGE=DR)]
+        AFILES = [AFILES,FLS(!S.OC  + 'MODISA'  + SL + AMAP + SL + 'STATS' + SL + 'NANOPICO_PERCENTAGE-PAN' + SL + 'A_*STATS*SAV',DATERANGE=DR)]
+        AFILES = [AFILES,FLS(!S.SST + 'MUR'     + SL + AMAP + SL + 'STATS' + SL + 'SST' + SL + 'A_*STATS.SAV',DATERANGE=DR)]
+        AFILES = [AFILES,FLS(!S.PP + PSAT      + SL + AMAP + SL + 'STATS' + SL + PPROD + SL + 'A_*STATS*SAV',DATERANGE=DR)]
+        
+        DSAVE = DIR_DATA + 'BATHYMETRY-' + SHP_NAME + '-DEPTH.SAV'
+        BATH = READ_BATHY(AMAP,/NAME_ONLY)
+        SUBAREAS_EXTRACT, BATH, /BATHY, SHP_FILES=SHP_FILES, INIT=INIT, VERBOSE=VERBOSE, DIR_OUT=DIR_DATA, STRUCT=DSTR, SAVEFILE=DSAVE, SHP_TAG=ATT_TAG
+       
+        ASAVE = DIR_DATA + 'ANNUAL-' + SHP_NAME + '-CHLOR_A_PPD_SST_STATS.SAV'
+        SUBAREAS_EXTRACT, AFILES, SHP_FILES=SHP_FILES, INIT=INIT, VERBOSE=VERBOSE, DIR_OUT=DIR_DATA, STRUCT=ASTR, SAVEFILE=ASAVE, SHP_TAG=ATT_TAG
+        
+        BFILES = []
+        BFILES = [BFILES,FLS(!S.FRONTS + 'MODISA' + SL + OMAP + SL + 'STATS' + SL + 'CHL_BOA-OCI' + SL + 'A_*STATS*SAV',DATERANGE=DR)]
+        BFILES = [BFILES,FLS(!S.FRONTS + 'MODISA' + SL + OMAP + SL + 'STATS' + SL + 'SST_BOA-4UM' + SL + 'A_*STATS*SAV',DATERANGE=DR)]
+        BFILES = [BFILES,FLS(!S.FRONTS + 'MODIST' + SL + OMAP + SL + 'STATS' + SL + 'SST_BOA-4UM' + SL + 'A_*STATS*SAV',DATERANGE=DR)]
+
+        BSAVE = DIR_DATA + 'ANNUAL-' + SHP_NAME + '-CHL_SST_FRONTS_STATS.SAV'
+        SUBAREAS_EXTRACT, BFILES, SHP_FILES=SHP_FILES, INIT=INIT, VERBOSE=VERBOSE, DIR_OUT=DIR_DATA, STRUCT=BSTR, SAVEFILE=BSAVE, SHP_TAG=ATT_TAG
+
+       
+        FILES = [DSAVE,ASAVE,BSAVE]
+        MPS   = [AMAP, AMAP, OMAP]
+        FOR F=0, N_ELEMENTS(FILES)-1 DO BEGIN
+          STRUCT = READ_SHPFILE(SHP_FILES, MAPP=MPS(F), COLOR=COLOR, VERBOSE=VERBOSE, NORMAL=NORMAL, AROUND=AROUND)
+          SHPS=STRUCT.(0)
+          STR  = STRUCT_READ(FILES(F))
+          BSET = WHERE_SETS(STR.NAME)
+          FOR A=0, N_ELEMENTS(BSET)-1 DO BEGIN
+            NAME = BSET(A).VALUE
+            PNGFILE = DIR_PTEN + NAME + '-' + SHP_NAME + '.PNG'
+            IF FILE_MAKE(FILES(F),PNGFILE) EQ 0 THEN CONTINUE
+            SUBS = WHERE_SETS_SUBS(BSET(A))
+            SET  = STR(SUBS)
+            M = MAPS_BLANK(MPS(F))
+            FOR N=0, N_TAGS(SHPS)-2 DO BEGIN
+              SUBNAME = SHPS.(N).SUBAREA
+              POS = WHERE(SET.SUBAREA EQ SUBNAME,COUNT)
+              IF COUNT EQ 0 THEN CONTINUE
+              M(SHPS.(N).SUBS) = SET(POS).GMEAN
+            ENDFOR
+            IF MPS(F) NE 'NES' THEN M = MAPS_REMAP(M,MAP_IN=MPS(F),MAP_OUT='NES')
+            IF SET[0].PROD EQ 'GRAD_CHL' THEN PROD = 'GRAD_CHL_1_1.1' ELSE PROD = SET[0].PROD
+      ;      IF PROD EQ 'TOPO' THEN PROD = 'BATHY'
+            B = PRODS_2BYTE(M,PROD=PROD,/ADD_COAST,MP='NES')
+            I = IMAGE(B, RGB_TABLE=CPAL_READ('PAL_BR'),DIMENSIONS=[1368,1436],POSITION=[0,100,1368,1436],/DEVICE,/BUFFER)
+            CBAR, PROD, IMG=I, COMMA=COMMA, FONT_SIZE=CB_SIZE, CB_TYPE=3, CB_POS=[0.25,0.04,0.75,0.05], PAL='PAL_BR'
+            PFILE, PNGFILE
+            I.SAVE, PNGFILE
+            I.CLOSE
+          ENDFOR
+        ENDFOR
+  
+        FILES = [BATH,AFILES,BFILES]
+        FOR A=0, N_ELEMENTS(FILES)-1 DO BEGIN
+          FP = FILE_PARSE(FILES(A))
+          PNGFILE = DIR_PORG + REPLACE(FP.NAME,AMAP,PMAP) + '.PNG'
+          IF FILE_MAKE(FILES(A),PNGFILE,OVERWRITE=OVERWRITE) EQ 1 THEN BEGIN
+            PROD = []
+            IF WHERE_STRING(FILES(A),'CHL_BOA') NE [] THEN PROD = 'GRAD_CHL'
+            IF WHERE_STRING(FILES(A),'SST_BOA') NE [] THEN PROD = 'GRAD_SST'
+            PRODS_2PNG, FILES(A), PNGFILE=PNGFILE, MAPP=PMAP, /ADD_NAME, TAG=PROD, PROD=PROD, /BUFFER
+          ENDIF
+        ENDFOR
+
+        ; ===> CONVERT TO EPU DATA STRUCTURE
+        MTYPES = ['GEOMETRIC_MEAN','ARITHMETIC_MEAN','N_PIXELS']
+        FOR L=0, N_ELEMENTS(MTYPES)-1 DO BEGIN
+          MTYPE = MTYPES(L)
+          EXTRACTED_FINAL = DIR_DATA + 'EPU_' + VERSION + '-' + SHP_NAME + '-CHLOR_A_PPD_FRONTS-'+MTYPE+'_MEAN.CSV'
+          IF FILE_MAKE(FILES,EXTRACTED_FINAL,OVERWRITE=OVERWRITE) EQ 1 THEN BEGIN
+            OSTR = LL
+            CSTR = STRUCT_CONCAT(ASTR,BSTR) 
+            CSTR = STRUCT_CONCAT(DSTR,CSTR)         
+            A = WHERE_SETS(CSTR.SENSOR + '_' + CSTR.PROD)
+            FOR M=0, N_ELEMENTS(A)-1 DO BEGIN 
+              SUBS = WHERE_SETS_SUBS(A(M))
+              ASET = CSTR(SUBS)
+              B = WHERE_SETS(ASET.PERIOD)
+              FOR N=0, N_ELEMENTS(B)-1 DO BEGIN
+                SUBS = WHERE_SETS_SUBS(B(N))
+                BSET = ASET(SUBS)
+                YR   = DATE_2YEAR(PERIOD_2DATE(B(N).VALUE)) 
+                IF A(M).VALUE EQ 'MODIST_SST_BOA' THEN CONTINUE
+                CASE A(M).VALUE OF
+                  'MODISA_CHLOR_A':              TAG = 'Y'+YR+'_CHL_'+MTYPE+'_mg_per_m3' 
+                  'MODISA_CHL_BOA':              TAG = 'Y'+YR+'_CHL_GRADIENT_'+MTYPE+'_per_km' 
+                  'MODISA_SST_BOA':              TAG = 'Y'+YR+'_SST_GRADIENT_'+MTYPE+'_oC_per_km' 
+                  'MODISA_MICRO':                TAG = 'Y'+YR+'_MICRO_CHL_'+MTYPE+'_mg_per_m3' 
+                  'MODISA_MICRO_PERCENTAGE':     TAG = 'Y'+YR+'_MICRO_CHL_PERCENT_'+MTYPE+'_mg_per_m3' 
+                  'MODISA_NANOPICO':            TAG = 'Y'+YR+'_NANOPICO_CHL_'+MTYPE+'_mg_per_m3' 
+                  'MODISA_NANOPICO_PERCENTAGE': TAG = 'Y'+YR+'_NANOPICO_CHL_PERCENT'+MTYPE+'_percent' 
+                  'MODISA_PPD':                  TAG = 'Y'+YR+'_PP_' +MTYPE+'_gC_per_m2_per_day' 
+                  'MUR_SST':                     TAG = 'Y'+YR+'_SST_'+MTYPE+'_oC' 
+                ENDCASE
+                STR = REPLICATE(STRUCT_2MISSINGS(CREATE_STRUCT('SHAPEFILE','','LL_SUBAREA','',TAG,0.0)),N_ELEMENTS(BSET))
+                STR.SHAPEFILE  = BSET.REGION
+                STR.LL_SUBAREA = BSET.SUBAREA
+                CASE MTYPE OF 
+                  'GEOMETRIC_MEAN':  STR.(2) = BSET.GMEAN  
+                  'ARITHMETIC_MEAN': STR.(2) = BSET.AMEAN
+                  'N_PIXELS':        STR.(2) = BSET.N
+                END  
+                STR = SORTED(STR,TAG='LL_SUBAREA')
+                OSTR = STRUCT_JOIN(OSTR,STR,TAGNAMES=['SHAPEFILE','LL_SUBAREA'])
+              ENDFOR    
+            ENDFOR
+            STRUCT_2CSV, EXTRACTED_FINAL, OSTR
+            GONE, OSTR
+          ENDIF  
+        ENDFOR  
+      ENDFOR ; CHL_ALGS  
+    ENDIF ; DATA EXTRACTS
+  ENDIF ; EPU_2018
+
+  
+
+
+
+
+END; #####################  End of Routine ################################
+
+

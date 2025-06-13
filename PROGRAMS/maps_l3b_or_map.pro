@@ -1,0 +1,64 @@
+; $ID:	MAPS_L3B_OR_MAP.PRO,	2017-11-29-15,	USER-KJWH	$
+; #########################################################################; 
+FUNCTION MAPS_L3B_OR_MAP, AMAP
+;+
+; PURPOSE:  RETURN EITHER A GLOBAL MAPP OR A L3BMAP EQUIVALENT DEPENDING ON THE INPUT
+;
+; CATEGORY: MAPS_ FAMILY
+;
+;
+; INPUTS: AMAP.......... ANY VALID GLOBAL MAPP NAME [E.G.GL1,GL2,GL4 OR GL8]
+;                        OR A VALID L3B MAP NAME [E.G. L3B1,L3B2,L3B4OR L3B9]
+;
+;
+; KEYWORDS:  NONE
+;
+; OUTPUTS: 
+;
+;; EXAMPLES:
+;            PRINT,MAPS_L3B_OR_MAP('L3B9')
+;            PRINT,MAPS_L3B_OR_MAP('L3B4')
+;            PRINT,MAPS_L3B_OR_MAP('L3B2')
+;            PRINT,MAPS_L3B_OR_MAP('L3B1')
+;            
+;            PRINT,MAPS_L3B_OR_MAP('GL8')
+;            PRINT,MAPS_L3B_OR_MAP('GL4')
+;            PRINT,MAPS_L3B_OR_MAP('GL2')
+;            PRINT,MAPS_L3B_OR_MAP('GL1')
+;            
+;            PRIMAPS_L3B_OR_MAPMAP('GL3')
+;
+; MODIFICATION HISTORY:
+;     FEB 20, 2017  WRITTEN BY: J.E. O'REILLY
+;     FEB 22, 2017 - KJWH: CHANGED THE PROGRAM NAME FROM MAPS_MAPP_VS_L3BMAP TO MAPS_MAP_OR_L3BMAP
+;     FEB 23, 2017 - KJWH: CHANGED THE ERROR TO RETURN THE ORIGINAL INPUT AMAP IF A MATCH WAS NOT FOUND.  
+;     FEB 24, 2107 - JEOR: CHANGED GL8 TO GL9
+;     FEB 24, 2017 - KJWH: CHANGED THE NAME TO MAPS_L3B_OR_MAP TO BE CONSISTENT WITH THE MAPS_L3B FAMILY
+;     AUG 23, 2017 - KJWH: CHANGE THE GLX MAPS TO GSX 
+;-
+; #########################################################################
+
+;******************************
+  ROUTINE = 'MAPS_L3B_OR_MAP'
+;******************************
+
+;CCCCCCCCCCCCCCCC
+  CASE (AMAP) OF
+    'L3B1': RETURN, 'GS1'
+    'L3B2': RETURN, 'GS2'
+    'L3B4': RETURN, 'GS4'
+    'L3B9': RETURN, 'GS9'
+    
+    'GS1': RETURN, 'L3B1'
+    'GS2': RETURN, 'L3B2'
+    'GS4': RETURN, 'L3B4'
+    'GS9': RETURN, 'L3B9'
+  
+    ELSE: RETURN, AMAP 
+  ENDCASE;CASE (AMAP) OF
+;CCCCCCCCCCCCCCCCCCCCCCCC
+
+
+
+
+END; #####################  END OF ROUTINE ################################

@@ -1,0 +1,44 @@
+; $ID:	LINE_DEMO.PRO,	2020-07-08-15,	USER-KJWH	$
+
+ PRO LINE_DEMO, COLORS
+;+
+; NAME:
+; 	PNT_LINE_DEMO
+
+;		This Program demonstrates IDL'S PNT_LINE PROGRAM
+
+; MODIFICATION HISTORY:
+;		Written jAN 31, 2005 by J.O'Reilly, 28 Tarzwell Drive, NMFS, NOAA 02882 (Jay.O'Reilly@NOAA.GOV)
+;-
+
+ROUTINE_NAME='LINE_DEMO'
+
+ 	X = [12,14]
+	Y = [2,2.021]
+	SLOPE = [Y[1]-Y[0]]/[X[1]-X[0]]
+	SLOPE=SLOPE[0]
+	PRINT,SLOPE
+
+
+	IF FINITE(SLOPE) EQ 0 THEN BEGIN
+	  INV_SLOPE = 0.0
+	ENDIF ELSE BEGIN
+		IF SLOPE EQ 0 THEN BEGIN
+		  INV_SLOPE = 1.0
+		ENDIF ELSE BEGIN
+			INV_SLOPE = -(1./SLOPE)
+		ENDELSE
+	ENDELSE
+
+
+
+
+	XM= TOTAL(MINMAX(X))/2.0
+	YM= TOTAL(MINMAX(Y))/2.0
+	YY = (INV_SLOPE * (X-XM)) +YM
+
+
+END; #####################  End of Routine ################################
+
+
+

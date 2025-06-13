@@ -1,0 +1,35 @@
+; $ID:	PERIOD_2DATE.PRO,	2018-07-03-10,	USER-KJWH	$
+ FUNCTION PERIOD_2DATE, Period, SHORT=SHORT
+;+
+; NAME:
+;       PERIOD_2DATE
+;
+; PURPOSE:
+;       Convert A Standard PERIOD (SEE VALID_PERIOD_CODES.PRO) to DATE
+;
+; CATEGORY:
+;       DATE_TIME;
+
+; INPUTS:
+;       PERIOD ;
+;
+
+; RESTRICTIONS:
+;    INPUT PERIOD MUST BE A VALID PERIOD
+
+;
+; MODIFICATION HISTORY:
+;      Nov 2, 2009  Written by:  K.Hyde
+;      Jul 03, 2018 - KJWH: Added the keyword SHORT to return just the YYYYMMDD
+;-
+
+  ROUTINE_NAME = 'PERIOD_2DATE'
+
+; ===============>
+  
+  JD 			= PERIOD_2JD(PERIOD)
+  DATE    = JD_2DATE(JD)
+  IF KEY(SHORT) THEN DATE = STRMID(DATE,0,8)
+
+  RETURN, DATE
+END

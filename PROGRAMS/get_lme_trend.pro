@@ -1,0 +1,69 @@
+; $ID:	GET_LME_TREND.PRO,	2020-06-30-17,	USER-KJWH	$
+;+
+;;#############################################################################################################
+	FUNCTION GET_LME_TREND,LME,PROD = PROD,ALL=ALL,INIT=INIT,_EXTRA=_EXTRA
+
+; PURPOSE: THIS FUNCTION COMPUTES THE TREND FROM A MONTHLY LME TIME SERIES 
+; 
+; 
+; CATEGORY:	LMES;		 
+;
+; CALLING SEQUENCE: RESULT = GET_LME_TREND(LME)
+;
+; INPUTS: LME  [NAME OR NUMERIC CODE]
+
+; OPTIONAL INPUTS:
+;		
+; KEYWORD PARAMETERS:
+;         PROD : STANDARD PROD NAME
+;         INIT : REREAD THE SAVFILE INTO MEMORY
+;         OTHER : ADDITIONAL TAGS TO ADD TO THE OUTPUT STRUCTURE
+; NOTES:
+;       THE FIRST RUNS OF STATS_TRENDS WERE DONE USING AMEAN OF CHLOR_A
+
+
+; OUTPUTS: 
+;		
+;; EXAMPLES:
+;  T = GET_LME_TREND('BALTIC_SEA',PROD = 'CHLOR_A') & ST,T
+;  T = GET_LME_TREND('BALTIC_SEA',PROD = 'CHLOR_A',STAT = 'AMEAN') & ST,T
+;  T =GET_LME_TREND('BALTIC_SEA',PROD = 'PPD') & ST,T
+;  T = GET_LME_TREND(PROD = 'CHLOR_A',/ALL) & H,T
+;	NOTES:
+
+;
+; MODIFICATION HISTORY:
+;			WRITTEN OCT 9, 2014 J.O'REILLY
+;			OCT 19,2014,JOR, ADDED KEY ALL 
+;			
+;#################################################################################
+;-
+;******************************  stop
+ROUTINE_NAME  = 'GET_LME_TREND'
+;******************************
+;######      DEFAULTS     ##########
+PER= 'M'
+DATE_RANGE = ['19980101','20131231']
+;||||||||||||||||||||||||||||||||||||||||||
+
+;###> PREVIOUS TRENDS USED AMEAN FOR CHLOR_A
+IF NONE(STAT) THEN STAT='AMEAN'
+
+IF KEY(ALL) THEN LME = (READ_LME_DB()).MAP
+
+;FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+FOR NTH = 0,N_ELEMENTS(LME)-1 DO BEGIN
+ TS =GET_LME_TS(LME[NTH],PROD = PROD,PER = PER,STAT=STAT)
+ P
+ JD = PERIOD_2JD(TS.PERIOD)
+ DATA = TS.MEAN
+ 
+ T = STATS_TREND(JD,DATA,DATE_RANGE=DATE_RANGE); 
+ S = STRUCT_MERGE(FIRST(TS),T)
+IF NONE(D) THEN D = S ELSE D = [D,S] 
+ENDFOR;FOR NTH = 0,N_ELEMENTS(LME)-1 DO BEGIN
+
+
+RETURN,D
+DONE:          
+	END; #####################  END OF ROUTINE ################################

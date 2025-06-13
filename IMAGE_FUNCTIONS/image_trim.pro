@@ -1,0 +1,86 @@
+; $ID:	IMAGE_TRIM.PRO,	2020-06-30-17,	USER-KJWH	$
+
+ PRO IMAGE_TRIM, FILES, DIR_OUT=dir_out, DPI=dpi, BACKGROUND=BACKGROUND,GRACE=GRACE, PX=PX,PY=PY,OVERWRITE=overwrite,PATH_GS_PS=PATH_GS_PS, PATH_GS_PDF=PATH_GS_PDF
+;+
+; NAME:
+;       IMAGE_TRIM
+;
+; PURPOSE:
+;				Trim excess background from a PNG image
+;
+; KEYWORD PARAMETERS:
+;       DIR_OUT: Directory for output
+;
+; OUTPUTS:
+;				A PNG (portable networks graphics) image file
+;
+;
+; MODIFICATION HISTORY:
+;       Written by:  J.E.O'Reilly, August 17, 2004
+;-
+
+ROUTINE_NAME='IMAGE_TRIM'
+
+; ===> Change the Location of the direcory containing gs executable program
+;			 and change the name of the executable to that appropriate for operating system
+
+	IF N_ELEMENTS(DPI) NE 1 THEN DPI = 600
+
+	SUFFIX='-trim';
+	IF N_ELEMENTS(OVERWRITE) EQ 1 THEN _OVERWRITE = OVERWRITE ELSE _OVERWRITE = 0
+
+
+
+
+; LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+	FOR _file=0L,N_ELEMENTS(FILES)-1L DO BEGIN
+		FILE=FILES(_file)
+
+;		===> IF the FILE is empty then skip
+		IF (FILE_INFO(FILE)).SIZE EQ 0 THEN CONTINUE ;  >>>>>>>>>>>>>>>>>>>>>>
+
+  	FN=FILE_PARSE(FILE)
+  	IF N_ELEMENTS(DIR_OUT) NE 1 THEN _DIR_OUT = FN.DIR ELSE _DIR_OUT = DIR_OUT
+  	_DIR_TRIM = _DIR_OUT + 'TRIM\'
+  	IF FILE_TEST(_DIR_TRIM,/DIRECTORY) EQ 0 THEN FILE_MKDIR,_DIR_TRIM
+
+
+  	IF STRUPCASE(FN.EXT) EQ 'PS' THEN BEGIN
+;			===> If the psfile had several pages then look for all output pngs
+   		TEMP_PNGFILES = FILE_SEARCH(_DIR_OUT+FN.NAME+'-PS_'+'*'+'.PNG')
+
+   		IF TEMP_PNGFILES[0] EQ '' OR (FILE_INFO(FILE)).MTIME GT MAX((FILE_INFO(TEMP_PNGFILES)).MTIME) OR _OVERWRITE EQ 1 THEN BEGIN
+	  		PS_2PNG, FILE , DIR_OUT= _dir_out, DPI=dpi,PATH_GS_PS=PATH_GS_PS, PATH_GS_PDF=PATH_GS_PDF
+
+	   		TEMP_PNGFILES = FILE_SEARCH(_DIR_OUT+FN.NAME+'-PS_'+'*'+'.PNG')
+	   		IF TEMP_PNGFILES[0] EQ '' THEN CONTINUE
+	   		FP = FILE_PARSE(TEMP_PNGFILES)
+
+	      OK = WHERE(STRPOS(STRUPCASE(FP.FIRST_NAME),'-TRIM') EQ -1,COUNT)
+	      IF COUNT GE 1 THEN BEGIN
+	      	TEMP_PNGFILES=TEMP_PNGFILES[OK]
+
+	;					LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+	  			FOR _TEMP = 0L,N_ELEMENTS(TEMP_PNGFILES)-1L DO BEGIN
+	  				TEMP = TEMP_PNGFILES(_TEMP)
+	  				IMAGE=READ_PNG(TEMP,R,G,B)
+	  				NEW = CUTOUT(image,BACKGROUND=BACKGROUND,GRACE=GRACE, PX=PX,PY=PY)
+	  				_FN = FILE_PARSE(TEMP)
+	  				outfile = _DIR_TRIM+_FN.NAME+ SUFFIX +'.'+ _FN.EXT
+	 					WRITE_PNG,OUTFILE,NEW,R,G,B
+	  			ENDFOR
+	  		ENDIF
+	  	ENDIF
+
+  	ENDIF ELSE BEGIN
+			IMAGE=READ_PNG(FILE,R,G,B)
+			outfile = _DIR_OUT+FN.NAME+ SUFFIX +'.'+ FN.EXT
+			NEW = CUTOUT(image,BACKGROUND=BACKGROUND,GRACE=GRACE, PX=PX,PY=PY)
+ 			WRITE_PNG,OUTFILE,NEW,R,G,B
+ 		ENDELSE
+	ENDFOR
+
+END; #####################  End of Routine ################################
+
+
+

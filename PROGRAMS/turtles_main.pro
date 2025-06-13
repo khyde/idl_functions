@@ -1,0 +1,524 @@
+; $ID:	TURTLES_MAIN.PRO,	2020-07-08-15,	USER-KJWH	$
+;+
+; This Program is a main routine for making a Turtle Track Animation atop SST
+
+; DATA SOURCE:
+;
+
+; HISTORY:
+;     Nov 13, 2005  Written by: J.E. O'Reilly
+;-
+; *************************************************************************
+
+	PRO TURTLES_MAIN
+
+  ROUTINE_NAME='TURTLES_MAIN'
+
+; *************************************************************************
+
+
+; *** Computer & Operating System & Date & Default Graphics Window ***
+  computer=GET_COMPUTER()  & os = STRUPCASE(!VERSION.OS) & DATE=DATE_NOW()
+  IF os EQ 'WIN32' THEN SET_PLOT,'WIN'
+; *** Constants ***
+	SLASH=DELIMITER(/path) & SP=DELIMITER(/SPACE) & UL=DELIMITER(/UL) & DASH=DELIMITER(/DASH) & ASTER=DELIMITER(/ASTER)
+
+; *** Data Set & File Parameters ***
+  SENSOR 		= 'Turtle'
+	METHOD 		= ''
+	SUITE  		= ''
+	MAP 			= 'NEC' &
+;	PROD 			= 'SST'
+	PAL 			= 'PAL_PETES24J'
+
+  EXT_data = ['dat']
+
+	Z_EXT     =	['GZ','gz','z','Z']
+
+; *** Data Parameters ***
+  min_sst 						= 0.0
+  max_sst 						= 35.0
+
+; *** Main Disk ***
+  IF computer EQ 'LAPSANG' THEN DISK = 'D:'
+  IF computer EQ 'LOLIGO' 	THEN DISK = 'D:'
+  DIR_SUFFIX = ''
+
+; *** Main Path ***
+  path = DISK + SLASH+ 'PROJECTS\TURTLES'  + SLASH ;;;
+
+; *** Program Directories ***
+	DIR_PROGRAMS       	= 'D:\IDL\PROGRAMS\'
+	DIR_DATA					 	= 'D:\IDL\DATA\'
+	DIR_INVENTORY			 	= 'D:\IDL\INVENTORY\'
+	DIR_IMAGES				 	= 'D:\IDL\IMAGES\'
+  DIR_GZIP 						= 'C:\GZIP\'
+  DIR_landmask 				= 'D:\IDL\IMAGES\'
+  DISK_CD 						=	'Z:'
+
+  DIR_SRTM30_BROWSE 		= 'D:\PROJECTS\SRTM30\BROWSE\'
+
+  DIR_DI6 = 'D:\IDL\DI6\'
+
+; *** Program Files ***
+  land_mask_file  						= DIR_landmask+'MASK_NEC.png'
+
+; *** Data Directories ***
+
+ 	DIR_DOC 				= PATH+'DOC'		+	DIR_SUFFIX+SLASH
+  DIR_DAT 				= PATH+'DATA'		+	DIR_SUFFIX+SLASH
+  DIR_SAVE 				= PATH+'SAVE'		+	DIR_SUFFIX+SLASH
+  DIR_PLOTS				= PATH+'PLOTS'	+	DIR_SUFFIX+SLASH
+
+  DIR_ALL = [DIR_DOC,DIR_DAT,DIR_SAVE,DIR_PLOTS]
+
+; *** Colors ***
+ 	BACKGROUND=252 &
+	IF N_ELEMENTS(LAND_COLOR) 	NE 1 THEN LAND_COLOR=252
+ 	IF N_ELEMENTS(CLOUD_COLOR) 	NE 1 THEN CLOUD_COLOR=254
+	IF N_ELEMENTS(MISS_COLOR) 	NE 1 THEN MISS_COLOR=253
+	OUR_MISS_COLOR=251
+	HI_LO_COLOR=255
+
+
+
+
+
+; ****************************************************************************************
+; ********************* U S E R    S W I T C H E S  *************************************
+; ****************************************************************************************
+; Switches controlling which Processing STEPS to do.  The steps are in order of execution
+; Switches: 0 = Off, 1 = On,  2= On and Overwrite any Output Files
+
+  OVERWRITE_1D  = 0
+; =====>
+  DO_CHECK_DIRS  			        	=1  ; Normally, keep this switch on
+
+
+
+
+
+; ***** DAT TO CSV  ***********
+	DO_DAT2SAVE									 = 0
+	DO_STRUCT_PLOT							 = 0
+
+	DO_TURTLE_TRACK							 = 2
+	DO_TURTLE_TRACK_INTERPOLATE	 = 0
+	DO_TURTLE_TRACK_DISTANCE		 = 0
+
+	DO_TURTLE_TRACK_MAKE_ANNO     = 0
+	DO_TURTLE_TRACK_ANNOTATE_SST	= 0
+	DO_BROWSE_2AVI								= 2
+
+
+
+
+
+; *********************************************
+	IF DO_CHECK_DIRS GE 1 THEN BEGIN
+; *********************************************
+    PRINT, 'S T E P:    DO_CHECK_DIRS'
+    FOR N=0,N_ELEMENTS(DIR_ALL)-1 DO BEGIN & AFILE = STRMID(DIR_ALL(N),0,STRLEN(DIR_ALL(N))-1) &
+    	IF FILE_TEST(AFILE,/DIRECTORY) EQ 0L THEN FILE_MKDIR,AFILE &  ENDFOR
+  ENDIF
+; |||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+
+
+; *********************************************
+ 	IF DO_DAT2SAVE GE 1 THEN BEGIN
+; *********************************************
+    PRINT, 'S T E P:    DO_DAT2SAVE'
+
+    AFILE= FILE_SEARCH(DIR_DAT+'LeathTags4JayAnimation_112205.csv')
+
+		SAVEFILE=DIR_SAVE+'LEATHERBACK_TAGS.SAVE'
+
+		IF FILE_TEST(SAVEFILE) EQ 1 AND DO_DAT2SAVE LT 2 THEN GOTO, DONE_DO_DAT2SAVE
+
+		DB=READ_CSV(AFILE)
+		S=REPLICATE(CREATE_STRUCT('DATE','','JD',0D),N_ELEMENTS(DB))
+		S.DATE= STR_PAD(DB.YEAR,4)+STR_PAD(DB.MONTH,2)+STR_PAD(DB.DAY,2)
+		S.JD = DATE_2JD(S.DATE)
+		DB=STRUCT_MERGE(DB,S)
+
+
+	;	*******************
+	;	******* EDITS *****
+	;	*******************
+
+		DB=STRUCT_2NUM(DB,/FLT)
+
+
+;		===> CHECK FOR DUPS
+    DUPS = STRUCT_DUPS(DB,TAGNAMES=['ID','MONTH','DAY','YEAR','LON','LAT'],SUBS=SUBS)
+	  IF SUBS[0] NE -1 THEN BEGIN
+			DB=REMOVE(DB,SUBS)
+	  	D=DB(SUBS)
+	  	CSVFILE=DIR_SAVE+'LEATHERBACK_TAGS-DUPS.CSV'
+			STRUCT_2CSV,CSVFILE,DUPS
+		ENDIF
+
+
+		SAVE,FILENAME=SAVEFILE,DB,/COMPRESS
+  	DONE_DO_DAT2SAVE:
+  ENDIF ; IF DO_DAT2SAVE EQ 1 THEN BEGIN
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+; *********************************************
+ 	IF DO_STRUCT_PLOT GE 1 THEN BEGIN
+; *********************************************
+    PRINT, 'S T E P:    DO_STRUCT_PLOT'
+  	SAVEFILE=DIR_SAVE+'LEATHERBACK_TAGS.SAVE'
+  	FN=FILE_PARSE(SAVEFILE)
+  	PSFILE=DIR_PLOTS+FN.FIRST_NAME+'-STRUCT.PS'
+  	IF FILE_TEST(PSFILE) EQ 0 OR DO_STRUCT_PLOT GE 2 THEN BEGIN
+  		DB=READALL(SAVEFILE)
+  		PSPRINT,/FULL,/COLOR,FILENAME=PSFILE
+  		STRUCT_PLOT,DB,/MULTI
+  		PSPRINT
+  	ENDIF
+	ENDIF ; DO_STRUCT_PLOT
+
+
+
+; *********************************************
+ 	IF DO_TURTLE_TRACK GE 1 THEN BEGIN
+; *********************************************
+    PRINT, 'S T E P:    DO_TURTLE_TRACK'
+    SAVEFILE=DIR_SAVE+'LEATHERBACK_TAGS.SAVE'
+  	FN=FILE_PARSE(SAVEFILE)
+
+
+		DB=READALL(SAVEFILE)
+		MAPS = ['NWA','EC']
+
+;		LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+		FOR _MAP=0,N_ELEMENTS(MAPS)-1 DO BEGIN
+			MAP=MAPS(_MAP)
+	  	S=MAPS_SIZE(MAP)
+  		PNGFILE=DIR_PLOTS+FN.FIRST_NAME+'-'+MAP+'-TRACKS.PNG'
+ 			IF FILE_TEST(PNGFILE) EQ 1 AND DO_TURTLE_TRACK LT 2 THEN CONTINUE ; >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	  	MASK_FILE=FILE_SEARCH(DIR_IMAGES+'MASK_LAND-'+MAP+'-PXY_'+STRTRIM(S.PX,2)+'_'+STRTRIM(S.PY,2)+'*.PNG')
+	  	IF N_ELEMENTS(MASK_FILE) NE 1 THEN STOP
+	  	MASK_LAND=READ_PNG(MASK_FILE,R,G,B)
+
+	  	ZWIN,MASK_LAND
+			CALL_PROCEDURE,'MAP_'+MAP
+	    TV,MASK_LAND
+			SETS=WHERE_SETS(DB.ID)
+			COLOR=2
+			TXT = ''
+		  GOOD=1
+			FOR _SETS=0,N_ELEMENTS(SETS)-1 DO BEGIN
+				SUBS=WHERE_SETS_SUBS(SETS(_SETS))
+				D=DB(SUBS)
+				IM=MAP_DEG2IMAGE(MASK_LAND,D.LON,D.LAT,  X=x, Y=y,AROUND=0, SUBS=subs)
+				OK=WHERE(IM NE MISSINGS(IM),COUNT)
+				IF COUNT GE 1 THEN BEGIN
+					COLOR=COLOR+3
+					GOOD=GOOD+1
+					TXT = STRJOIN(REPLICATE('!C',GOOD))+'Turtle '+STRTRIM(D[0].ID,2)
+					PLOTS,D.LON,D.LAT,COLOR=COLOR
+					PLOTS,D.LON,D.LAT,COLOR=COLOR,PSYM=1,SYMSIZE=0.25
+					XYOUTS2,0.8,0.9,/NORMAL,TXT,COLOR=COLOR	,CHARSIZE=2
+			  ENDIF
+			 ENDFOR
+			IMAGE=TVRD()
+
+			ZWIN
+			PAL_36,R,G,B & R[0]=R(255) & G[0]=G(255) & B[0]=B(255)
+								R[1]=R(247) & G[1]=G(247) & B[1]=B(247)
+								R(2)=R(252) & G(2)=G(252) & B(2)=B(252)
+								R(3)=R(253) & G(3)=G(253) & B(3)=B(253)
+								R(4)=R(254) & G(4)=G(254) & B(4)=B(254)
+
+			WRITE_PNG,PNGFILE,IMAGE,R,G,B
+
+		ENDFOR
+  ENDIF
+; |||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+; *********************************************
+ 	IF DO_TURTLE_TRACK_INTERPOLATE GE 1 THEN BEGIN
+; *********************************************
+    PRINT, 'S T E P:    DO_TURTLE_TRACK_INTERPOLATE'
+    SAVEFILE=DIR_SAVE+'LEATHERBACK_TAGS.SAVE'
+  	FN=FILE_PARSE(SAVEFILE)
+
+
+		DB=READALL(SAVEFILE)
+		MAPS = ['NWA','EC']
+		MAPS = 'EC'
+
+;		LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+		FOR _MAP=0,N_ELEMENTS(MAPS)-1 DO BEGIN
+			MAP=MAPS(_MAP)
+	  	S=MAPS_SIZE(MAP)
+  		CSVFILE=DIR_SAVE+FN.FIRST_NAME+'-'+MAP+'-TRACKS-INTERPOLATE.CSV'
+  		PNGFILE=DIR_PLOTS+FN.FIRST_NAME+'-'+MAP+'-TRACKS-INTERPOLATE.PNG'
+ 			IF FILE_TEST(CSVFILE) EQ 1 AND DO_TURTLE_TRACK_INTERPOLATE LT 2 THEN CONTINUE ; >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+	  	MASK_FILE=FILE_SEARCH(DIR_IMAGES+'MASK_LAND-'+MAP+'-PXY_'+STRTRIM(S.PX,2)+'_'+STRTRIM(S.PY,2)+'*.PNG')
+	  	IF N_ELEMENTS(MASK_FILE) NE 1 THEN STOP
+	  	MASK_LAND=READ_PNG(MASK_FILE,R,G,B)
+
+
+			SETS=WHERE_SETS(DB.ID)
+			COLOR=2
+			TXT = ''
+		  GOOD=1
+
+
+;			LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+			FOR _SETS=0,N_ELEMENTS(SETS)-1 DO BEGIN
+				ASET = SETS(_SETS)
+				SUBS=WHERE_SETS_SUBS(ASET)
+				D=DB(SUBS)
+				INT = MAP_TRACK_INTERPOLATE(LONS=D.LON, LATS=D.LAT, MAP=MAP,JD=D.JD, NAME=ASET.VALUE)
+				IM=MAP_DEG2IMAGE(MASK_LAND,INT.LON,INT.LAT,  X=x, Y=y,AROUND=0, SUBS=subs)
+				OK=WHERE(IM NE MISSINGS(IM),COUNT)
+
+
+				IF COUNT GE 1 THEN BEGIN
+					GOOD=GOOD+1
+					ZWIN,MASK_LAND
+					CALL_PROCEDURE,'MAP_'+MAP
+	    		COLOR=COLOR+3
+					PLOTS,INT.LON,INT.LAT,COLOR=COLOR
+					TXT = STRJOIN(REPLICATE('!C',GOOD))+'Turtle '+STRTRIM(ASET.VALUE,2)
+					XYOUTS2,0.8,0.9,/NORMAL,TXT,COLOR=COLOR	,CHARSIZE=2
+					IM=TVRD()
+					ZWIN
+					OK_COLOR=WHERE(IM EQ COLOR,COUNT_COLOR)
+					IF COUNT_COLOR GE 1 THEN MASK_LAND(OK_COLOR) = IM(OK_COLOR)
+				 	IF N_ELEMENTS(ALL) EQ 0 THEN ALL = INT ELSE ALL = [ALL,INT]
+			  ENDIF
+
+					PAL_36,R,G,B & R[0]=R(255) & G[0]=G(255) & B[0]=B(255)
+					R[1]=R(247) & G[1]=G(247) & B[1]=B(247)
+					R(2)=R(252) & G(2)=G(252) & B(2)=B(252)
+					R(3)=R(253) & G(3)=G(253) & B(3)=B(253)
+					R(4)=R(254) & G(4)=G(254) & B(4)=B(254)
+
+	 				WRITE_PNG,PNGFILE,MASK_LAND,R,G,B
+			ENDFOR
+
+			STRUCT_2CSV,CSVFILE,ALL
+
+
+		ENDFOR
+  ENDIF
+; |||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+; *********************************************
+ 	IF DO_TURTLE_TRACK_DISTANCE GE 1 THEN BEGIN
+; *********************************************
+		DB=READALL(DIR_SAVE+'LEATHERBACK_TAGS-EC-TRACKS-INTERPOLATE.CSV')
+		SETS=WHERE_SETS(DB.NAME)
+		SET_PMULTI,N_ELEMENTS(SETS)
+		PSFILE=DIR_PLOTS+'LEATHERBACK_TAGS-EC-DISTANCE.PS'
+		PSPRINT,FILENAME=PSFILE,/FULL,/COLOR
+		SET_PMULTI,N_ELEMENTS(SETS)
+
+		FOR _SET = 0,N_ELEMENTS(SETS)-1 DO BEGIN
+			ASET = SETS(_SET)
+			SUBS=WHERE_SETS_SUBS(ASET)
+			NAME= STRTRIM(ASET.VALUE,2)
+			D=DB(SUBS)
+		  KM_SETS=WHERE_SETS(FIX(D.SEGMENT))
+			KM_SUBS=KM_SETS.FIRST
+			E=D(KM_SUBS)
+
+		  JD_START = DOUBLE(E.JD) &  JD_START = REMOVE(JD_START,N_ELEMENTS(JD_START) )  & JD_END = DOUBLE(E(1:*).JD)
+			DELTA= JD_END-JD_START
+
+			PLOT, FLOAT(E.KMS_SEG)/DELTA,TITLE=NAME, YRANGE=[0,50],/YSTYLE,CHARSIZE=1.5
+		ENDFOR
+		PSPRINT
+	ENDIF
+
+
+
+; *********************************************
+ 	IF DO_TURTLE_TRACK_MAKE_ANNO GE 1 THEN BEGIN
+; *********************************************
+    PRINT, 'S T E P:    DO_TURTLE_TRACK_MAKE_ANNO'
+
+  	MAPS = [ 'EC','NWA']
+  	MAPS='EC'
+  	CONTINUOUS = 0
+
+;		LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+		FOR _MAP=0,N_ELEMENTS(MAPS)-1 DO BEGIN
+			MAP=MAPS(_MAP)
+	  	S=MAPS_SIZE(MAP)
+  		CSVFILE=DIR_SAVE+'LEATHERBACK_TAGS'+'-'+MAP+'-TRACKS-INTERPOLATE.CSV'
+  		FN=FILE_PARSE(CSVFILE)
+  		ANNO_FILE = DIR_SAVE+'LEATHERBACK_TAGS-'+MAP+'-TRACKS-INTERPOLATE-ANNO.CSV'
+			IF FILE_TEST(ANNO_FILE) EQ 1 AND DO_TURTLE_TRACK_MAKE_ANNO LT 2 THEN CONTINUE ; >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+			DB=READ_CSV(CSVFILE)
+			TAGNAMES=['SHOW'	,'PRODS',	'PERIOD',	'X',	'Y',	'UNITS',	'ANGLE',	'ALIGN',	'SIZE',	'COLOR',	'THICK',	'ASPECT',	'TYPE',	'TEXT']
+      ARR = REPLICATE('',N_ELEMENTS(TAGNAMES))
+			STRUCT= REPLICATE(ARR_2STRUCT(ARR,TAGNAMES=TAGNAMES),N_ELEMENTS(DB))
+			DB=STRUCT_MERGE(DB,STRUCT)
+			SETS=WHERE_SETS(DB.NAME)
+			N_SETS = N_ELEMENTS(SETS)
+			COLORS = 230+INDGEN(N_SETS)*5
+
+
+;			LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+			FOR _SETS=0,N_ELEMENTS(SETS)-1 DO BEGIN
+				ASET = SETS(_SETS)
+				SUBS=WHERE_SETS_SUBS(ASET)
+				DB(SUBS).SHOW = 1
+				DB(SUBS).PRODS ='SST'
+				FIRST_DATE= STRMID(JD_2DATE(JD_2JD(DB(SUBS[0]).JD,/DAY,/START)),0,8)
+
+				IF CONTINUOUS EQ 1 THEN BEGIN
+					DB(SUBS).PERIOD= '!DD_'+FIRST_DATE +'_'+ STRMID(JD_2DATE(JD_2JD(DB(SUBS).JD,/DAY,/START)),0,8)
+				ENDIF ELSE BEGIN
+					DB(SUBS).PERIOD= '!D_'+STRMID(JD_2DATE(JD_2JD(DB(SUBS).JD,/DAY,/START)),0,8)
+				ENDELSE
+
+				DB(SUBS).X = DB(SUBS).LON
+				DB(SUBS).Y = DB(SUBS).LAT
+				DB(SUBS).UNITS='DATA'
+				DB(SUBS).ANGLE=0
+				DB(SUBS).ALIGN = 'TIP'
+				DB(SUBS).SIZE  = 0.1
+				DB(SUBS).COLOR = COLORS(_SETS)
+				DB(SUBS).THICK=2
+				DB(SUBS).ASPECT=1
+				DB(SUBS).TYPE = 'PLUS'
+			ENDFOR
+			STRUCT_2CSV,ANNO_FILE,DB
+		ENDFOR
+
+  ENDIF
+; |||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+
+; *********************************************
+ 	IF DO_TURTLE_TRACK_ANNOTATE_SST GE 1 THEN BEGIN
+; *********************************************
+    PRINT, 'S T E P:    DO_TURTLE_TRACK_ANNOTATE_SST'
+
+  	MAPS = [ 'EC' ]
+    DATE_RANGE = ['20010601','20021001']
+    DATE_RANGE = ['20010601','20021001']
+    JD_RANGE   = DATE_2JD(DATE_RANGE)
+
+		DRIVES = GET_DRIVE_NAMES() & OK=WHERE(DRIVES.NAME EQ 'IOMEGA_HDD_11',COUNT)
+		IF COUNT EQ 1 THEN DRIVE=DRIVES[OK].DRIVE
+    DIR_BROWSE = DRIVE+'SST_GEQ-EC-N4ATG\TS_IMAGES\BROWSE\'
+    DIR_ANNO   = DRIVE+'SST_GEQ-EC-N4ATG\TS_IMAGES\BROWSE\ANNO\'
+    IF FILE_TEST(DIR_ANNO,/DIRECTORY) EQ 0L THEN FILE_MKDIR,DIR_ANNO
+
+
+;		LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+		FOR _MAP=0,N_ELEMENTS(MAPS)-1 DO BEGIN
+			MAP=MAPS(_MAP)
+
+  		ANNO_FILE = DIR_SAVE+'LEATHERBACK_TAGS-'+MAP+'-TRACKS-INTERPOLATE-ANNO.CSV'
+  		IF FILE_TEST(ANNO_FILE) EQ 1 AND DO_TURTLE_TRACK_ANNOTATE_SST LT 2 THEN CONTINUE ; >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  		DB=READ_CSV(ANNO_FILE)
+;			!D_20050712-N4ATG-EC-PXY_1024_1024-SST-INTERP-TS_IMAGES-LEG.PNG
+  		FILES = FILE_SEARCH(DIR_BROWSE+'!D_*-N4ATG-EC-PXY_1024_1024-SST-INTERP-TS_IMAGES-LEG.PNG')
+
+  		FI = PARSE_IT(FILES,/ALL)
+  		OK=WHERE(DATE_2JD(FI.DATE_START) GE JD_RANGE[0] AND DATE_2JD(FI.DATE_END) LE JD_RANGE[1])
+  		FILES=FILES[OK]
+  		MAP_ANNOTATE, FILES, MAP=MAP, ANNO_FILE=ANNO_FILE, FILE_LABEL=file_label,DIR_OUT=DIR_ANNO
+ 		ENDFOR
+  ENDIF
+; |||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+
+; ***************************************************************
+  IF  DO_BROWSE_2AVI GE 1 THEN BEGIN
+; *****************************************************************
+    PRINT, 'S T E P:    DO_BROWSE_2AVI'
+    PRINT,'make an avi file from browse pngs '
+    OVERWRITE = DO_BROWSE_2AVI EQ 2
+
+	  DIR_OUT=DIR_PLOTS
+	  PROD='SST'
+ 		DIR_BROWSE = 'E:\SST_GEQ-EC-N4ATG\TS_IMAGES\BROWSE\'
+    DIR_ANNO   = 'E:\SST_GEQ-EC-N4ATG\TS_IMAGES\BROWSE\ANNO\'
+    BROWSE_FILES= FILE_SEARCH(DIR_BROWSE+'!D_*-N4ATG-EC-PXY_1024_1024-SST-INTERP-TS_IMAGES-LEG.PNG')
+    ANNO_FILES  = FILE_SEARCH(DIR_ANNO+'!D_*-N4ATG-EC-PXY_1024_1024-SST-INTERP-TS_IMAGES-LEG-ANNO.PNG')
+    FA_BROWSE = FILE_ALL(BROWSE_FILES)
+    FA_ANNO   = FILE_ALL(ANNO_FILES)
+
+		SETS=WHERE_SETS([FA_ANNO.PERIOD,FA_BROWSE.PERIOD])
+		FA = [FA_ANNO,FA_BROWSE]
+    FILES = ([ANNO_FILES,BROWSE_FILES])(SETS.FIRST)
+    FA=FA(SETS.FIRST)
+    DATE_RANGE = ['20020601','20021001']
+
+
+   DATE_RANGE = ['20010601','20021001']
+
+    DD = '!DD_'+DATE_RANGE[0]+'_'+DATE_RANGE[1]
+    JD_RANGE   = DATE_2JD(DATE_RANGE)
+    OK=WHERE(DATE_2JD(FA.DATE_START) GE JD_RANGE[0] AND DATE_2JD(FA.DATE_END) LE JD_RANGE[1])
+    STOP
+  	FILES=FILES[OK]
+  	FA = FA[OK]
+
+    _YOFFSET=0
+    QUALITY=100.
+    FPS=2
+    TITLE_SLIDE=1
+    N_TITLE=10
+    _STAT=''
+
+; 	GET IMAGE SIZE & USER IN AVI_FILE NAME
+	  IMAGE = READALL(FA[0].FULLNAME)
+	  SZ=SIZE(IMAGE,/STRUCT)
+    IF SZ.N_DIMENSIONS EQ 3 THEN N = 1 ELSE N = 0
+    WIDTH   = SZ.DIMENSIONS(N)
+    HEIGHT  = SZ.DIMENSIONS(N+1)
+    AUTHORS  = " M. Lutcavage, C. Orphanides, J.O'Reilly"
+		ADDRESS = 'Large Pelagics Research Center, UNH  & NOAA,NMFS,RI'
+		SENSORS = 'AVHRR,TERRA,AQUA,GOES'
+
+    AVI_FILE  = DIR_OUT + DD +DASH+MAP+DASH+PROD+DASH+'PXY_'+NUM2STR(WIDTH)+'_'+NUM2STR(HEIGHT)+'.AVI'
+    FA_OUT = FILE_ALL(AVI_FILE)
+
+    TITLE_FILE_PNG = FA[0].FULLNAME
+    IF FA_OUT.FULLNAME NE '' THEN BEGIN
+      IF FA_OUT.MTIME LT MAX(FA.MTIME)  OR OVERWRITE EQ 1 THEN BEGIN
+     	MAKE_AVI,FILES=FA.FULLNAME,DIR_OUT=dir_out,PAL=pal, $
+              BITS=bits,QUALITY=quality, FPS=fps,$
+              TITLE_FILE_PNG=TITLE_FILE_PNG,TITLE_SLIDE=TITLE_SLIDE,N_TITLE=N_TITLE,TYPE=TYPE,$
+              AVI_FILE=avi_file,YOFFSET=_YOFFSET,AUTHORS=authors,ADDRESS=address,SENSORS=sensors
+      ENDIF
+    ENDIF;IF FA_OUT.FULLNAME NE ''
+
+
+	ENDIF;  IF  DO_BROWSE_2AVI GE 1 THEN BEGIN
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+
+
+
+DONE:
+PRINT,'END OF HYDRO_NEFSC_MAIN.PRO'
+
+
+END; #####################  End of Routine ################################

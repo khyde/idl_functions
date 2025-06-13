@@ -1,0 +1,70 @@
+; $ID:	DATE_PARSE.PRO,	2020-06-26-15,	USER-KJWH	$
+
+FUNCTION DATE_PARSE ,DATE
+;+
+; NAME:
+; 	DATE_PARSE
+;
+; PURPOSE:
+;		Parse DATE into its component pieces
+;
+; CATEGORY:
+;		DATE
+;
+; CALLING SEQUENCE:
+; 	Result = DATE_PARSE('19770319123559')
+;
+; INPUTS:
+;		DATE: YYYYMMDDHHMMSS  OR YYYYMMDD OR YYYYMM
+;
+; KEYWORD PARAMETERS:
+;		NONE
+; OUTPUTS:
+;   Structure with the date components in each tag
+;
+;
+;	EXAMPLE:
+;		Result= DATE_PARSE(['', DATE_NOW() ])  &PRINT,Result
+;
+; MODIFICATION HISTORY:
+;       Written May 15, 2007 by J.O'Reilly & Kimberly Hyde, 28 Tarzwell Drive, NMFS, NOAA 02882 (Jay.O'Reilly@NOAA.GOV)
+;       Modified Oct 28, 2010 by K. Hyde - Added DATE to the structure
+;-
+;	****************************************************************************************************
+	ROUTINE_NAME = 'DATE_PARSE'
+
+; ===>
+; Trim date string
+	sz=SIZE(DATE,/STRUCTURE)
+	TYPE = IDLTYPE(DATE,/CODE) & IF TYPE EQ 4 OR TYPE EQ 5 THEN _JD = DATE ELSE _JD = DATE_2JD(DATE)
+	STRUCT= REPLICATE(CREATE_STRUCT('DATE','','DATEDOY','','JD','','YEAR','','MONTH','','MON','','DAY','','HOUR','','MINUTE','','SECOND','','DOY','','IDOY','','DOW','',$
+		                              'DASH_DATE','','SLASH_DATE','','STRING_DATE','','TIME','','TIME_HHMM',''),N_ELEMENTS(DATE))
+
+  OK=WHERE(_JD NE MISSINGS(_JD),COUNT)
+
+	IF COUNT GE 1 THEN BEGIN
+	  STRUCT[OK].DATE    = STRING(JD_2DATE(_JD[OK]))
+    STRUCT[OK].JD      = STRTRIM(STRING(_JD[OK]),2)
+		STRUCT[OK].YEAR		 = STRING(_JD[OK],FORMAT='(C(CYi4.4))')
+		STRUCT[OK].MONTH	 = STRING(_JD[OK],FORMAT='(C(CMoi2.2))')
+		STRUCT[OK].MON     = STRING(_JD[OK],FORMAT='(C(CMoA))')
+		STRUCT[OK].DAY		 = STRING(_JD[OK],FORMAT='(C(CDi2.2))')
+		STRUCT[OK].HOUR		 = STRING(_JD[OK],FORMAT='(C(CHi2.2))')
+		STRUCT[OK].MINUTE	 = STRING(_JD[OK],FORMAT='(C(CMi2.2))')
+		STRUCT[OK].SECOND	 = STRING(_JD[OK],FORMAT='(C(CSi2.2))')
+
+		STRUCT[OK].DOY     = STRTRIM(JD_2DOY(_JD[OK]),2)
+		STRUCT[OK].IDOY    = STR_PAD(STRTRIM(FIX(JD_2DOY(_JD[OK])),2),3)
+		STRUCT[OK].DOW     = STRING(_JD[OK],FORMAT='(C(CDwA))')
+		STRUCT[OK].DATEDOY = STRUCT[OK].YEAR+STRUCT[OK].IDOY+STRUCT[OK].HOUR+STRUCT[OK].MINUTE+STRUCT[OK].SECOND
+		STRUCT[OK].DASH_DATE = STRUCT[OK].YEAR+'-'+STRUCT[OK].MONTH+'-'+STRUCT[OK].DAY
+		STRUCT[OK].SLASH_DATE = STRUCT[OK].YEAR+'/'+STRUCT[OK].MONTH+'/'+STRUCT[OK].DAY
+		STRUCT[OK].STRING_DATE = MONTH_NAMES(STRUCT[OK].MONTH) + ' ' + STRUCT[OK].DAY + ', ' + STRUCT[OK].YEAR
+		STRUCT[OK].TIME    = STRUCT[OK].HOUR+':'+STRUCT[OK].MINUTE+':'+STRUCT[OK].SECOND
+		STRUCT[OK].TIME_HHMM = STRUCT[OK].HOUR+':'+STRUCT[OK].MINUTE
+	ENDIF
+
+	RETURN, STRUCT
+
+	END; #####################  End of Routine ################################
+

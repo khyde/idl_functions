@@ -1,0 +1,77 @@
+; $ID:	MAPS_LONLAT_2XYP.PRO,	2020-07-08-15,	USER-KJWH	$
+;##########################################################################
+ FUNCTION MAPS_LONLAT_2XYP,  MAPP, PX=PX,PY=PY,LON=LON, LAT=LAT
+;+
+; NAME:
+;   MAPS_LONLAT_2XYP
+;
+; PURPOSE:
+;   THIS FUNCTION CONVERTS LON/LAT COORDINATES WITHIN A STANDARD NARR MAP DOMAIN TO XP/YP COORDS
+;
+; CATEGORY: MAPS FAMILY
+; 
+; PARAMETERS: 
+;   MAPP.....The name of the narr standard map projection (e.g. 'NEC', 'EC', 'GEQ')
+; 
+; KEYWORD PARAMETERS:
+;   PX.....The map pixel dimensions in the horizontal direction
+;   PY.....The map pixel dimensions in the vertical direction
+;
+; OUTPUTS:
+;   A vector of [LON,LAT] coordinates
+;   
+; EXAMPLES: 
+;   PRINT,MAPS_LONLAT_2XYP('SMI', PX=4320,PY=2160,LON = (-180),LAT=(-90))
+;   PRINT,MAPS_LONLAT_2XYP('SMI', PX=4320,PY=2160,LON = [0],LAT=[0])
+;   PRINT,MAPS_LONLAT_2XYP('SMI', PX=4320,PY=2160,LON = (180),LAT=(90))
+;   PRINT,MAPS_LONLAT_2XYP('SMI', PX=4320,PY=2160,LON = [-180,0,180],LAT=[-90,0,90])
+; 
+;
+;
+; MODIFICATION HISTORY:
+;       WRITTEN BY:  J.E.O'REILLY, MAY 16,2012
+;         MAY 27, 2012 - JEOR: ADDED 0.5 TO GET XP,YP, AT CENTER OF PIXELS:[XP=ROUND(XYZ[0]+0.5)]
+;         MAY 27, 2012 - JEOR: ADDED  DOUBLE:XYZ=CONVERT_COORD(LON,LAT,/DATA,/TO_DEVICE,/DOUBLE);  RETURN, ULONG(XPYP)
+;         AUG 08, 2012 - JEOR: IF N_ELEMENTS(XP) GT 1 THEN XPYP=REFORM([XP,YP],2,N_ELEMENTS(XP)) ELSE XPYP = [XP,YP]
+;         SEP 15, 2012 - JEOR: REMOVED ROUND  ;XP=ROUND(XYZ[0]+0.5)YP= ROUND(XYZ[1]+0.5) &  XP= XYZ[0]  YP= XYZ[1]
+;         MAR 15, 2013 - JEOR: NOW HANDLES ARRAY OF INPUT LON,LATS:  XP= REFORM(FIX(XYZ(0,*))) YP= REFORM(FIX(XYZ(1,*)))
+;         MAR 31, 2015 - JEOR: NOW USING MAPS_SET,MAPP
+;         DEC 17, 2015 - JEOR: COPIED AND RENAMED FROM M-AP_LONLAT_2XYP,MAPP TO MAPP,REMPVED KEY ERROR
+;                              FIXED MAJOR BUG :IF NOF(XP) GT 1 THEN XPYP=TRANSPOSE(REFORM([XP,YP],[NOF(XP),2])) ELSE XPYP = [XP,YP]
+;         OCT 16, 2018 - KJWH: Changed MAP_SET to MAPS_SET
+;         JUN 10, 2020 - KJWH: Added steps to work with L3B files
+;
+;
+;##########################################################################
+;-
+; ******************************
+  ROUTINE_NAME='MAPS_LONLAT_2XYP'
+;*******************************
+;
+; ===> GET  DIMENSIONS FOR STANDARD MAP PROJECTIONS
+  M=MAPS_SIZE(MAPP)
+  
+  IF NONE(PX) THEN PX=M.PX 
+  IF NONE(PY) THEN PY=M.PY 
+
+  IF IS_L3B(MAPP) THEN BEGIN
+    YP = MAPS_L3B_LL_2BINS(MAPP, LON, LAT) 
+    XP = REPLICATE(0,N_ELEMENTS(LON))
+  ENDIF ELSE BEGIN
+
+  ; ===> INITIALIZE MAPP
+    MAPS_SET,MAPP,PX=PX,PY=PY
+  
+  ; ===> CONVERT THE LON,LAT COORDINATES TO PIXEL COORDINATES 
+    XYZ=CONVERT_COORD(LON,LAT,/DATA,/TO_DEVICE,/DOUBLE)
+    XP= REFORM(FIX(XYZ(0,*)))
+    YP= REFORM(FIX(XYZ(1,*)))
+    
+    ZWIN
+  ENDELSE
+    
+  IF NOF(XP) GT 1 THEN XPYP=TRANSPOSE(REFORM([XP,YP],[NOF(XP),2])) ELSE XPYP = [XP,YP]
+
+  RETURN, ULONG(XPYP)
+
+ END; #####################  END OF ROUTINE ################################

@@ -1,0 +1,85 @@
+; $ID:	WEIGHT_TRICUBE_DEMO.PRO,	2020-06-30-17,	USER-KJWH	$
+
+	PRO WEIGHT_TRICUBE_DEMO
+
+;+
+; NAME:
+;		WEIGHT_TRICUBE_DEMO
+;
+; PURPOSE:;
+;		This PROGRAM is a DEMO FOR WEIGHT_TRICUBE
+
+;
+; CATEGORY:
+;		NUMERIC
+;
+; CALLING SEQUENCE:
+;		WEIGHT_TRICUBE_DEMO
+;
+; INPUTS:
+;		NONE:
+;
+
+; OUTPUTS:
+;		A plot and listing of the weights
+;
+
+;	NOTES:
+;
+;
+; MODIFICATION HISTORY:
+;			Written Dec 28, 2006 by J.O'Reilly, 28 Tarzwell Drive, NMFS, NOAA 02882 (Jay.O'Reilly@NOAA.GOV)
+;-
+;	****************************************************************************************************
+	ROUTINE_NAME = 'WEIGHT_TRICUBE_DEMO'
+
+
+
+
+	PSPRINT,FILENAME=ROUTINE_NAME+'.PS',/COLOR,/FULL
+
+  NUM = [2,3,4,5,6,7,8,9,11,13,17,21,27,41,101,1001]
+  SET_PMULTI,N_ELEMENTS(NUM)
+;	LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+  FOR NTH=0,N_ELEMENTS(NUM)-1 DO BEGIN
+  	N = NUM[NTH]
+		CEN = N/2
+		X=FINDGEN(N)
+		W= WEIGHT_TRICUBE(X,CEN)
+		PLOT, X,W,/XSTYLE,TITLE='N='+STRTRIM(N,2)
+		CUM=CUMULATE(W)/TOTAL(W)
+		OPLOT, X,CUM
+  	_W = W/TOTAL(W)
+    PRINT, MINMAX(CUM)
+  ENDFOR
+
+
+;	===> Show Weights from LEFT and Rightmost samples
+	!P.MULTI=[0,1,2]
+	FONTS,'TIMES'
+	N = 101
+	LEFT =  N/2
+	RIGHT= N-1
+	X=FINDGEN(N)
+	W= WEIGHT_TRICUBE(X,LEFT)
+	PLOT, X,W,/XSTYLE,/NODATA
+	GRIDS,COLOR=35
+	OPLOT, [0,100], [0,1],COLOR=TC(21)
+	OPLOT,X,W,COLOR=6,THICK=3
+	OPLOT, X,  CUMULATE(W)/MAX(CUMULATE(W)),COLOR=26
+
+PSPRINT
+STOP
+
+	XX = (FINDGEN(N)-50)/50
+	F_BISQUARE = (1 - XX^2)^1
+  OPLOT,X,F_BISQUARE/2
+  PSPRINT
+STOP
+	CUM = CUMULATE(F_BISQUARE)
+	F_BISQUARE = CUM/ LAST(CUM)
+	OPLOT, X,F_BISQUARE,COLOR=TC(3)
+
+
+PSPRINT
+	END; #####################  End of Routine ################################

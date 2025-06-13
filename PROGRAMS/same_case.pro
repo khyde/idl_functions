@@ -1,0 +1,58 @@
+; $ID:	SAME_CASE.PRO,	2020-06-30-17,	USER-KJWH	$
+;#############################################################
+	FUNCTION SAME_CASE, TXT, ALL=ALL, DELIM=DELIM
+
+;+
+; NAME:	SAME_CASE
+;	
+;
+; PURPOSE:;
+;		THIS FUNCTION CHECKS IF THE CASE OF A STRING IS ALL THE SAME 
+;		EITHER ALL UPPER CASE OR ALL LOWER CASE
+;		
+; CATEGORY:  STRINGS
+;		
+;
+; CALLING SEQUENCE:
+
+;		RESULT = SAME_CASE(TXT)
+;
+; INPUTS:
+;		TXT:	STRING TYPE
+;
+;	KEYWORD PARAMETERS: NONE
+;
+; OUTPUTS:
+;		STRING WITH THE FIRST LETTER UPPER CASE
+;
+; EXAMPLES:
+;       P,SAME_CASE(['FLH','AAA'])
+;       P,SAME_CASE(['FLH','AAa'])
+;       P,SAME_CASE(['flh','aaaa'])
+;       
+;	NOTES:
+;		
+;
+; MODIFICATION HISTORY:
+;			WRITTEN JAN 3,2014 BY J.E. O'REILLY
+;			
+;#############################################################
+;-
+;*************************
+ROUTINE_NAME = 'SAME_CASE'
+;*************************
+
+TF = REPLICATE(0B,N_ELEMENTS(TXT))
+
+;	FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+	FOR NTH=0,N_ELEMENTS(TXT)-1L DO BEGIN
+    T = TXT[NTH]
+    TF[NTH] =STRUPCASE(T) EQ T OR STRLOWCASE(T) EQ T 
+	ENDFOR;FOR NTH=0,N_ELEMENTS(TXT)-1L DO BEGIN
+;FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF	
+
+RETURN, TF
+
+
+
+	END; #####################  END OF ROUTINE ################################

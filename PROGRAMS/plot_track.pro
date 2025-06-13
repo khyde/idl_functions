@@ -1,0 +1,81 @@
+; $ID:	PLOT_TRACK.PRO,	2014-12-18	$
+
+ PRO PLOT_TRACK,LON,LAT,FILE=FILE, MAP=map
+;+
+; NAME:
+; 	PLOT_TRACK
+
+;		This Function Plots a TRACK and a graph of the Distances along the axis of a TRACK
+;
+;
+; MODIFICATION HISTORY:
+;		Written Jan 28, 2005 by J.O'Reilly, 28 Tarzwell Drive, NMFS, NOAA 02882 (Jay.O'Reilly@NOAA.GOV)
+;-
+
+ROUTINE_NAME='PLOT_TRACK'
+
+	IF N_ELEMENTS(MAP) NE 1 THEN _MAP = 'NEC' ELSE _MAP = MAP
+
+	PAL_36
+	FILE = 'd:\projects\fronts\data\SS-winter-1-front.dat'
+	PRINT,FILE_TEST(FILE)
+	db = READ_DELIMITED(FILE,DELIM=' ',/NOHEAD)
+
+	DB=STRUCT_RENAME(DB,['_0','_1'],['LAT','LON'])
+	N_PTS = N_ELEMENTS(DB)
+
+	LON=DB.LON
+	LAT=DB.LAT
+
+	;SPREAD,DB
+	LON1=FLOAT(LON)
+	LAT1=FLOAT(LAT)
+
+; ===> The last distance computed will be 0km
+	LON2=[LON1(1:*),LAST(LON1)]
+	LAT2=[LAT1(1:*),LAST(LAT1)]
+
+;	===> Array to hold distances (km) from coordinate to coordinate
+	KM = FLTARR(N_ELEMENTS(LON1)-1L)
+
+
+  NPATH = 5
+  LL_BETWEEN = FLTARR(2, (N_PTS -1)*NPATH)
+
+;	LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+	FOR N  = 0L,N_PTS-2L DO BEGIN
+ 		KM(N) = MAP_2POINTS(LON1(N),LAT1(N),LON2(N),LAT2(N),/METERS,/RHUMB)*1E-3 ;
+ 		LL = MAP_2POINTS(LON1(N),LAT1(N),LON2(N),LAT2(N),/METERS,NPATH=NPATH,/RHUMB)
+ 		START = N*NPATH
+ 		FINISH = START+NPATH-1L
+ 		LL_BETWEEN(*,START:FINISH) =  LL
+
+;		DD = MAP_2POINTS(LON1(N),LAT1(N),LON2(N),LAT2(N),/METERS, DPATH=0.05)
+;		PRINT,DD
+
+ 	ENDFOR
+
+
+  SHOW=1
+
+	IF KEYWORD_SET(SHOW) THEN BEGIN
+		PRINT, TOTAL(KM)
+		SLIDEW,[1024,1024]
+		MAPIT,LON1,LAT1,MAP=_MAP,TITLE=ROUTINE_NAME
+		PLOTS,LL_BETWEEN(0,*),LL_BETWEEN(1,*),COLOR=TC(6),PSYM=1,SYMSIZE=0.1
+
+		XYOUTS,LON1,LAT1,STRTRIM(INDGEN(N_PTS),2),COLOR=TC(21)
+ 		PLOT, KM, POSITION = [0.50, 0.05, 0.70,0.25],Xtitle='Starting Point',yTITLE='Dist Between (km)',/NOERASE ,/nodata
+		GRIDS,COLOR=TC(34)
+ 		OPLOT,KM,COLOR=TC(6)
+ 		PLOT, TOTAL(KM,/CUM),POSITION = [0.77, 0.05, 0.97,0.25],Xtitle='Starting Point',yTITLE='Cumulative Dist (km)',/NOERASE,/nodata
+		GRIDS,COLOR=TC(34)
+		OPLOT,TOTAL(KM,/CUM),COLOR=TC(6)
+	ENDIF
+STOP
+
+
+END; #####################  End of Routine ################################
+
+
+

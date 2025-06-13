@@ -1,0 +1,62 @@
+; $ID:	HDF_2DATA.PRO,	2020-06-30-17,	USER-KJWH	$
+;+
+;;#############################################################################################################
+	FUNCTION HDF_2DATA,FILE
+;
+;
+;
+;
+; PURPOSE: THIS FUNCTION CONVERTS HDF FILE TO DATA USING READHDF 
+;          APPLYING THE SLOPE,INTERCEPT, AND MISSING CODE 
+; 
+; 
+; 
+; CATEGORY:	HDF;		 
+;
+; CALLING SEQUENCE: RESULT = HDF_2DATA(FILE)
+;
+; INPUTS: VALS 
+
+; OPTIONAL INPUTS:
+;		NONE:	
+;		
+; KEYWORD PARAMETERS:
+;   NONE
+
+; OUTPUTS: 
+;		
+;; EXAMPLES:
+;  PRINT, HDF_2DATA()
+;	NOTES:
+
+;		
+;
+;
+; MODIFICATION HISTORY:
+;			MAR 27,2014, WRITTEN BY J.O'REILLY
+;#################################################################################
+;-
+;****************************
+ROUTINE_NAME  = 'HDF_2DATA'
+;****************************
+IF N_ELEMENTS(FILE) EQ 0 THEN MESSAGE,'ERROR: MUST PROVIDE FILE'
+HDF_MISSING_CODE = -32767.
+IDL_MISSING_CODE = MISSINGS(0.0)
+
+  D = READHDF(FILE)
+  DATA_MINIMUM = D.DATA_MINIMUM[0]
+  DATA_MAXIMUM = D.DATA_MAXIMUM[0]
+  DATA =D.L3M_DATA * D.SLOPE[0]+ D.INTERCEPT[0]
+  
+  RECOMMENDED_MINIMUM = D.SUGGESTED_IMAGE_SCALING_MINIMUM[0]
+  RECOMMENDED_MAXIMUM = D.SUGGESTED_IMAGE_SCALING_MAXIMUM[0]
+  
+  ;===> CHANGE SMI_MISSING_CODE TO INFINITY
+  OK=WHERE(DATA EQ HDF_MISSING_CODE ,COUNT)  
+  IF COUNT GE 1 THEN DATA[OK] = IDL_MISSING_CODE
+  
+  
+  RETURN,DATA
+
+DONE:          
+	END; #####################  END OF ROUTINE ################################

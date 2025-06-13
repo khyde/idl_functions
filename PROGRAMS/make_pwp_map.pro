@@ -1,0 +1,92 @@
+; $ID:	MAKE_PWP_MAP.PRO,	2020-07-08-15,	USER-KJWH	$
+;#############################################################################################################
+	PRO MAKE_PWP_MAP
+	
+;  PRO MAKE_PWP_MAP
+;+
+; NAME:
+;		MAKE_PWP_MAP
+;
+; PURPOSE: THIS PROGRAM MAKES A MAP PROGRAM FOR THE PACIFIC WARM POOL
+;
+; CATEGORY:
+;		MAPS
+;		 
+;
+; CALLING SEQUENCE: MAKE_PWP_MAP
+;
+; INPUTS: NONE
+;		
+;		
+; OPTIONAL INPUTS:
+;		NONE:	
+;		
+; KEYWORD PARAMETERS:
+;		NONE:
+
+; OUTPUTS: 
+;		
+;; EXAMPLES:
+;
+;  MAKE_PWP_MAP
+;
+; MODIFICATION HISTORY:
+;			WRITTEN JUN 6,2013 J.O'REILLY
+;			JUN 10,2013,JOR FIXED TYPO: LONS = FLOAT(CSV.LONGITUDE) & PRINT,'LONS:  ',MM(LONS)	
+;			
+;			
+;#################################################################################
+;
+;-
+;*****************************
+ROUTINE_NAME  = 'MAKE_PWP_MAP'
+;*****************************
+;LIMIT
+
+;===> GET THE POLYGON COORDINATES FOR THE PWP
+ 
+ ;===> GET THE 62 LMES + PWP, EXCLUDING SMI AND GEQ WHERE CODES = 0  
+  DB =  GET_LME_MAPS() & MAPS=DB.MAP & TARGETS=MAPS  & CODES = DB.CODE & NAMES = DB.NAME 
+  OK = WHERE(DB.CODE EQ 65,COUNT)
+  IF COUNT EQ 1 THEN BEGIN  
+    MAPS = MAPS[OK]
+    CODES=CODES[OK]
+    NAMES=NAMES[OK]
+  ENDIF ELSE BEGIN
+    STOP
+  ENDELSE;IF COUNT EQ 1 THEN BEGIN
+  
+  DIR_TEST = 'D:\TEST\' &  FILE_MKDIR,DIR_TEST
+  FILES = FILE_SEARCH(DIR_TEST,'*.PNG') & IF  FILES[0] NE '' THEN FILE_DELETE,FILES
+
+  GRACE = 3  ; DEGREES [TO LEAVE ROOM FOR THE LMR OUTLINE] 
+    AMAP = STRUPCASE(MAPS) 
+    ACODE = CODES
+    ANAME = STRUPCASE(NAMES) 
+   
+    
+    ;##################################
+    ;PREEMPT LIMIT , POLAT,POLON WITH THOSE DERIVED FROM 
+   ;  PDFFILE =  'D:\PROJECTS\UNEP\DOCS\W_PACIFIC WARM POOL PROVINCE.PDF'
+     LATS = FLOAT([-15.5,12.5]) & PRINT,'LATS:  ',MM(LATS)
+     LONS = FLOAT([126.5,174.5]) & PRINT,'LONS:  ',MM(LONS)
+     MM_LATS=MINMAX(LATS)  &  MM_LONS=MINMAX(LONS)
+    
+      ;===> ENSURE LATS,LONS ARE ON THE GLOBE
+      MM_LATS[0] = -90  > (MM_LATS[0]- GRACE) < 90
+      MM_LATS[1] = -90  > (MM_LATS[1]+ GRACE) < 90
+      MM_LONS[0] = -180 > (MM_LONS[0]- GRACE) < 180
+      MM_LONS[1] = -180 > (MM_LONS[1]+ GRACE) < 180
+     
+     
+     P0LAT = MEAN(MM_LATS)
+     POLON = MEAN(MM_LONS)
+     LIMIT = [MM_LATS[0],MM_LONS[0],MM_LATS[1],MM_LONS[1]] & PRINT,'LIMIT=  ',LIMIT
+     
+     
+    
+    MAKE_MAP_PRO, MAP = AMAP, NAME = ANAME,CODE=ACODE, PROJ = PROJ, P0LAT = P0LAT, POLON = POLON, ROT = ROT,LIMIT = LIMIT, PX = 512, PY =512,GRACE=GRACE
+    ,'AMAP :    '+ ANAME
+
+;||||||||||||||||||||||||||||||||||||||||
+END; #####################  END OF ROUTINE ################################

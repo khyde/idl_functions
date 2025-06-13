@@ -1,0 +1,63 @@
+; $ID:	MAKE_IRRS510_DEMO.PRO,	2020-06-26-15,	USER-KJWH	$
+;#############################################################################################################
+	PRO MAKE_IRRS510_DEMO
+	
+;  PRO MAKE_IRRS510_DEMO
+;+
+; NAME:
+;		MAKE_IRRS510_DEMO
+;
+; PURPOSE: THIS PROGRAM IS A DEMO FOR MAKING INTERPOLATED 55S510 
+;
+; CATEGORY:
+;		PALETTE
+;		 
+;
+; CALLING SEQUENCE: MAKE_IRRS510_DEMO
+;
+; INPUTS: NONE
+;		
+;		
+; OPTIONAL INPUTS:
+;		NONE:	
+;		
+; KEYWORD PARAMETERS:
+;		NONE:
+
+; OUTPUTS: 
+;		
+;; EXAMPLES:
+;
+;  MAKE_IRRS510_DEMO
+;
+; MODIFICATION HISTORY:
+;			WRITTEN APR 10,2013 J.O'REILLY
+;			
+;			
+;			
+;#################################################################################
+;
+;
+;-
+;***************************
+ROUTINE_NAME  = 'MAKE_IRRS510_DEMO'
+;***************************
+DIR = READALL('D:\IDL\PROGRAMS\SMI_MAIN-DIR-STRUCT.SAVE')
+PLINES
+ST,DIR
+AQ_R_488 = FILE_SEARCH(DIR.BZ2,'A*2002252*RRS*488*.BZ2')& PFILE,AQ_R_488,/X
+AQ_R_531 = FILE_SEARCH(DIR.BZ2,'A*2002252*RRS*531*.BZ2')& PFILE,AQ_R_531,/X
+R_488 = READHDF(AQ_R_488,PRODUCTS = 'L3M_DATA') & R_488 = R_488.L3M_DATA & HELP,R_488
+R_531 = READHDF(AQ_R_531,PRODUCTS = 'L3M_DATA') & R_531 = R_531.L3M_DATA & HELP,R_531
+
+P,MM(R_488) & P,MM(R_531)
+OK = WHERE(R_488 EQ -32767.0,COUNT) & IF COUNT GE 1 THEN R_488[OK] = MISSINGS(R_488)
+OK = WHERE(R_531 EQ -32767.0,COUNT) & IF COUNT GE 1 THEN R_531[OK] = MISSINGS(R_531)
+P,MM(R_488) & P,MM(R_531)
+
+STOP
+
+
+
+
+END; #####################  END OF ROUTINE ################################

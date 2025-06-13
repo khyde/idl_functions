@@ -1,0 +1,40 @@
+; $ID:	WHERE_SHIFT.PRO,	2020-07-08-15,	USER-KJWH	$
+;################################################################################
+FUNCTION  WHERE_SHIFT, ARRAY,COUNT,$
+                       NCOMPLEMENT=NCOMPLEMENT,COMPLEMENT=COMPLEMENT,NINVALID=NINVALID,INVALID=INVALID;
+;+
+;	THIS FUNCTION FINDS THE INDICES IN ARRAY 
+;	WHERE THE ARRAY SHIFTS FROM INCREASING TO DECREASING VALUES
+;
+;
+;  D = [1, 5, 10, 15, 20, 25, 30, 35, 50, 75, 100, 400, 900, 1400, 3400] &   OK = WHERE_SHIFT(D,COUNT) & P,OK
+;  EXAMPLE:[THE SHIFT IS AFTER 75]
+;  D = [1, 5, 10, 15, 20, 25, 30, 35, 50, 75, 1, 4, 9, 14, 34] &   OK = WHERE_SHIFT(D,COUNT) & P,OK
+
+;  
+; MODIFICATION HISTORY:
+;	 SEP 25,2014	WRITTEN BY:	J.E. O'REILLY
+;	 OCT 4,2014,JOR ADDED EXAMPLES
+;  NOV 13,2014,JOR REPLACED RETURN, -1 WITH RETURN,[]
+;#####################################################################
+;-
+;*************************
+ROUTINE_NAME='WHERE_SHIFT'
+;*************************
+  COUNT = 0L
+  ORDER  = LINDGEN(N_ELEMENTS(ARRAY))
+  OK = WHERE(ARRAY-SHIFT(ARRAY,1) LT 0,COUNT)
+  ;===> [THE FIRST OK WILL ALWAYS BE NEGATIVE SO IGNORE IT]
+  IF COUNT LE 1 THEN BEGIN 
+    COUNT = 0
+    RETURN,[]
+  ENDIF ELSE BEGIN
+     COUNT = N_ELEMENTS(ARRAY(OK[1]:*))
+     RETURN,ORDER(OK[1]:*)
+    
+  ENDELSE;IF COUNT EQ 1 THEN BEGINF
+ 
+  
+
+
+END; #####################  END OF ROUTINE ################################

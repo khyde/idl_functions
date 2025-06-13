@@ -1,0 +1,130 @@
+; $ID:	JORCSN_MAIN.PRO,	2020-06-30-17,	USER-KJWH	$
+
+	PRO JORCSN_MAIN
+
+;+
+; NAME:
+;		JORCSN
+;
+; PURPOSE: JORCSN_MAIN MAIN FOR EDITING JORCSN
+;
+; CATEGORY:
+;		CATEGORY
+;		 MATH
+;
+; CALLING SEQUENCE:
+;
+; INPUTS:
+;		DATA:	VECTOR OF DATA
+;		
+; OPTIONAL INPUTS:
+;		NONE:	
+;
+; KEYWORD PARAMETERS:
+;		KEY1:	Document keyword parameters like this. Note that the keyword is shown in ALL CAPS!
+;
+; OUTPUTS:
+;		This function returns the
+;
+
+; EXAMPLE:
+;  JORCSN
+;	NOTES:
+;		This routine will display better if you set your tab to 2 spaces:
+;	  (Preferences, Editor, The TAB Number of spaces to indent for each Tab: 2)
+
+;		Citations or any other useful notes
+;
+;
+; MODIFICATION HISTORY:
+;			Written JUNE 6,2011  J.O'Reilly, 28 Tarzwell Drive, NMFS, NOAA 02882 (jay.oreilly@noaa.gov)
+;-
+;	****************************************************************************************************
+	ROUTINE_NAME = 'JORCSN_MAIN'
+  ERROR = ''
+; SWITCHES>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+ DO_READ_JORCSN_EDIT   = 0
+ DO_DUPS               =0
+ DO_RENAME              = 0
+ DO_STRUCT_PLOT         = 1
+ DIRS=FILE_FOLDERS('D:\PROJECTS\JORCSN\')
+ 
+ 
+
+ 
+ 
+ IF DO_READ_JORCSN_EDIT GE 1 THEN BEGIN
+   CSVFILE= DIRS.DATA+'JORCSN1.CSV'
+   SAVEFILE= DIRS.SAVE+'JORCSN_EDIT.SAVE'
+   EDITCSV= DIRS.SAVE+'JORCSN_EDIT.CSV'
+   DB= READ_DELIMITED(CSVFILE,DELIM=',',/NOHEADING)
+   
+; PAD MISSING ZEROS IN DATE, ETC.
+STOP
+FOR NTH = 0, N_TAGS(DB)-1 DO BEGIN
+  DB.(NTH)=STR_PAD(DB.(NTH))
+ENDFOR
+   D=STRUCT_2NUM(DB)  
+   
+   
+   ; >>>REMOVE ANY TAGS WHER ALL THE DATA ARE MISSING   
+   NTAGS = N_TAGS(D)
+   NAMES = TAG_NAMES(D)
+   GOOD= REPLICATE (1,NTAGS)
+   FOR NTH = 0, NTAGS-1 DO BEGIN
+   ARR = D.(NTH)
+   OK=WHERE(ARR EQ MISSINGS(ARR),COUNT)
+   IF COUNT EQ N_ELEMENTS(ARR) THEN GOOD[NTH]= 0
+   
+   
+   ENDFOR
+   PRINT,GOOD
+   STOP
+   OK = WHERE(GOOD EQ 1,COUNT)
+   NAMES = NAMES[OK]
+   D=STRUCT_COPY(D, TAGNAMES=NAMES)
+   NEW = ['CRUISE','DATE','STATION','DEPTH','E','LAT','LON','H','I','J','FIX', 'L','M','N', 'SAL', 'P']
+   D= STRUCT_RENAME(DB, NAMES,NEW)
+   D.LAT=D.LAT/1E4
+   D.LON=D.LON/1E4
+   SAVE,FILENAME=SAVEFILE,D
+   STRUCT_2CSV,EDITCSV,D
+ 
+ ENDIF;  IF READ_JORCSN1 GE 1 THEN BEGIN
+  IF DO_RENAME GE 1 THEN BEGIN
+    SAVEFILE= DIRS.SAVE+'JORCSN1.SAVE'
+    DB=READALL(SAVEFILE)
+    STOP
+    OLD=STRCOMPRESS(STRTRIM(OLD,2),/REMOVE_ALL)
+    NEW = ['CRUISE','DATE','STATION','DEPTH''U1']
+    D= STRUCT_RENAME(DB, OLD,NEW)
+    NTAGS = N_TAGS(D)
+    
+  STOP
+ ENDIF; IF DO_RENAME GE 1 THEN BEGIN
+ IF DO_DUPS GE 1 THEN BEGIN
+   SAVEFILE= DIRS.SAVE+'JORCSN_EDIT.SAVE'
+   DB = READALL(SAVEFILE)
+   NAMES = TAG_NAMES(DB)
+   FOR NTH = 0, N_TAGS(DB)-1 DO BEGIN
+     DATA = DB.(NTH)
+     DUPS = WHERE_DUPS(DATA,COUNT)
+     PRINT,NAMES[NTH]
+     SPREAD,DUPS
+     
+   ENDFOR
+   
+ ENDIF ;IF DO_DUPS GE 1 THEN BEGIN 
+ IF DO_STRUCT_PLOT GE 1 THEN BEGIN
+   SAVEFILE= DIRS.SAVE+'JORCSN_EDIT.SAVE'
+    DB=READALL(SAVEFILE)
+    ZWIN,[1666,2048]
+    STRUCT_PLOT,DB,/PMULTI,/PAGE,X='DATE'
+    IM=TVRD()
+    SLIDEW,IM
+    ZWIN
+    STOP
+ ENDIF ;IF DO_STRUCT_PLOT GE 1 THEN BEGIN
+
+ 
+	END; #####################  End of Routine ################################

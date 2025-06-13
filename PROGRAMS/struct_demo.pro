@@ -1,0 +1,115 @@
+; $ID:	STRUCT_DEMO.PRO,	2020-07-09-08,	USER-KJWH	$
+;#############################################################################################################
+	PRO STRUCT_DEMO,DATA,X=X,Y=Y,N=N
+	
+;  PRO STRUCT_DEMO
+;+
+; NAME:
+;		STRUCT_DEMO
+;
+; PURPOSE: THIS PROGRAM IS A DEMO FOR MAKING STRUCTURES
+;
+; CATEGORY:
+;		PALETTE
+;		 
+;
+; CALLING SEQUENCE: STRUCT_DEMO
+;
+; INPUTS: NONE
+;		
+;		
+; OPTIONAL INPUTS:
+;		NONE:	
+;		
+; KEYWORD PARAMETERS:
+;		NONE:
+
+; OUTPUTS: 
+;		
+;; EXAMPLES:
+;
+;  STRUCT_DEMO
+;
+;; MODIFICATION HISTORY:
+;       WRITTEN BY:  J.E.O'REILLY, APRIL 24, 2004
+;       MAR 24,2013,JOR, CHANGED FROM FUNCTION TO PRO, REMOVED KEYWORDS TO USE STEPS 			
+;#################################################################################
+;
+;
+;-
+;***************************
+ROUTINE_NAME  = 'STRUCT_DEMO'
+;***************************
+;
+;SSSSS     SWITCHES     SSSSS
+DO_SIMPLE = 0
+DO_SPREAD = 0
+DO_NESTED = 1
+
+
+;SSSSS     SWITCHES     SSSSS
+CLEAR
+;*****************************
+IF DO_SPREAD GE 1 THEN BEGIN
+;*****************************  
+;   ===> SIMPLE SPREADSHEET ROW,COLUMN STRUCTURE
+  STRUCT= REPLICATE(CREATE_STRUCT('PET',''),3)
+  STRUCT[0].PET='CAT'
+  STRUCT[1].PET='DOG'
+  STRUCT(2).PET='HORSE'
+  ST,STRUCT
+  PRINT,STRUCT
+  
+  STOP
+ENDIF;IF DO_SPREAD GE 1 THEN BEGIN
+;|||||||||||||||||||||||||||||||||
+
+;***************************
+IF DO_SIMPLE GE 1 THEN BEGIN
+;***************************
+  ;===> STRUCTURE WITH TWO TAGS WITH DIFFERENT ARRAY SIZES
+  STRUCT=CREATE_STRUCT('PETS',['CAT','DOG','HORSE'],'ZOO', ['RHINO','MONKEY','ELEPHANT','SNAKE'])
+  PRINT,STRUCT.(0)  
+  PRINT,STRUCT.(1)
+  ST,STRUCT
+  PLIST,STRUCT.PETS
+  PLIST,STRUCT.ZOO
+  STOP
+  ENDIF;IF DO_SIMPLE GE 1 THEN BEGIN
+;|||||||||||||||||||||||||||||||||||  
+
+;***************************
+IF DO_NESTED GE 1 THEN BEGIN
+;***************************
+  ;===> MAKE A NESTED STRUCTURE WITH MIXED DATA ARRAYS
+  PROD = 'DAT'  
+  INFO = 'DAT'  
+  ARRAY= FINDGEN(11) 
+  FIRST=CREATE_STRUCT(PROD,CREATE_STRUCT('DATA',PROD,'INFO',INFO,'ARRAY',ARRAY))
+  FIRST=CREATE_STRUCT('FIRST',FIRST)
+  ST,FIRST
+  STOP
+  ST,FIRST.(0)
+  STOP
+  PROD = 'LET'  
+  INFO = 'LET'  
+  ARRAY= ALPHABET() 
+  SECOND=CREATE_STRUCT(PROD,CREATE_STRUCT('DATA',PROD,'INFO',INFO,'ARRAY',ARRAY))
+  SECOND=CREATE_STRUCT('SECOND',SECOND)
+  ST,SECOND
+  STOP
+  ST,SECOND.(0)
+  STOP
+  PRINT
+  ; ===> COMBINE INTO A NESTED STRUCTURE
+  STRUCT=CREATE_STRUCT( FIRST,SECOND)
+  ST,STRUCT
+  STOP
+  ST,STRUCT.(0)
+  STOP
+  ST,STRUCT.(1)
+  STOP
+ENDIF;IF DO_NESTED GE 1 THEN BEGIN
+;||||||||||||||||||||||||||||||||||||||   
+STOP
+END; #####################  END OF ROUTINE ################################

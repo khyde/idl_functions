@@ -1,0 +1,75 @@
+; $ID:	SAVE_METHOD_DEMO.PRO,	2020-07-01-12,	USER-KJWH	$
+;+
+;#############################################################################################################
+	PRO SAVE_METHOD_DEMO,EXT=EXT,DIR_OUT = DIR_OUT
+;;PALS_EXAMPLES
+;
+; PURPOSE: DEMONSTRATE THE SAVE METHOD FOR MULTIPLE PAGES
+;
+; CATEGORY:	DEMO
+;
+; CALLING SEQUENCE: SAVE_METHOD_DEMO
+;
+; INPUTS: 
+;   NONE
+;		
+; OPTIONAL INPUTS:
+;		NONE	
+;		
+; KEYWORD PARAMETERS:
+;		EXT - PDF OR GIF ALLOWED
+;   DIR_OUT - OUTPUT DIRECTORY
+
+; OUTPUTS: 
+;  A MULTI-PAGE PDF  OR GIF FILE
+;		
+; EXAMPLES: NONE
+; 
+;
+; MODIFICATION HISTORY:
+;			JUL 3,2014,  WRITTEN BY J.O'REILLY 
+;			
+;			
+;			
+;#################################################################################
+;-
+;********************************
+ROUTINE_NAME  = 'SAVE_METHOD_DEMO'
+;********************************
+;#######  CONSTANTS AND DEFAULTS    #############
+PAL='PAL_SW3'  & RGB_TABLE = RGBS([0,255],PAL=PAL)
+IF NONE(DIR_OUT) THEN DIR_OUT = !S.IDL_TEMP
+IF NONE(EXT) THEN EXT = '.PDF'
+IF STRPOS(EXT,'.') NE 0 THEN EXT = '.' + EXT
+FILE = DIR_OUT + ROUTINE_NAME + EXT
+
+NUM = 7
+WIDTH = 800
+HEIGHT= 800
+BORDER = 100
+BUFFER = 1
+BACKGROUND_COLOR = 'SILVER'
+
+IMG = DIST([WIDTH,HEIGHT])
+STRUCT = REPLICATE(CREATE_STRUCT('IMG',IMG),NUM)
+;FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+FOR NTH = 0,N_ELEMENTS(STRUCT)-1 DO BEGIN
+  POF,NTH,STRUCT
+  IF NTH EQ (N_ELEMENTS(STRUCT)-1) THEN CLOSE = 1 ELSE CLOSE = 0
+  IMG = STRUCT[NTH].IMG
+;#####################  IMAGE    ######################################
+  I = IMAGE(IMG,RGB_TABLE=RGB_TABLE,BACKGROUND_COLOR= BACKGROUND_COLOR,$          
+            LAYOUT = LAYOUT,MARGIN=MARGIN,BUFFER = BUFFER)
+  ;||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+  T = TEXT(0.5,0.5,ROUNDS(NTH+1),/NORMAL,FONT_SIZE = 150,ALIGNMENT= 0.5,VERTICAL_ALIGNMENT= 0.5)
+
+  I.SAVE, FILE,WIDTH = WIDTH,HEIGHT = HEIGHT ,BORDER =BORDER,$
+          BIT_DEPTH = BIT_DEPTH,/APPEND,CLOSE = CLOSE
+     
+ENDFOR;FOR NTH = 0,N_ELEMENTS(STRUCT) DO BEGIN
+;FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+PFILE,FILE
+
+
+
+END; #####################  END OF ROUTINE ################################

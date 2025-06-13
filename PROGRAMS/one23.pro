@@ -1,0 +1,27 @@
+; $ID:	ONE23.PRO,	2020-07-08-15,	USER-KJWH	$
+PRO ONE23,  in, arr, ix, iy ,iz
+
+
+; TAKES 1 DIMENSIONAL SUBSCRIPTS FOR A 3 DIMENSIONAL IMAGE AND
+; RETURNS THE X,Y,Z COORDINATES
+;  A TEST :
+; ARRAY =  BYTARR(3,5,7) & ARRAY(1,2,3) = 1 & PRINT, ARRAY & OK = WHERE(ARRAY EQ 1) & PRINT, OK &  ONE23,ok, ARRAY,XX,YY,ZZ & PRINT, XX,YY,ZZ
+s = SIZE(arr)
+IF S[0] EQ 3 THEN BEGIN
+x = S[1]
+Y = S(2)
+Z = S(3)
+
+  ix = IN MOD X
+  iy = (IN /(X)) MOD Y
+  iz = IN/ (X*Y)
+
+ENDIF  ELSE BEGIN
+  ix = -1
+  iy = -1
+  iz = -1
+ENDELSE
+
+RETURN
+
+END

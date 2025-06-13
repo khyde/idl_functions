@@ -1,0 +1,56 @@
+; $ID:	STRUCT_IT.PRO,	2020-06-30-17,	USER-KJWH	$
+;#############################################################################################################
+	FUNCTION STRUCT_IT,VAL,NAME,ARR=ARR
+	
+;+
+; NAME:
+;		STRUCT_IT
+;
+; PURPOSE: THIS FUNCTION RETURNS A STRUCTURE FOR A SCALAR VARIABLE
+;          USEFUL WHEN USING STRUCT_ASSIGN
+;
+; CATEGORY:STRUCTURES
+;		
+;		 
+;
+; CALLING SEQUENCE:RESULT = STRUCT_IT()
+;
+; INPUTS: VAL  A SCALAR VARIABLE
+;         NAME [TAGNAME TO ASSIGN TO THE STRUCTURE]
+; OPTIONAL INPUTS:
+;		NONE:	
+;		
+; KEYWORD PARAMETERS: 
+;         ARR: IF VAL IS ARRAY THEN MAKE STRUCT ARR  
+; OUTPUTS: 
+;		
+;; EXAMPLES:
+;  PRINT, STRUCT_IT(10)
+;	NOTES:
+
+;		
+;
+;
+; MODIFICATION HISTORY:
+;			WRITTEN JAN 8, 2014 J.O'REILLY
+;			MAY 25,2014,JOR CHANGED S TO 'DATA'
+;#################################################################################
+;-
+;****************************
+ROUTINE_NAME  = 'STRUCT_IT'
+;****************************
+IF N_ELEMENTS(VAL) EQ 0 THEN MESSAGE,'ERROR: MUST PROVIDE A VAL'
+IF N_ELEMENTS(NAME) NE 1 THEN NAME = 'DATA'
+IF KEY(ARR) THEN BEGIN
+  S = CREATE_STRUCT(NAME,MISSINGS(VAL[0]))
+  S = REPLICATE(S,N_ELEMENTS(VAL))
+  S.(0) = VAL
+  RETURN,S
+  
+ENDIF ELSE BEGIN  
+  RETURN,CREATE_STRUCT(NAME,VAL)  
+ENDELSE;IF KEY(ARR) THEN BEGIN
+
+
+DONE:          
+	END; #####################  END OF ROUTINE ################################

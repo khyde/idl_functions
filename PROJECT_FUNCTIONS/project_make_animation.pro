@@ -1,0 +1,190 @@
+; $ID:	PROJECT_MAKE_ANIMATION.PRO,	2023-09-21-13,	USER-KJWH	$
+  PRO PROJECT_MAKE_ANIMATION, VERSTRUCT, PRODS=PRODS, PROD_SCALE=PROD_SCALE, DATERANGE=DATERANGE, NDAYS=NDAYS, WEEKS=WEEKS, MAPP=MAPP, $
+     EXTENSIONS=EXTENSIONS, BUFFER=BUFFER, DIR_OUT=DIR_OUT, _REF_EXTRA=EXTRA
+
+;+
+; NAME:
+;   PROJECT_MAKE_ANIMATION
+;
+; PURPOSE:
+;   $PURPOSE$
+;
+; CATEGORY:
+;   PROJECT_FUNCTIONS
+;
+; CALLING SEQUENCE:
+;   Result = PROJECT_MAKE_ANIMATION($Parameter1$, $Parameter2$, $Keyword=Keyword$, ...)
+;
+; REQUIRED INPUTS:
+;   Parm1.......... Describe the positional input parameters here. 
+;
+; OPTIONAL INPUTS:
+;   Parm2.......... Describe optional inputs here. If none, delete this section.
+;
+; KEYWORD PARAMETERS:
+;   KEY1........... Document keyword parameters like this. Note that the keyword is shown in ALL CAPS!
+;
+; OUTPUTS:
+;   OUTPUT.......... Describe the output of this program or function
+;
+; OPTIONAL OUTPUTS:
+;   None
+;
+; COMMON BLOCKS: 
+;   None
+;
+; SIDE EFFECTS:  
+;   None
+;
+; RESTRICTIONS:  
+;   None
+;
+; EXAMPLE:
+; 
+;
+; NOTES:
+;   $Citations or any other useful notes$
+;   
+; COPYRIGHT: 
+; Copyright (C) 2023, Department of Commerce, National Oceanic and Atmospheric Administration, National Marine Fisheries Service,
+;   Northeast Fisheries Science Center, Narragansett Laboratory.
+;   This software may be used, copied, or redistributed as long as it is not sold and this copyright notice is reproduced on each copy made.
+;   This routine is provided AS IS without any express or implied warranties whatsoever.
+;
+; AUTHOR:
+;   This program was written on July 31, 2023 by Kimberly J. W. Hyde, Northeast Fisheries Science Center | NOAA Fisheries | U.S. Department of Commerce, 28 Tarzwell Dr, Narragansett, RI 02882
+;    
+; MODIFICATION HISTORY:
+;   Jul 31, 2023 - KJWH: Initial code written
+;-
+; ****************************************************************************************************
+  ROUTINE_NAME = 'PROJECT_MAKE_ANIMATION'
+  COMPILE_OPT IDL2
+  SL = PATH_SEP()
+  
+  VSTR = VERSTRUCT
+  
+  IF ~N_ELEMENTS(DATERANGE) THEN DTR =GET_DATERANGE(VSTR.INFO.YEAR) ELSE DTR = GET_DATERANGE(DATERANGE)
+  IF ~N_ELEMENTS(NDAYS) THEN MDATES=13 ELSE MDATES=NDAYS
+  IF ~N_ELEMENTS(MAPP) THEN MP = VSTR.INFO.MAP_OUT ELSE MP = MAPP
+  IF ~N_ELEMENTS(PRODS) THEN PRDS = VSTR.INFO.ANIMATION_PRODS ELSE PRDS = PRODS
+  IF ~N_ELEMENTS(FRAMES) THEN FPS = 5 ELSE FPS = FRAMES
+  IF ~N_ELEMENTS(EXTENSIONS) THEN EXT = ['webm'] ELSE EXT = EXTENSIONS
+
+  MR = MAPS_READ(MP)
+  DATES = CREATE_DATE(DTR[0],DTR[1])
+  IF KEYWORD_SET(WEEKS) THEN OUTPERIOD='WW_'+DATE_2YEAR(DTR[0])+DATE_2WEEK(DTR[0]) + '_' +DATE_2YEAR(DTR[1])+DATE_2WEEK(DTR[1])  $
+                                                  ELSE OUTPERIOD='DD_'+STRJOIN(STRMID(DTR,0,8),'_')
+
+  RESZ = []
+  CASE MP OF
+    'NES': BEGIN & RESZ=.85 & END
+    'MAB': BEGIN & RESZ=.85 & END
+    'MAB_GS': BEGIN & RESZ=.9 & END
+    'GOM': BEGIN & RESZ=.85 & END
+    ELSE: RESZ=.85
+  ENDCASE
+
+  FOR N=0, N_ELEMENTS(PRDS)-1 DO BEGIN
+    PSTR = VSTR.PROD_INFO.(WHERE(TAG_NAMES(VSTR.PROD_INFO) EQ PRDS[N]))
+    DSET = PSTR.DATASET
+    IF STRUCT_HAS(PSTR,'TEMP_DATASET') THEN TSET = PSTR.TEMP_DATASET ELSE TSET = []
+
+    IF N_ELEMENTS(DATES) LT 63 AND HAS(PSTR,'MONTH_SCALE')  THEN PSCL = PSTR.MONTH_SCALE.(WHERE(TAG_NAMES(PSTR.MONTH_SCALE) EQ 'M'+DATE_2MONTH(DTR[0]))) $
+                                                            ELSE PSCL = PSTR.PROD_SCALE
+    IF N_ELEMENTS(PROD_SCALE) EQ 1 THEN PSCL = PROD_SCALE
+    
+    IF ~N_ELEMENTS(DIR_OUT) THEN DIROUT=VSTR.DIRS.DIR_ANIMATIONS + PRDS[N] + SL ELSE DIROUT = DIR_OUT
+    DIR_PNGS = DIROUT + 'ANIMATION_PNGS' + SL & DIR_TEST, DIR_PNGS
+
+    IF STRUCT_HAS(VSTR.INFO,'ANIMATION_PERIOD') THEN PERIODS = VSTR.INFO.ANIMATION_PERIOD ELSE PERIODS = 'D'
+    FOR R=0, N_ELEMENTS(PERIODS)-1 DO BEGIN
+      APER = PERIODS[R]
+      FILES = GET_FILES(DSET,PRODS=PSTR.PROD,PERIOD=APER,DATERANGE=GET_DATERANGE(DATE_2YEAR(DTR[0])))
+      IF TSET NE [] THEN TFILES = GET_FILES(TSET,PRODS=PSTR.PROD,PERIOD='D',DATERANGE=GET_DATERANGE(DATE_2YEAR(DTR[0]))) ELSE TFILES = []
+      IF FILES EQ [] AND N_ELEMENTS(TFILES) EQ 1 THEN FILES = TFILES
+      IF N_ELEMENTS(FILES) NE 1 THEN CONTINUE ; MESSAGE, 'ERROR: Check FILES'
+      FP = PARSE_IT(FILES,/ALL)
+  
+      PNGFILES = []
+      FOR PNF=0, N_ELEMENTS(DATES)-1 DO BEGIN
+        IF DATE_2JD(DATES[PNF]) GT DATE_NOW(/JD) THEN CONTINUE ; Skip if a future date
+        PNGFILE = DIR_PNGS + REPLACE(FP.NAME +'.PNG',[FP.PERIOD,FP.PROD,FP.MAP,FP.MAP_SUBSET,FP.PXY],[DATE_2PERIOD(STRMID(DATES[PNF],0,8)),PSCL,MP,'',''])
+        WHILE HAS(PNGFILE,'--') DO PNGFILE=REPLACE(PNGFILE,'--','-')
+        PNGFILE = REPLACE(PNGFILE, '-'+['STACKED','STACKED_STATS','STACKED_ANOMS'],['','',''])
+        PNGFILES = [PNGFILES,PNGFILE]
+      ENDFOR
+      IF PNGFILES EQ [] THEN CONTINUE
+      FA = PARSE_IT(PNGFILES[0])
+      OUTPERIOD = 'DD_'+ STRMID(DTR[0],0,8) + '_' +  STRMID(DTR[1],0,8)
+  
+      ; ===> Make the PNG images using the scaling of the month at the end of the animation period (e.g. if the period spans May to June, use the June scaling)
+      MFILE = DIROUT + REPLACE(FA.NAME,FA.PERIOD,OUTPERIOD)
+      
+      PNG_OVERWRITE = 0
+      ACOUNTER = 0
+      FOR E=0, N_ELEMENTS(EXT)-1 DO BEGIN
+        FPS = 3
+        MOVIE_FILE = MFILE + '-FPS_'+ROUNDS(FPS)+'.'+EXT[E]
+        IF FILE_MAKE(PNGFILES,MOVIE_FILE,OVERWRITE=OVERWRITE) EQ 0 AND TOTAL(FILE_TEST(PNGFILES)) EQ N_ELEMENTS(PNGFILES) THEN CONTINUE
+        IF TOTAL(FILE_TEST([PNGFILES,MOVIE_FILE])) EQ N_ELEMENTS([PNGFILES,MOVIE_FILE]) AND ~KEYWORD_SET(OVERWRITE) THEN CONTINUE
+        PNG_OVERWRITE = 1
+        
+        RECREATE_ALL_IMAGES:
+        PX0 = []
+        FOR F=0, N_ELEMENTS(PNGFILES)-1 DO BEGIN
+          COUNTER = 0
+          DR = GET_DATERANGE(DATES[F],DATES[F])   
+          
+          PNGFILE = PNGFILES[F] & FA = PARSE_IT(PNGFILE)
+          IF PX0 EQ [] AND FILE_TEST(PNGFILE) EQ 1 THEN BEGIN
+            IMG = READ_IMAGE(PNGFILE)
+            SZ = SIZEXYZ(IMG, PX=PX0, PY=PY0, PZ=PZ0)
+          ENDIF
+  
+;          IF DB EQ [] THEN BEGIN
+;            DD = STACKED_READ(FILES, DB=DB)
+;            GONE, DD
+;          ENDIF
+;  
+;          OKSEQ = WHERE_MATCH(PERIOD_2DATE(DB.PERIOD), PERIOD_2DATE(FA.PERIOD),COUNTSEQ)
+;          IF DB[OKSEQ].MTIME EQ 0 THEN CONTINUE ; Data does not exist in the file
+;          IF DB[OKSEQ].MTIME LT GET_MTIME(PNGFILE) AND ~KEYWORD_SET(OVERWRITE) THEN CONTINUE
+;  
+          RETRY_IMAGE:
+          IMG = PROJECT_MAKE_IMAGE(VSTR, FILE=FILES, PROD_SCALE=PSCL, DATERANGE=DR,BUFFER=BUFFER, RESIZE=RESZ, MAPP=MP, _EXTRA=EXTRA)
+          IF IDLTYPE(IMG) NE 'OBJREF' THEN BEGIN
+            IF TFILES NE [] THEN IMG = PROJECT_MAKE_IMAGE(VSTR, FILE=TFILES, PROD_SCALE=PSCL, DATERANGE=DR,BUFFER=BUFFER, RESIZE=RESZ, MAPP=MP, _EXTRA=EXTRA)
+            IF IDLTYPE(IMG) NE 'OBJREF' THEN CONTINUE
+          ENDIF
+  
+          PFILE, PNGFILE,/W
+          IMG.SAVE, PNGFILE, RESOLUTION=300
+          IMG.CLOSE
+          
+          IMG = READ_IMAGE(PNGFILE)
+          IF PX0 EQ [] THEN SZ = SIZEXYZ(IMG, PX=PX0, PY=PY0, PZ=PZ0)
+          SZ = SIZEXYZ(IMG, PX=PX, PY=PY, PZ=PZ)
+          IF PX NE PX0 OR PY NE PY0 THEN BEGIN
+            MESSAGE, 'ERROR: the deminsions of ' + PNGFILE + ' do not match the original image', /CONTINUE
+            FILE_DELETE, PNGFILE, /VERBOSE
+            COUNTER = COUNTER + 1
+            IF COUNTER LE 3 THEN GOTO, RETRY_IMAGE
+            IF TOTAL(FILE_TEST(PNGFILES)) GT 0 THEN FILE_DELETE, PNGFILES[WHERE(FILE_TEST(PNGFILES) EQ 1,/NULL)], /VERBOSE
+            ACOUNTER = ACOUNTER + 1
+            IF ACOUNTER GT 3 THEN GOTO, SKIP
+          ENDIF      
+        ENDFOR ; DATES
+        SKIP:
+        
+        PNGS = FILE_SEARCH(DIR_PNGS + APER + '_*' + DSET + '*' + MP + '*' + PSCL + '*.PNG')
+        PNGS = DATE_SELECT(PNGS, [DATES[0],DATES[-1]])
+        IF PNGS EQ [] OR N_ELEMENTS(PNGS) LE 2 THEN CONTINUE
+        MAKE_MOVIE, PNGS, MOVIE_FILE=MOVIE_FILE, FRAME_SEC=FPS, AUTHOR=!S.AUTHOR, AFFILIATION=!S.AFFILIATION
+      ENDFOR ; EXT
+    ENDFOR ; PERIODS  
+  ENDFOR ; PRODS
+
+    
+
+END ; ***************** End of PROJECT_MAKE_ANIMATION *****************

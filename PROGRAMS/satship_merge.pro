@@ -1,0 +1,63 @@
+; $ID:	SATSHIP_MERGE.PRO,	2020-06-30-17,	USER-KJWH	$
+;+
+;	This program converts a SATSHIP structure with arrays to a .csv file 
+;
+; SYNTAX:
+;		SATSHIP_MERGE, FILES
+;		
+; ARGUMENTS:
+; 	Files:	IDL save files containing a SATSHIP structure 
+; 	
+; EXAMPLE:
+;  	SATSHIP = SATSHIP_HDF()
+;  	SAVE, FILENAME='SATSHIP.SAV', SATSHIP, /COMPRESS
+;   SATSHIP_2CSV,'SATSHIP.SAV'
+;
+; VERSION:
+;		May 8, 2015
+;		
+; HISTORY:
+;		May 27, 2015	Written by:	K.J.W. Hyde, NOAA, 28 Tarzwell Drive, Narragansett, RI 02882
+;		Jul 27, 2015 - KJWH: Changed HDFFILE to L2FILE
+;		                     Now looping on SENSOR in order to manage duplicate entries for different sensors
+;		Jul 26, 2017 - KJWH: Fixed bug when there is not a mapfile that matches the l2sat file                   
+;-
+; *************************************************************************
+
+FUNCTION SATSHIP_MERGE, L2FILE=L2FILE,MAPFILE=MAPFILE
+  ROUTINE_NAME='SATSHIP_2CSV'
+
+  MP = IDL_RESTORE(MAPFILE)
+  MSETS = WHERE_SETS(MP.SAT_PROD + '_' + MP.SAT_ALG)
+ 
+  L2 = IDL_RESTORE(L2FILE)
+  SATSETS = WHERE_SETS(L2.SENSOR)
+  FOR S=0, N_ELEMENTS(SATSETS)-1 DO BEGIN ; Loop on SENSORS
+    SUBS = WHERE_SETS_SUBS(SATSETS(S))
+    SATSET = L2(SUBS)
+  
+    LSETS = WHERE_SETS(SATSET.SATNAME)     
+    FOR L=0, N_ELEMENTS(LSETS)-1 DO BEGIN  ; Loop on SATNAMES
+      LSUBS = WHERE_SETS_SUBS(LSETS(L))
+      LSTR  = SATSET(LSUBS)
+      FOR NTH=0, N_ELEMENTS(MSETS)-1 DO BEGIN
+        SUBS = WHERE_SETS_SUBS(MSETS[NTH])
+        SET  = MP(SUBS)
+        MKEY = SET.SHIP_DATE  +'$'+ SET.CRUISE  +'$'+ SET.STATION  +'$'+ NUM2STR(SET.SHIP_LAT)  +'$'+ NUM2STR(SET.SHIP_LON)
+        LKEY = LSTR.SHIP_DATE +'$'+ LSTR.CRUISE +'$'+ LSTR.STATION +'$'+ NUM2STR(LSTR.SHIP_LAT) +'$'+ NUM2STR(LSTR.SHIP_LON)
+        OK = WHERE_MATCH(LKEY,MKEY,COUNT,COMPLEMENT=COMPLEMENT,VALID=VALID)
+        IF COUNT EQ 0 THEN CONTINUE
+        SET = SET(VALID)
+        IF SET[0].SAT_ALG EQ '' THEN PTAG = '_'+SET[0].SAT_PROD ELSE PTAG = '_'+MSETS[NTH].VALUE
+        RTAGS = ['SAT_DATE','SAT_AROUND','SATNAME',    'PERIOD',    'SENSOR',    'TIME_DIF_HOURS',    'MAP','SAT_LAT_0','SAT_LON_0',    'PIXSIZE_X',    'PIXSIZE_Y',    'PIXSIZE_MEAN',    'PIXDIF_METERS','SAT_LAT','SAT_LON']
+        MTAGS = ['MAP_DATE','MAP_AROUND','MAPNAME','MAP_PERIOD','MAP_SENSOR','MAP_TIME_DIF_HOURS','MAP_MAP','MAP_LAT_0','MAP_LON_0','MAP_PIXSIZE_X','MAP_PIXSIZE_Y','MAP_PIXSIZE_MEAN','MAP_PIXDIF_METERS','MAP_LAT','MAP_LON']+PTAG   
+        SET  = STRUCT_RENAME(SET, [RTAGS,'SAT_CENTER','SAT_N','SAT_DATA'], [MTAGS,'MAP'+PTAG+'_CENTER','MAP'+PTAG+'_N','MAP'+PTAG+'_DATA'])   
+        LSTR = STRUCT_JOIN(LSTR,SET,TAGNAMES=['SHIP_DATE','CRUISE','STATION','SHIP_LAT','SHIP_LON'])
+      ENDFOR
+      IF L EQ 0 THEN TEMP = LSTR ELSE TEMP = STRUCT_CONCAT(TEMP,LSTR)
+    ENDFOR
+    IF S EQ 0 THEN OUT = TEMP ELSE OUT = STRUCT_CONCAT(OUT,TEMP) 
+  ENDFOR  
+  OUT = OUT[SORT(OUT.SHIP_DATE+OUT.CRUISE+ADD_STR_ZERO(OUT.STATION))]
+  RETURN, OUT
+ END; #####################  End of Routine ################################

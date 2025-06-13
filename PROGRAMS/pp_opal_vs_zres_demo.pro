@@ -1,0 +1,58 @@
+; $ID:	PP_OPAL_VS_ZRES_DEMO.PRO,	2020-06-30-17,	USER-KJWH	$
+  
+  PRO PP_OPAL_VS_ZRES_DEMO, ERROR = error
+
+;+
+; NAME:
+;   PP_OPAL_VS_ZRES_DEMO
+;
+; PURPOSE:
+;   THIS PROGRAM DEMOS THE INFLUENCE OF Z_RES ON THE RESULTS FROM PP_OPAL (TO CHECK THAT PP AT A GIVEN DEPTH IS PER M^3)
+;
+; CATEGORY:
+;   PP
+;
+; CALLING SEQUENCE:
+;         PP_OPAL_VS_ZRES_DEMO
+; INPUTS:
+;   NONE
+; OUTPUTS:
+;   PLOTS ON THE SCREEN
+;
+;
+;
+; MODIFICATION HISTORY:
+; Written:  DECEMBER 3, 2010 J O'REILLY, 28 Tarzwell Drive, NMFS, NOAA 02882 (jay.oreilly@noaa.gov)
+; Modified: DECEMBER 6, 2010 K. HYDE - Changed the N_LAYERS to Z_RES
+; ;-
+; ****************************************************************************************************
+  ROUTINE_NAME = 'PP_OPAL_VS_ZRES_DEMO'
+
+ZRES=[0.01,0.05,0.1,0.5,1.0,2.0] ; Input Z_Resolution values instead of Number of Layers
+PSPRINT,/COLOR,FILENAME = ROUTINE_NAME +'.PS',/FULL,/TIMES
+SET_PMULTI, N_ELEMENTS(ZRES)
+PAL_36
+FOR NTH=0, N_ELEMENTS(ZRES)-1 DO BEGIN
+  _ZRES = ZRES[NTH]
+  PP= PP_OPAL(CHL_SAT=1.0, SST=22, PAR=33, KX = 0.04, BOTTOM_DEPTH=100,USER_Z_RES=_ZRES,/STRUCT)
+  ;ST,PP
+  PRINT,'MINMAX:',MINMAX(PP.PROFILE_PP)
+  PLINES,2
+  PRINT,ROUNDS(PP.PROFILE_PP(0:10),5)
+  PLINES,2    
+  PAL_36
+   
+  TXT= 'Z Resolution = ' + NUM2STR(_ZRES,/COMMA,DECIMALS=2)+' meters ';!C'+'mean upper 10 layers='+ROUNDS(MEAN(PP.PROFILE_PP(0:10)),5) 
+  
+  OK = WHERE(ROUNDS(PP.DEPTH,4) EQ '10.0000')
+  TXT = TXT + '!CPP at 10.0 meters depth = ' + ROUNDS(PP.PROFILE_PP[OK],5)
+  TXT = TXT + '!CChl at 10.0 meters = ' + ROUNDS(PP.PROFILE_CHL[OK],3)
+  TXT = TXT + '!CPAR at 10.0 meters = ' + ROUNDS(PP.PROFILE_PAR[OK],3)
+  
+  PLOT,PP.DEPTH,PP.PROFILE_PP,/NODATA,COLOR=0,TITLE=TXT,CHARSIZE=1.75,YMARGIN=[4,4]
+  GRIDS,COLOR=0
+  OPLOT,PP.DEPTH,PP.PROFILE_PP,COLOR= (22),THICK=2
+ENDFOR
+PSPRINT
+STOP
+END; #####################  End of Routine ################################

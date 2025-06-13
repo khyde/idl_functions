@@ -1,0 +1,1384 @@
+; $ID:	PIGMENTS_MAIN.PRO,	2020-07-08-15,	USER-KJWH	$
+;+
+; This Program is a MAIN for Ocean Color Algorithms
+
+
+; HISTORY:
+;   Adapted from SWRDGLOB
+ ;-
+; *************************************************************************
+
+PRO PIGMENTS_MAIN_MAIN
+  ROUTINE_NAME='PIGMENTS_MAIN_MAIN'
+; *******************************************
+; DEFAULTS
+  SP = ' ' & UL='_' & ASTER='*'
+  PX=1024 & PY=1024
+ 	PAL = 'PAL_SW3'
+  ABACKGROUND=252 & ALAND_COLOR=252 & AMISS_COLOR=253 & AOUR_MISS_COLOR=251 & AFLAG_COLOR=254 & AHI_LO_COLOR=255
+  DIR_DATA        = 'D:\IDL\DATA\'
+  DIR_IMAGES      = 'D:\IDL\IMAGES\'
+  DIR_INVENTORY   = 'D:\IDL\INVENTORY\'
+ 	DIR_SUFFIX = ''
+ 	TITLE_CHLOR_A = UNITS('CHLOR_A',/UNIT,/NAME)
+
+; ===================>
+; Different delimiters for WIN, MAX, AND X DEVICES
+  os = STRUPCASE(!VERSION.OS) & computer=GET_COMPUTER() & DELIM=DELIMITER(/path)
+; ====================> DISKS depends on computer
+  computer = GET_COMPUTER()
+  IF computer EQ 'LOLIGO'   THEN ADISK = 'D:'
+  IF computer EQ 'LAPSANG'   THEN ADISK = 'D:'
+
+; ===================> SENSORS
+  MAIN_DIR =['PROJECTS\PIGMENTS_MAIN']
+
+; ===================>
+  ALGNAME = ['OC4G.4']
+
+; ===================>
+  MAPS = ['NEC']
+
+; ================>
+; ****************************************************************************************
+; ********************* U S E R    S W I T C H E S  *************************************
+; ****************************************************************************************
+; Switches controlling which Processing STEPS to do:  0:do not do the step, 1:do the step, 2:overwrite products
+  DO_OC_NOMAD_2SAVE                 		= 0  ; Make save from txt input file
+  DO_OC_NOMAD_SUBSET_2SAVE              = 0
+  DO_STRUCT_PLOT_RAW										= 1  ; Plot struct information
+  DO_CHECK_LW_ES												= 1  ; Check LW & ES Pairs
+
+  DO_OC_NOMAD_EDIT                 			= 1  ; Make Rrs Tags,Interpolate Rrs,Make Nan Missings, 0.0Rrs Missings
+  DO_OC_NOMAD_SUBSET_EDIT          			= 0
+
+  DO_STRUCT_PLOT_EDIT										= 1		; Struct Plot of edited data
+
+
+
+  DO_HPLC_FLUOR													= 1		; Regress hplc versus fluor chl_a vs chl
+  DO_TABLE_WL        										= 1
+  DO_TABLE_FLAG      										= 1
+	DO_MAP_SETS														= 0
+
+	DO_OC_NOMAD_INTERP										= 1   ; Interps
+
+
+
+  DO_OC_NOMAD_INTERP_VS_MEASURED 				= 0
+
+
+  DO_OC_NOMAD_EDIT_TRIM									= 0
+
+
+  DO_OC_ALGS                            = 2
+  DO_OC_ALGS_DERIVATIVE									= 0
+
+	DO_OC_NOMAD_HALF											= 0
+	DO_OC_ALGS_ENDS												= 0
+
+
+  DO_CUMULATIVE_RMS											=	0
+
+
+	DO_OC_NOMAD_SPECTRAL_INDEX_PLOT 			= 0
+  DO_OC_NOMAD_VS_OC_MODELS 							= 0
+
+
+  DO_OC_NOMAD_VS_MBR_PLOT 							= 0
+  DO_OC_NOMAD_SPECTRA_PLOT							= 0
+
+
+
+;	*****  R VS IDL
+	DO_R_VS_IDL														= 0
+
+
+
+  DO_OC2_5                             	= 0
+  DO_OC3C_5                            	= 0
+  DO_OC4O_5                             = 0
+  DO_OC4E_5                             = 0
+  DO_OC3M_5                             = 0
+  DO_OC4G_5                             = 0
+  DO_OC2_550_555_4                      = 0
+
+
+  DO_OC_ALG															= 0
+
+ 	DO_OC3S_4                             = 0
+
+  path = adisk +delim+ MAIN_DIR +delim
+  PRINT, PATH
+  DIR_DATA =              path+'data'+ delim
+  DIR_SAVE =              path+'save'+ delim
+  DIR_LOG =               path+'log' + delim
+  DIR_PLOTS =             path+'plots' + delim
+  DIR_ALL = [ DIR_DATA,DIR_SAVE,DIR_LOG,DIR_PLOTS]
+
+
+
+; ====================> Make directories if they do not exist
+  FOR N=0,N_ELEMENTS(DIR_ALL)-1 DO BEGIN
+    AFILE = STRMID(DIR_ALL(N),0,STRLEN(DIR_ALL(N))-1)
+    IF FILE_TEST(AFILE,/DIRECTORY) EQ 0L THEN FILE_MKDIR,AFILE
+  ENDFOR
+
+  ;   file_target = aster+asensor+aster+amethod+aster+asuite+aster+amap+aster
+  ;    file_label   = asensor+UL+amethod+UL+asuite+UL+amap
+
+
+; *****************************************************
+  IF DO_OC_NOMAD_2SAVE GE 1 THEN BEGIN
+; *****************************************************
+    PRINT, 'S T E P:   DO_OC_NOMAD_2SAVE'
+
+    FILE='nomad_seabass_v1.2_2005229.txt'
+    FILE='nomad_ocbam_v1.3_2005256.txt'
+    FILE='nomad_ocbam_v1.3_2005262.txt'
+    SAVE_FILE = DIR_SAVE+'OC_NOMAD.SAVE'
+
+    IF DO_OC_NOMAD_2SAVE GE 2 OR FILE_TEST(SAVE_FILE) EQ 0 THEN BEGIN
+	    DELIM=','
+	    TXT=READ_TXT(DIR_DATA+FILE)
+	    LINE_MISSING=WHERE(STRPOS(TXT,'/missing=') GE 0,COUNT)
+	    MISSING_CODE =  STR_EXTRACT_NUM(TXT(LINE_MISSING)) & MISSING_CODE=MISSING_CODE[0]
+	    T = '/fields='
+	    POS = STRPOS(TXT,T)
+	    OK=WHERE(POS GE 0,COUNT)
+	    tagnames = STRSPLIT(STRMID(TXT(OK[0]),STRLEN(T)),DELIM,/EXTRACT)
+	    LINE_END_HEADER=WHERE(STRPOS(TXT,'/end_header') GE 0,COUNT)
+	    DB = TXT_2STRUCT(TXT(LINE_END_HEADER+1:*), DELIM=DELIM, TAGNAMES=tagnames)
+			DB = STRUCT_2DBL(DB)
+			DB = REPLACE(DB,-999.0, MISSINGS(0.0D))
+			STRUCT=REPLICATE(CREATE_STRUCT('FILE',FILE),N_ELEMENTS(DB))
+			DB=STRUCT_MERGE(STRUCT,DB)
+	    SAVE,FILENAME=SAVE_FILE,DB,/COMPRESS
+	    SAVE_2CSV,SAVE_FILE
+	 	ENDIF
+   ENDIF ;IF DO_OC_NOMAD_2SAVE
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+; *****************************************************
+  IF DO_OC_NOMAD_SUBSET_2SAVE GE 1 THEN BEGIN
+; *****************************************************
+    PRINT, 'S T E P:   DO_OC_NOMAD_SUBSET_2SAVE'
+    FILE='nomad_ocbam_v1.3_2005262_subset.txt'
+    SAVE_FILE = DIR_SAVE+'OC_NOMAD_SUBSET.SAVE'
+
+    IF DO_OC_NOMAD_SUBSET_2SAVE GE 2 OR FILE_TEST(SAVE_FILE) EQ 0 THEN BEGIN
+	    DELIM=','
+	    TXT=READ_TXT(DIR_DATA+FILE)
+	    LINE_MISSING=WHERE(STRPOS(TXT,'/missing=') GE 0,COUNT)
+	    MISSING_CODE =  STR_EXTRACT_NUM(TXT(LINE_MISSING)) & MISSING_CODE=MISSING_CODE[0]
+	    T = '/fields='
+	    POS = STRPOS(TXT,T)
+	    OK=WHERE(POS GE 0,COUNT)
+	    tagnames = STRSPLIT(STRMID(TXT(OK[0]),STRLEN(T)),DELIM,/EXTRACT)
+	    LINE_END_HEADER=WHERE(STRPOS(TXT,'/end_header') GE 0,COUNT)
+	    DB = TXT_2STRUCT(TXT(LINE_END_HEADER+1:*), DELIM=DELIM, TAGNAMES=tagnames)
+			DB = STRUCT_2DBL(DB)
+			DB = REPLACE(DB,-999.0, MISSINGS(0.0D))
+			STRUCT=REPLICATE(CREATE_STRUCT('FILE',FILE),N_ELEMENTS(DB))
+			DB=STRUCT_MERGE(STRUCT,DB)
+	    SAVE,FILENAME=SAVE_FILE,DB,/COMPRESS
+	    SAVE_2CSV,SAVE_FILE
+	 	ENDIF
+   ENDIF ;IF DO_OC_NOMAD_SUBSET_2SAVE
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+; *****************************************************
+  IF DO_STRUCT_PLOT_RAW GE 1 THEN BEGIN
+; *****************************************************
+  	PRINT, 'S T E P:   DO_STRUCT_PLOT_RAW'
+  	PS_FILE = DIR_PLOTS + 'OC_NOMAD.PS'
+  	IF DO_STRUCT_PLOT_RAW GE 2 OR FILE_TEST(PS_FILE) EQ 0 THEN BEGIN
+  	 	FILE = DIR_SAVE+'OC_NOMAD.SAVE' & 	DB=READALL(FILE)
+  		PSPRINT,FILENAME=PS_FILE,/COLOR,/FULL & !P.MULTI=0 & STRUCT_PLOT,DB & PSPRINT
+		ENDIF
+  ENDIF ;IF DO_STRUCT_PLOT
+; ||||||||||||||||||||||||
+
+; *****************************************************
+  IF DO_CHECK_LW_ES GE 1 THEN BEGIN
+; *****************************************************
+  	PRINT, 'S T E P:   DO_CHECK_LW_ES'
+  	CSV_FILE = DIR_SAVE + 'NOMAD-405-LW_NO_ES.CSV'
+  	IF DO_CHECK_LW_ES GE 2 OR FILE_TEST(CSV_FILE) EQ 0 THEN BEGIN
+  	 	FILE = DIR_SAVE+'OC_NOMAD.SAVE' & 	DB=READALL(FILE)
+  	 	HEADER = ['FILE','INDEX','YEAR','MONTH','DAY','HOUR','MINUTE','SECOND','LAT','LON','CRUISE']
+
+		 TAGNAMES=TAG_NAMES(DB)
+  	 OK_LW=WHERE(STRPOS(TAGNAMES,'LW') EQ 0,COUNT_LW)
+  	 LW = STRMID(TAGNAMES(OK_LW),2)
+  	 OK_ES=WHERE(STRPOS(TAGNAMES,'ES') EQ 0,COUNT_ES)
+  	 ES = STRMID(TAGNAMES(OK_ES),2)
+  	 OK=WHERE_MATCH(LW,ES,COUNT) & IF COUNT NE N_ELEMENTS(LW) THEN STOP
+
+;		 LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+  	 FOR NTH = 0,N_ELEMENTS(LW)-1L DO BEGIN
+  	 	WL = LW[NTH]
+
+			CMD = 'OK = WHERE(DB.LW'+WL +' NE MISSINGS(DB.LW'+WL+') AND DB.ES'+WL +' EQ MISSINGS(DB.ES'+WL+'),COUNT)'
+			A=EXECUTE(CMD)
+			IF COUNT GE 1 THEN BEGIN
+				D=DB[OK]
+				NAMES = ['LW'+WL,'ES'+WL]
+				D=STRUCT_COPY(D,TAGNAMES=[HEADER,NAMES])
+				CSV_FILE=DIR_SAVE+'NOMAD-'+WL+'-LW_NO_ES.CSV'
+				STRUCT_2CSV,CSV_FILE,D
+			ENDIF
+
+		 ENDFOR
+		ENDIF
+ 	ENDIF ;IF DO_CHECK_LW_ES
+; ||||||||||||||||||||||||
+
+
+; *****************************************************
+  IF DO_OC_NOMAD_EDIT GE 1 THEN BEGIN
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC_NOMAD_EDIT'
+  	FILE = DIR_SAVE+'OC_NOMAD.SAVE'
+  	SAVE_FILE = DIR_SAVE+'OC_NOMAD-EDIT.SAVE'
+
+  	IF DO_OC_NOMAD_EDIT GE 2 OR FILE_TEST(SAVE_FILE) EQ 0 THEN BEGIN
+
+  		DB=READALL(FILE)
+
+
+  	 	TAGNAMES=TAG_NAMES(DB)
+  	 	OK_LW=WHERE(STRPOS(TAGNAMES,'LW') EQ 0,COUNT_LW)
+  	 	LW = STRMID(TAGNAMES(OK_LW),2)
+  	 	OK_ES=WHERE(STRPOS(TAGNAMES,'ES') EQ 0,COUNT_ES)
+  	 	ES = STRMID(TAGNAMES(OK_ES),2)
+  	 	OK=WHERE_MATCH(LW,ES,COUNT)
+  	 	HEADER = ['FILE','INDEX','YEAR','MONTH','DAY','HOUR','MINUTE','SECOND','LAT','LON','CRUISE']
+  	 	IF COUNT NE COUNT_LW OR COUNT NE COUNT_ES THEN STOP
+  	 	PRINT,'LWS AND ESS OK'
+  	 	PRINT, LW
+  	 	PRINT, ES
+  	 	RRS = 'RRS'+LW
+  	 	ARR = REPLICATE(MISSINGS(0.0D),COUNT_LW,N_ELEMENTS(DB))
+  	 	STRUCT=ARR_2STRUCT(ARR,TAGNAMES=RRS)
+  	 	S= REPLICATE(CREATE_STRUCT('USE','USE','ES_COMMENT',''),N_ELEMENTS(DB))
+  	 	DB = STRUCT_MERGE(DB,S,STRUCT)
+
+;			===> Linear Interpolation of ES455 WHEN HAVE ES443 AND ES489
+			OK=WHERE(DB.LW455 NE MISSINGS(DB.LW455) AND DB.ES455 EQ MISSINGS(DB.ES455) AND DB.ES443 NE MISSINGS(DB.ES443) AND DB.ES489 NE MISSINGS(DB.ES489),COUNT)
+			IF COUNT GE 1 THEN BEGIN
+			 DB[OK].ES_COMMENT='455 FROM 443;489'
+			 	FOR N=0,COUNT-1L DO BEGIN & DB(OK(N)).ES455 = INTERPOL([(DB(OK(N)).ES443),(DB(OK(N)).ES489)],[443,489], 455) & ENDFOR
+	   	ENDIF
+
+;			===> Linear Interpolation of ES510 WHEN HAVE ES489 AND ES520
+			OK=WHERE(DB.LW510 NE MISSINGS(DB.LW510) AND DB.ES510 EQ MISSINGS(DB.ES510) AND DB.ES489 NE MISSINGS(DB.ES489) AND DB.ES520 NE MISSINGS(DB.ES520),COUNT)
+			IF COUNT GE 1 THEN BEGIN
+				DB[OK].ES_COMMENT='510 FROM 489;520'
+			 	FOR N=0,COUNT-1L DO BEGIN & DB(OK(N)).ES510 = INTERPOL([(DB(OK(N)).ES489),(DB(OK(N)).ES520)],[489,520], 510) & ENDFOR
+	   	ENDIF
+
+;			===> Linear Interpolation of ES520 WHEN HAVE ES510 AND ES530
+			OK=WHERE(DB.LW520 NE MISSINGS(DB.LW520) AND DB.ES520 EQ MISSINGS(DB.ES520) AND DB.ES510 NE MISSINGS(DB.ES510) AND DB.ES530 NE MISSINGS(DB.ES530),COUNT)
+			IF COUNT GE 1 THEN BEGIN
+				DB[OK].ES_COMMENT='520 FROM 510;530'
+			 	FOR N=0,COUNT-1L DO BEGIN & DB(OK(N)).ES520 = INTERPOL([(DB(OK(N)).ES510),(DB(OK(N)).ES530)],[510,530], 520) & ENDFOR
+	   	ENDIF
+
+;			===> Linear Interpolation of ES530 WHEN HAVE ES510 ES555 (NOTE FOR THESE RECORDS DO NOT HAVE NEAREST BANDS (ES510 AND ES530)
+			OK=WHERE(DB.LW530 NE MISSINGS(DB.LW530) AND DB.ES530 EQ MISSINGS(DB.ES530) AND DB.ES510 NE MISSINGS(DB.ES510) AND DB.ES555 NE MISSINGS(DB.ES555),COUNT)
+			IF COUNT GE 1 THEN BEGIN
+				DB[OK].ES_COMMENT='530 FROM 510;555'
+			 	FOR N=0,COUNT-1L DO BEGIN & DB(OK(N)).ES530 = INTERPOL([(DB(OK(N)).ES510),(DB(OK(N)).ES555)],[510,555], 530) & ENDFOR
+	   	ENDIF
+
+;			===> Linear Interpolation of ES555 WHEN HAVE ES520 ES565
+			OK=WHERE(DB.LW555 NE MISSINGS(DB.LW555) AND DB.ES555 EQ MISSINGS(DB.ES555) AND DB.ES520 NE MISSINGS(DB.ES520) AND DB.ES565 NE MISSINGS(DB.ES565),COUNT)
+			IF COUNT GE 1 THEN BEGIN
+				DB[OK].ES_COMMENT='555 FROM 520;565'
+			 	FOR N=0,COUNT-1L DO BEGIN & DB(OK(N)).ES555 = INTERPOL([(DB(OK(N)).ES520),(DB(OK(N)).ES565)],[520,565], 555) & ENDFOR
+	   	ENDIF
+
+;			===> Linear Interpolation of ES590 WHEN HAVE ES565 ES665
+			OK=WHERE(DB.LW590 NE MISSINGS(DB.LW590) AND DB.ES590 EQ MISSINGS(DB.ES590) AND DB.ES565 NE MISSINGS(DB.ES565) AND DB.ES665 NE MISSINGS(DB.ES665),COUNT)
+			IF COUNT GE 1 THEN BEGIN
+				DB[OK].ES_COMMENT='590 FROM 565;665'
+			 	FOR N=0,COUNT-1L DO BEGIN & DB(OK(N)).ES590 = INTERPOL([(DB(OK(N)).ES565),(DB(OK(N)).ES665)],[565,665], 590) & ENDFOR
+	   	ENDIF
+
+;			===> Linear Interpolation of ES665 WHEN HAVE ES565 ES670
+			OK=WHERE(DB.LW665 NE MISSINGS(DB.LW665) AND DB.ES665 EQ MISSINGS(DB.ES665) AND DB.ES565 NE MISSINGS(DB.ES565) AND DB.ES670 NE MISSINGS(DB.ES670),COUNT)
+			IF COUNT GE 1 THEN BEGIN
+				DB[OK].ES_COMMENT='665 FROM 565;670'
+			 FOR N=0,COUNT-1L DO BEGIN & DB(OK(N)).ES665 = INTERPOL([(DB(OK(N)).ES565),(DB(OK(N)).ES670)],[565,670], 665) & ENDFOR
+	   	ENDIF
+
+
+;			***********************
+;		 	***** Compute Rrs *****
+;			***********************
+;		 	LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+	  	FOR NTH = 0,N_ELEMENTS(LW)-1L DO BEGIN
+	  	 	WL = LW[NTH] & CMD = 'DB.RRS'+WL +' =' + 'DB.LW'+WL + '/DB.ES'+WL &	PRINT,CMD &	A=EXECUTE(CMD)
+	  	ENDFOR
+
+;			===> Replace nan with missings
+			DB=REPLACE(DB,!VALUES.F_NAN, MISSINGS(0.0D))
+
+;			===> Still some records with lw and no es so lw/es = 0.0; (PRINT, 0.001/MISSINGS(0.0)) = 0.00
+;			SO Replace only the 0.0 in the Rrs tags, one column at a time
+			TAGNAMES=TAG_NAMES(DB)
+			OK_RRS=WHERE(STRPOS(TAGNAMES,'RRS') EQ 0,COUNT_RRS)
+			FOR NTH=0,COUNT_RRS-1 DO BEGIN & DB.(OK_RRS[NTH])=REPLACE( DB.(OK_RRS[NTH]),0.0,MISSINGS(DB.(OK_RRS[NTH]))) & ENDFOR
+
+;			===> Combined Chlorophyll field, With CHL_A (HPLC) PREFERENCE
+			STRUCT=REPLICATE(CREATE_STRUCT('CHLOR_A',MISSINGS(0.0D),'CHL_SOURCE',''),N_ELEMENTS(DB))
+			DB=STRUCT_MERGE(DB,STRUCT)
+
+;			===> CHL_A (HPLC)
+			OK=WHERE(DB.CHLOR_A EQ MISSINGS(DB.CHLOR_A) AND DB.CHL_A NE MISSINGS(DB.CHL_A),COUNT)
+			DB[OK].CHLOR_A = DB[OK].CHL_A & DB[OK].CHL_SOURCE = 'CHL_A'
+
+;			===> CHL (FLUOR)
+			OK=WHERE(DB.CHLOR_A EQ MISSINGS(DB.CHLOR_A) AND DB.CHL NE MISSINGS(DB.CHL),COUNT)
+			DB[OK].CHLOR_A = DB[OK].CHL & DB[OK].CHL_SOURCE = 'CHL'
+
+			OK=WHERE(DB.CHLOR_A EQ MISSINGS(DB.CHLOR_A),COUNT)
+			IF COUNT GE 1 THEN BEGIN
+			  PRINT,NUM2STR(COUNT)+ ' Records with no chlor_a'
+			ENDIF
+
+			SAVE,FILENAME=SAVE_FILE,DB,/COMPRESS
+		ENDIF ; IF DO_OC_NOMAD_EDIT GE 2 OR FILE_TEST(SAVE_FILE) EQ 0 THEN BEGIN
+
+  ENDIF ;IF DO_STRUCT_PLOT
+; ||||||||||||||||||||||||
+
+
+; *****************************************************
+  IF DO_OC_NOMAD_SUBSET_EDIT GE 1 THEN BEGIN
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC_NOMAD_SUBSET_EDIT'
+  	FILE = DIR_SAVE+'OC_NOMAD_SUBSET.SAVE'
+  	SAVE_FILE = DIR_SAVE+'OC_NOMAD_SUBSET-EDIT.SAVE'
+
+  	IF DO_OC_NOMAD_SUBSET_EDIT GE 2 OR FILE_TEST(SAVE_FILE) EQ 0 THEN BEGIN
+
+  		DB=READALL(FILE)
+
+
+  	 	TAGNAMES=TAG_NAMES(DB)
+  	 	OK_LW=WHERE(STRPOS(TAGNAMES,'LW') EQ 0,COUNT_LW)
+  	 	LW = STRMID(TAGNAMES(OK_LW),2)
+  	 	OK_ES=WHERE(STRPOS(TAGNAMES,'ES') EQ 0,COUNT_ES)
+  	 	ES = STRMID(TAGNAMES(OK_ES),2)
+  	 	OK=WHERE_MATCH(LW,ES,COUNT)
+  	 	HEADER = ['FILE','INDEX','YEAR','MONTH','DAY','HOUR','MINUTE','SECOND','LAT','LON','CRUISE']
+  	 	IF COUNT NE COUNT_LW OR COUNT NE COUNT_ES THEN STOP
+  	 	PRINT,'LWS AND ESS OK'
+  	 	PRINT, LW
+  	 	PRINT, ES
+  	 	RRS = 'RRS'+LW
+  	 	ARR = REPLICATE(MISSINGS(0.0D),COUNT_LW,N_ELEMENTS(DB))
+  	 	STRUCT=ARR_2STRUCT(ARR,TAGNAMES=RRS)
+  	 	S= REPLICATE(CREATE_STRUCT('USE','USE','ES_COMMENT',''),N_ELEMENTS(DB))
+  	 	DB = STRUCT_MERGE(DB,S,STRUCT)
+
+
+;			===> Combined Chlorophyll field, With CHL_A (HPLC) PREFERENCE
+			STRUCT=REPLICATE(CREATE_STRUCT('CHLOR_A',MISSINGS(0.0D),'CHL_SOURCE',''),N_ELEMENTS(DB))
+			DB=STRUCT_MERGE(DB,STRUCT)
+
+;			===> CHL_A (HPLC)
+			OK=WHERE(DB.CHLOR_A EQ MISSINGS(DB.CHLOR_A) AND DB.CHL_A NE MISSINGS(DB.CHL_A),COUNT)
+			DB[OK].CHLOR_A = DB[OK].CHL_A & DB[OK].CHL_SOURCE = 'CHL_A'
+
+;			===> CHL (FLUOR)
+			OK=WHERE(DB.CHLOR_A EQ MISSINGS(DB.CHLOR_A) AND DB.CHL NE MISSINGS(DB.CHL),COUNT)
+			DB[OK].CHLOR_A = DB[OK].CHL & DB[OK].CHL_SOURCE = 'CHL'
+
+			OK=WHERE(DB.CHLOR_A EQ MISSINGS(DB.CHLOR_A),COUNT)
+			IF COUNT GE 1 THEN BEGIN
+			  PRINT,NUM2STR(COUNT)+ ' Records with no chlor_a'
+			ENDIF
+
+			SAVE,FILENAME=SAVE_FILE,DB,/COMPRESS
+		ENDIF ; IF DO_OC_NOMAD_SUBSET_EDIT GE 2 OR FILE_TEST(SAVE_FILE) EQ 0 THEN BEGIN
+
+  ENDIF ;IF DO_STRUCT_PLOT
+; ||||||||||||||||||||||||
+
+; *****************************************************
+  IF DO_STRUCT_PLOT_EDIT GE 1 THEN BEGIN
+; *****************************************************
+  	PRINT, 'S T E P:   DO_STRUCT_PLOT_EDIT'
+  	PS_FILE = DIR_PLOTS + 'OC_NOMAD-EDIT.PS'
+  	IF DO_STRUCT_PLOT_EDIT GE 2 OR FILE_TEST(PS_FILE) EQ 0 THEN BEGIN
+  	 	FILE = DIR_SAVE+'OC_NOMAD-EDIT.SAVE' & 	DB=READALL(FILE)
+  		PSPRINT,FILENAME=PS_FILE,/COLOR,/FULL & !P.MULTI=0 & STRUCT_PLOT,DB & PSPRINT
+		ENDIF
+  ENDIF ;IF DO_STRUCT_PLOT
+; ||||||||||||||||||||||||
+
+
+; *****************************************************
+  IF DO_HPLC_FLUOR GE 1 THEN BEGIN
+; *****************************************************
+  	PRINT, 'S T E P:   DO_HPLC_FLUOR'
+  	PS_FILE = DIR_PLOTS + 'HPLC_VS_FLUOR.PS'
+
+  	IF DO_HPLC_FLUOR GE 2 OR FILE_TEST(PS_FILE) EQ 0 THEN BEGIN
+  	 	FILE = DIR_SAVE+'OC_NOMAD-EDIT.SAVE' & 	DB=READALL(FILE)
+  		PSPRINT,FILENAME=PS_FILE,/COLOR,/FULL & !P.MULTI=0
+  		PAL_36
+  		XTITLE='FLUOR '+TITLE_CHLOR_A & yTITLE='HPLC '+ TITLE_CHLOR_A
+  		PLOTXY,DB.CHL,DB.CHL_A,/LOGLOG,PSYM=1,DECIMALS=3,PARAMS=[0,2,3,4,5,6,7,8],XTITLE=XTITLE,YTITLE=YTITLE,XRANGE=[0.01,100],YRANGE=[0.01,100],/XSTYLE,/YSTYLE
+  		FRAME,COLOR=0,THICK=4,/PLOT
+  		PSPRINT
+  		IMAGE_TRIM,PS_FILE
+		ENDIF
+  ENDIF ;IF DO_HPLC_FLUOR
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+; *****************************************************
+  IF DO_TABLE_WL GE 1 THEN BEGIN
+; *****************************************************
+; Write out a DBASE showing the wavelengths present for each PI / data set
+  	PRINT, 'S T E P:   DO_OC_NOMAD_WL_TABLE'
+  	FILE = DIR_SAVE+'OC_NOMAD-EDIT.SAVE'
+  	CSV_file = DIR_SAVE + 'TABLE_WL.CSV'
+  	CSV_file_combos = DIR_SAVE + 'TABLE_WL_COMBOS.CSV'
+  	PS_file = DIR_PLOTS + 'TABLE_WL.PS'
+  	IF DO_TABLE_WL GE 2 OR FILE_TEST(CSV_FILE) EQ 0 THEN BEGIN
+  	DB=READALL(FILE)
+ 		TAGNAMES= TAG_NAMES(DB)
+ 		STR='RRS'& OK_TAGS=WHERE(STRPOS(TAGNAMES,STR) EQ 0,COUNT_TAGS) & NAMES=TAGNAMES(OK_TAGS)
+ 		WLS = REPLACE(NAMES,STR,'') & MM=MINMAX(STRLEN(WLS)) & IF SPAN(MM) NE 0 THEN STOP
+ 	 	N_WL = N_ELEMENTS(WLS)
+
+ 		SETS=WHERE_SETS(DB.CRUISE) &	N_SETS=N_ELEMENTS(SETS)
+
+ 		TABLE = CREATE_STRUCT(STRUCT_COPY(DB[0],TAGNAMES=[TAGNAMES(OK_TAGS)]))
+    TABLE=STRUCT_2MISSINGS(TABLE)
+    TABLE=REPLICATE(TABLE,N_SETS)
+
+		STRUCT_WL=STRUCT_COPY(DB,TAGNAMES=[TAGNAMES(OK_TAGS)])
+		ARR = STRUCT_2ARR(STRUCT_WL)
+
+;		LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+		FOR _SET = 0,N_ELEMENTS(SETS)-1 DO BEGIN
+	 		ASET = SETS(_SET)
+	 		SUBS=WHERE_SETS_SUBS(ASET)
+	 		D=DB(SUBS)
+	 		A=ARR(*,SUBS)
+	 		A= FLOAT(FINITE(FLOAT(A)))
+	 		IF N_ELEMENTS(SUBS) EQ 1 THEN A = REFORM(A,N_WL,1)
+	 		T= TOTAL(A,2)
+	 		FOR NTH=0,N_WL-1 DO BEGIN & TABLE(_SET).(NTH) = T[NTH] & ENDFOR
+		ENDFOR
+
+		TABLE=REPLACE(TABLE,MISSINGS(0.0),0)
+	  ARR = STRUCT_2ARR(TABLE)
+	  T = TOTAL(ARR,2)
+
+		PSPRINT,FILENAME=PS_FILE,/FULL,/COLOR
+		PAL_36
+		PLOT, WLS,T, XTITLE=UNITS('LAMBDA',/NAME,/UNIT),YTITLE='Number',title='OC NOMAD',/NODATA
+		GRIDS,COLOR=34
+		OPLOT,WLS,T
+		OPLOT,WLS,T, PSYM=2,COLOR=8,SYMSIZE=2
+		S=REPLICATE(CREATE_STRUCT('WL',0,'N',0),N_ELEMENTS(WLS))
+		S.N=T
+		S.WL=WLS
+    STRUCT_SPREAD ,S,POSITION = [.715,.53,0.905,0.95],CHARSIZE_DATA = 1.2,CHARSIZE_TAGS=1.20
+		FRAME,/PLOT,COLOR=0,THICK=2
+		PSPRINT
+
+		TABLE=REPLACE(TABLE,0.0,MISSINGS(0.0))
+		STRUCT=REPLICATE(CREATE_STRUCT( 'CRUISE',''),N_ELEMENTS(TABLE))
+		STRUCT.CRUISE=SETS.VALUE
+		STRUCT=STRUCT_MERGE(STRUCT,TABLE)
+		STRUCT_2CSV,CSV_FILE,STRUCT
+
+;		*** Get a Table with the unique combinations of Rrs ***
+;		===> MAKE ALL COUNTS IN TABLE = 1 OR 0
+    ARR=STRUCT_2ARR(TABLE)
+    OK=WHERE(ARR NE MISSINGS(ARR),COMPLEMENT=COMPLEMENT)
+    ARR[OK] = 1
+    ARR(COMPLEMENT) = 0
+    NAMES=TAG_NAMES(TABLE)
+    _TABLE = ARR_2STRUCT(ARR,TAGNAMES=NAMES)
+
+     TXT=STRUCT_2STRING(_TABLE)
+     TXT=REPLACE(TXT,'0.0000000000000000','0')
+     TXT=REPLACE(TXT,'1.000000000000000','1')
+     TXT=REPLACE(TXT,',',';')
+
+     SETS=WHERE_SETS(TXT )
+     TABLE = TABLE(SETS.FIRST)
+     ARR = STRUCT_2ARR(TABLE)
+     MM=MINMAX(ARR,/FIN)
+     INDEX= INDGEN(MM[1])+1
+     BLANKS=REPLICATE(1,N_ELEMENTS(INDEX))
+     ARR = REPLACE(ARR,INDEX,BLANKS)
+     TOT = TOTAL(ARR,/NAN,1)
+     S=REVERSE(SORT(TOT))
+     ARR=ARR(*,S)
+     TABLE=ARR_2STRUCT(ARR,TAGNAMES=NAMES)
+		STRUCT_2CSV,CSV_file_combos,TABLE
+
+  ENDIF
+ 	ENDIF ;IF DO_TABLE_WL
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+; *****************************************************
+  IF DO_TABLE_FLAG GE 1 THEN BEGIN
+; *****************************************************;
+  	PRINT, 'S T E P:   DO_TABLE_FLAG'
+  	FILE = DIR_SAVE+'OC_NOMAD-EDIT.SAVE'
+  	CSV_file = DIR_SAVE + 'TABLE_FLAG.CSV'
+
+  	PS_file = DIR_PLOTS + 'TABLE_FLAG.PS'
+  	IF DO_TABLE_FLAG GE 2 OR FILE_TEST(CSV_FILE) EQ 0 THEN BEGIN
+  	DB=READALL(FILE)
+  	FLAG=DB.FLAG
+  	B=BITS(ULONG(DB.FLAG))
+  	T=TOTAL(B,2)
+  	PRINT,T
+  	SUBS = INDGEN(MAX(WHERE(T NE 0)))
+  	B=B(SUBS,*)
+		STRUCT=STRUCT_COPY(DB,TAGNAMES=['FILE','INDEX','YEAR','MONTH','DAY','HOUR','MINUTE','SECOND','LAT','LON','CRUISE','FLAG'])
+  	STRUCT=STRUCT_MERGE(STRUCT,ARR_2STRUCT(B))
+		STRUCT_2CSV,CSV_FILE,STRUCT
+		NAMES=TAG_NAMES(STRUCT)
+		OK_TAG=WHERE(STRPOS(NAMES,'_') EQ 0,COUNT_TAG)
+;		===> Loop on flags
+		FOR NTH = 0,COUNT_TAG-1 DO BEGIN
+			CSV_file = DIR_SAVE + 'TABLE_SETS_FLAG'+NAMES(OK_TAG[NTH])+'.CSV'
+			S=OK_TAG[NTH]
+			OK=WHERE(STRUCT.(S) EQ 1,COUNT)
+			IF COUNT GE 1 THEN BEGIN
+				SETS=WHERE_SETS(STRUCT[OK].CRUISE)
+				SETS=STRUCT_COPY(SETS,TAGS=[0,1])
+				SETS=STRUCT_RENAME(SETS,'VALUE','CRUISE')
+				STRUCT_2CSV,CSV_file,SETS
+			ENDIF
+		ENDFOR
+  ENDIF
+ 	ENDIF ;IF DO_TABLE_FLAG
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+; *****************************************************
+  IF DO_MAP_SETS GE 1 THEN BEGIN
+; *****************************************************;
+  	PRINT, 'S T E P:   DO_MAP_SETS'
+  	FILE = DIR_SAVE+'OC_NOMAD-EDIT.SAVE'
+
+  	IF DO_MAP_SETS GE 2 OR FILE_TEST(DIR_PLOTS + 'OC_NOMAD-EDIT-MAP-amt6.PS') EQ 0 THEN BEGIN
+  	DB=READALL(FILE)
+  	SETS=WHERE_SETS(DB.CRUISE)
+
+		PAL_36
+    SET_PMULTI
+    DEG=3
+
+
+;		INDIVIDUAL PLOTS PER POSTSCRIPT PAGE
+;		LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+		FOR NTH=0,N_ELEMENTS(SETS)-1 DO BEGIN
+			ASET=SETS[NTH]
+			NAME=ASET.VALUE
+			PS_FILE = DIR_PLOTS + 'OC_NOMAD-EDIT-MAP-'+NAME+'.PS'
+			PSPRINT,FILENAME=PS_FILE,/FULL,/COLOR
+			SUBS=WHERE_SETS_SUBS(ASET)
+			D=DB(SUBS)
+		 	MAPIT,D.LON,D.LAT,DEG=deg,COLOR_PSYM=6,SYMSIZE=2,THICK=2,TITLE= STRTRIM(NAME,2) ,/DRAW_BORDER_GRID,MAP='',$
+		 				POS_TITLE=[0.25,0.75],COLOR_TITLE=6,CHARSIZE_TITLE=3,COAST_COLOR=33
+		 	PSPRINT
+		ENDFOR
+
+
+     FILES=FILELIST(DIR_PLOTS+'OC_NOMAD-EDIT-MAP-*.PS')
+     IMAGE_TRIM,FILES,DPI=300
+     FILES=FILELIST(DIR_PLOTS+'OC_NOMAD-EDIT-MAP-*-PS_1-trim.PNG')
+     FILE_RENAME,FILES=FILES,NAME_CHANGE=['OC_NOMAD-EDIT','NOMAD']
+     FILES=FILELIST(DIR_PLOTS+'NOMAD-MAP-*-PS_1-trim.PNG')
+     FILE_RENAME,FILES=FILES,NAME_CHANGE=['-PS_1-trim',''],/TEST
+     FILES=FILELIST(DIR_PLOTS+'NOMAD-MAP-*.PNG')
+     ZIP,files=files, DIR_OUT=dir_out , ZIP=ZIP,GZIP=gzip, TEST=test,$
+												OUTFILE=outfile,$
+                        DELETE_SOURCE=delete_source,NO_OVERWRITE=no_overwrite,$
+                        EXT_ZIP=EXT_ZIP,EXT_GZIP=ext_gzip,EXT_BZIP2=ext_bzip2,KEEP_EXT=keep_ext,HIDE=hide
+   ENDIF
+ 	ENDIF ;IF DO_MAP_SETS
+
+
+
+
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+; *****************************************************
+  IF DO_OC_NOMAD_INTERP GE 1 THEN BEGIN
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC_NOMAD_INTERP'
+    FILE = DIR_SAVE+'OC_NOMAD-EDIT.SAVE'
+    SAVE_FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP.SAVE'
+
+    IF DO_OC_NOMAD_INTERP GE 2 OR FILE_TEST(SAVE_FILE) EQ 0 THEN BEGIN
+  		OC_NOMAD_INTERP, FILE
+  	ENDIF
+  ENDIF ;IF DO_OC_NOMAD_INTERP
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+; *****************************************************
+  IF DO_OC_NOMAD_EDIT_TRIM GE 1 THEN BEGIN
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC_NOMAD_EDIT_TRIM'
+  	OVERWRITE = DO_OC_NOMAD_EDIT_TRIM EQ 2
+  	FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP.SAVE'
+
+	 	DB = READALL(FILE)
+
+;		$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    USE_PALMER_LTER = 0 ; DO NOT USE
+;		$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+ 		STEP = -1
+    DO_LPR=0
+
+		IF STEP EQ 0 THEN BEGIN
+	;		===> Alter the USE TAG from 'USE'
+			IF USE_PALMER_LTER EQ 0 THEN BEGIN
+				OK=WHERE(STRUPCASE(DB.CRUISE) EQ 'PALMER_LTER')
+				DB[OK].USE='PALMER_LTER'
+				SAVE,FILENAME=FILE,DB,/COMPRESS
+			ENDIF
+		ENDIF
+
+    IF STEP EQ 1 THEN BEGIN
+    	PRINT,'STEP 1 Uses all data to get an approximate OC4'
+    	mp_oc_solve,FILE=FILE,alg='OC4.5', MP=0,DEG=3,LL='LL',precision=0.000001d,SCALER=3,METHOD= 1,FTOL=0.00001D,RANGE_CHL=[0.0001,70.0],RANGE_BR=[0.40,10],DIR_PLOTS=dir_plots
+    ENDIF
+    IF STEP EQ 2 THEN BEGIN
+    	PRINT,'STEP 2 Checks out the results from step 1 by passing the graph_coeffs trimmed to 3 decimal places
+    	mp_oc_solve, FILE=FILE,alg='OC4.5', MP=0,DEG=3,LL='LL',precision=0.00001d,SCALER=3,METHOD=1,FTOL=0.00001D,RANGE_CHL=[0.0001,70.0],GRAPH_COEFFS=[0.298,-3.020,3.238,-2.185],DIR_PLOTS=dir_plots,DO_LPR=DO_LPR
+    ENDIF
+
+		IF STEP EQ 3 THEN BEGIN
+			PRINT,'STEP 3 Uses the approximate coefficients from Step 1'
+			PRINT,'       And TRIMS OUTLIERs that exceed three times the TRIM_STD (=0.25*3)'
+			PRINT,'       And Generates a Final Database : OC_NOMAD_EDIT_TRIM_OC4_4.SAVE'
+			mp_oc_solve, FILE=FILE,alg='OC4.5', MP=0,DEG=3,LL='LL',precision=0.00001d,SCALER=5,METHOD=1,FTOL=0.00001D,RANGE_CHL=[0.0001,70.0],GRAPH_COEFFS=[0.298,-3.020,3.238,-2.185],TRIM_STD=0.25,DIR_PLOTS=dir_plots,OVERWRITE=overwrite,$
+					DO_LPR=DO_LPR,decimals=4
+		ENDIF
+	ENDIF ;IF DO_OC_NOMAD_EDIT_TRIM
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+; *****************************************************
+  IF DO_OC_ALGS GE 1 THEN BEGIN     ; S E A W I F S
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC_ALGS'
+  	OVERWRITE = DO_OC_ALGS EQ 2
+  	SUBSET = 0
+
+		FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+
+		ALG='OC4.5_SUBSET'
+		ALG='OC4.5_RRS'
+		ALG= 'OC4E.5'
+		ALG= 'OC3C.5'
+;		ALG= 'OC4O.5'
+;		ALG= 'OC3M.5'
+	;	ALG= 'OC3G.5'
+	;	ALG = 'OC4.5'
+
+		IF SUBSET EQ 1 THEN FILE = DIR_SAVE +'OC_NOMAD_SUBSET-EDIT.SAVE'
+
+		STEP = 1 & DO_LPR=0
+		USE_OC4 = 1
+
+		IF STEP EQ 1 THEN BEGIN
+			PRINT,'STEP 1 Uses the TRIMMED OC_NOMAD_EDIT_TRIM_OC4_5.SAVE database to Generate new Coefficients'
+		  mp_oc_solve,FILE=FILE, alg=ALG, MP=0,DEG=4,LL='LL',precision=0.00001d,SCALER=3,METHOD=1,FTOL=0.00001D,RANGE_CHL=[0.0001,70.0],COEFFS=coeffs,DIR_PLOTS=dir_plots,DO_LPR=DO_LPR,decimals=4,USE_OC4=USE_OC4
+		  PRINT, COEFFS
+		ENDIF
+		IF STEP EQ 2 THEN BEGIN
+			PRINT,'STEP 2 Uses the ENTIRE DATASET (OC_NOMAD-EDIT-INTERP.SAVE)
+			PRINT,'And Final Coeffs to evaluate fit to all (including outliers) data'
+		  mp_oc_solve,FILE=FILE, alg=ALG, MP=0,DEG=3,LL='LL',precision = 0.00001d,SCALER=3,METHOD=1,FTOL=0.00001D,RANGE_CHL=[0.001,1E6],COEFFS=coeffs,GRAPH_COEFFS=[0.3010,-3.0325,3.2835,-2.2256],DO_LPR=DO_LPR,DIR_PLOTS=dir_plots
+		  PRINT, COEFFS
+		ENDIF
+		IF STEP EQ 3 THEN BEGIN
+			PRINT,'STEP 3 Uses the OC_NOMAD-EDIT-INTERP-TRIM.SAVE database'
+			PRINT,'And Final Coeffs to evaluate fit to GOOD data'
+		  mp_oc_solve,FILE=FILE, alg=ALG,  MP=0,DEG=3,LL='LL',precision = 0.00001d,SCALER=5, METHOD=1, FTOL=0.00001D,RANGE_CHL=[0.001,1E6],COEFFS=coeffs,GRAPH_COEFFS=[0.3010,-3.0325,3.2835,-2.2256],DO_LPR=DO_LPR,DIR_PLOTS=dir_plots,DECIMALS=4
+			PRINT, COEFFS
+		ENDIF
+
+		IF STEP EQ 4 THEN BEGIN
+			PRINT,'STEP 4 Uses the TRIMMED OC_NOMAD-EDIT-INTERP-TRIM.SAVE database TO EVALUATE VERSION 4 OC4 WITH THE LATEST TRIMMED DATA
+			PRINT,'And Final Coeffs to evaluate fit to GOOD data'
+		  mp_oc_solve,FILE=FILE, alg=ALG, MP=0,DEG=3,LL='LL',precision = 0.00001d,SCALER=5, METHOD=1, FTOL=0.00001D,RANGE_CHL=[0.001,1E6],COEFFS=coeffs,GRAPH_COEFFS= [0.366,-3.067,1.930,0.649,-1.532],DO_LPR=DO_LPR,DIR_PLOTS=dir_plots
+
+		  PRINT, COEFFS
+		ENDIF
+
+		IF STEP EQ 5 THEN BEGIN
+			PRINT,'STEP 5 Generates a final ps file with formatted equation'
+		  mp_oc_solve,FILE=FILE, alg=ALG,  MP=0,DEG=3,LL='LL',precision = 0.00001d,SCALER=5, METHOD=1, FTOL=0.00001D,$
+		  						 RANGE_CHL=[0.001,1E6],COEFFS=coeffs,GRAPH_COEFFS=[0.3010,-3.0325,3.2835,-2.2256],DIR_PLOTS=dir_plots,DO_LPR=DO_LPR,DECIMALS=4 ;[0.3010,-3.0325,3.2835,-2.2256]
+
+		  PRINT, COEFFS
+		ENDIF
+
+	IF STEP EQ 6 THEN BEGIN
+			PRINT,'STEP 6 Uses A PORTION OF THE CHL RANGE TO SEE THE EXTRAPOLATED REGION'
+		  mp_oc_solve,FILE=FILE, alg=ALG, MP=0,DEG=3,LL='LL',precision=0.00001d,SCALER=2,METHOD=1,FTOL=0.00001D,RANGE_CHL=[0.0001,0.2],COEFFS=coeffs,DIR_PLOTS=dir_plots,DO_LPR=DO_LPR,decimals=3
+		  PRINT, COEFFS
+		ENDIF
+	ENDIF ;IF DO_OC_ALGS
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+; *****************************************************
+  IF DO_OC_ALGS_DERIVATIVE GE 1 THEN BEGIN     ;
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC_ALGS_DERIVATIVE'
+  	OVERWRITE = DO_OC_ALGS_DERIVATIVE EQ 2
+  	SUBSET = 0
+		PS_FILE=DIR_PLOTS+'DO_OC_ALGS_DERIVATIVE.PS'
+		!p.multi=0
+		PSPRINT,/FULL,/COLOR,FILENAME=PS_FILE
+		!P.MULTI=[0,2,3]
+		PAL_36
+; 	===> Make a band ratio array
+  	RX =  0.01+ DOUBLE(FINDGEN(100000)*0.001)
+  	ok = WHERE(RX GE .01 AND RX LE 50)
+  	rx = (rx(ok))
+
+  	OC4_5_5 = A_OC4_5(rx,rx,rx,1,DEG=5)
+  	PLOT, RX,OC4_5_5,/XLOG,/YLOG
+  	PLOT, RX,OC4_5_5,/XLOG,/YLOG ,XRANGE=[0.1,50],YRANGE=[0.0001,10000],/XSTYLE,/YSTYLE,/NODATA
+  	GRIDS,COLOR=34
+  	OPLOT, RX,OC4_5_5
+
+		D=DERIV(ALOG10(RX),ALOG10(OC4_5_5))
+ ;		D=DERIV( (OC4_5_5), (RX))
+		PLOT,(RX),D,PSYM=3,/XLOG,XTITLE='MBR',YTITLE='Slope'
+		PLOT,(RX),D,PSYM=3,/XLOG,XRANGE = [0.1,50],YRANGE=[-10,10] ,XTITLE='MBR',YTITLE='Slope',/nodata,/XSTYLE,/YSTYLE
+		GRIDS,COLOR=34
+		OPLOT, RX,D,PSYM=3
+		PSPRINT
+		STOP
+	ENDIF
+
+; *****************************************************
+  IF DO_OC_NOMAD_HALF GE 1 THEN BEGIN     ;
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC_NOMAD_HALF'
+  	OVERWRITE = DO_OC_NOMAD_HALF EQ 2
+  	SUBSET = 0
+		PS_FILE=DIR_PLOTS+'NOMAD_HALF.PS'
+		!p.multi=0
+		PSPRINT,/HALF,/COLOR,FILENAME=PS_FILE
+		PAL_36
+		FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+		FN = FILE_PARSE(FILE)
+
+;		===> based on DO_OC_ALGS_DERIVATIVE the inflection mbr is at 3
+		MBR_UPPER = 6
+		SAVE_FILE = DIR_SAVE+FN.NAME+'-MBR_GE_'+STRTRIM(MBR_UPPER,2)+'.SAVE'
+
+		DB=READALL(FILE)
+		OK=WHERE(DB.USE EQ 'USE' AND DB.IRRS443 NE MISSINGS(DB.IRRS443)) & DB=DB[OK]
+
+		MBR = (DB.IRRS443>DB.IRRS489>DB.IRRS510)/DB.IRRS555
+		C=A_OC4_5(DB.IRRS443,DB.IRRS489,DB.IRRS510,DB.IRRS555)
+		S=SORT(MBR)
+		MBR = MBR(S)
+		DB=DB(S)
+		C=C(S)
+		CHLOR_A = DB.CHLOR_A
+
+; 	===> Make a band ratio array
+  	RX =  0.01+ DOUBLE(FINDGEN(100000)*0.001)
+  	ok = WHERE(RX GE .001 AND RX LE 50)
+  	rx = (rx(ok))
+  	MODEL = A_OC4_5(rx,rx,rx,1)
+
+		PLOT, MBR,CHLOR_A,/XLOG,/YLOG,PSYM=1,SYMSIZE=0.1,XRANGE=[0.3,3000]
+		OPLOT, MBR,C,COLOR=34
+
+		OK=WHERE(rx GE MBR_UPPER)
+		SUBS = [FIRST[OK]-100,FIRST[OK]+100]
+		OPLOT,  rx(SUBS),model(SUBS) ,COLOR=TC(5)
+
+		XY=LINE_BISECT(ALOG10((rx(SUBS))), ALOG10((model(SUBS))),WIDTH=5 )
+		OPLOT,10^XY.XP,10^XY.YP,COLOR=TC(26)
+		P=DISTPERP(ALOG10(MBR),ALOG10(CHLOR_A), XY.INT,XY.SLOPE)
+	 	OK=WHERE(P GE 0)
+		OPLOT, MBR[OK],CHLOR_A[OK],COLOR=TC(12),PSYM=1,SYMSIZE=0.1
+
+;		===> Write out a struct where the mbrs are GE 3
+		D=DB[OK]
+		SAVE,FILENAME=SAVE_FILE,D,/COMPRESS
+
+		PSPRINT
+
+
+	ENDIF
+; DO_OC_NOMAD_HALF
+
+
+
+; *****************************************************
+  IF DO_OC_ALGS_ENDS GE 1 THEN BEGIN
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC_ALGS_ENDS'
+  	OVERWRITE = DO_OC_ALGS_ENDS EQ 2
+
+		FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM-MBR_GE_3.SAVE'
+;		FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM-MBR_GE_4.SAVE'
+;		FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM-MBR_GE_5.SAVE'
+;		FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM-MBR_GE_6.SAVE'
+		ALG = 'OC4.5'
+
+		STEP = 1 & DO_LPR=0
+
+		IF STEP EQ 1 THEN BEGIN
+			PRINT,'STEP 1 Uses the TRIMMED OC_NOMAD_EDIT_TRIM_OC4_5.SAVE database to Generate new Coefficients'
+		  mp_oc_solve,FILE=FILE, alg=ALG, MP=0,DEG=2,LL='LL',precision=0.00001d,SCALER=2,METHOD= 1,FTOL=0.00001D,RANGE_CHL=[0.0001,70.0],COEFFS=coeffs,DIR_PLOTS=dir_plots,DO_LPR=DO_LPR,decimals=3
+		  PRINT, COEFFS
+		ENDIF
+
+		IF STEP EQ 2 THEN BEGIN
+			DB=READALL(FILE)
+			MBR = (DB.IRRS443>DB.IRRS489>DB.IRRS510)/DB.IRRS555
+			OC4_5=A_OC4_5(DB.IRRS443,DB.IRRS489,DB.IRRS510,DB.IRRS555)
+			CHLOR_A=DB.CHLOR_A
+			PSPRINT,FILENAME=DIR_PLOTS+'OC_ALGS_ENDS.PS',/COLOR,/FULL
+			!P.MULTI=0E
+			PAL_36
+			PLOTXY,MBR,CHLOR_A,PSYM=1,DECIMALS=3,PARAMETERS=[1,2,3,5,7],/LOGLOG,XRANGE=[0.1,30],YRANGE=[0.001,100]
+			S=STATS2(ALOG10(MBR),ALOG10(CHLOR_A),TYPE=4)
+			; 	===> Make a band ratio array
+  		RX =  0.01+ DOUBLE(FINDGEN(100000)*0.001)
+  		ok = WHERE(RX GE .001 AND RX LE 50)
+  		rx = (rx(ok))
+  		GRIDS,COLOR=34
+  		PLOTS,RX, 10^(S.INT + S.SLOPE*ALOG10(RX))
+			STOP
+			PSPRINT
+		ENDIF
+
+	ENDIF ;IF DO_OC_ALGS
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+
+; *****************************************************
+  IF DO_CUMULATIVE_RMS GE 1 THEN BEGIN
+; *****************************************************
+  	PRINT, 'S T E P:   DO_CUMULATIVE_RMS'
+  	FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+  	PS_FILE = DIR_PLOTS + 'OC_NOMAD-OC4_CUM_RMS.PS'
+  	IF DO_CUMULATIVE_RMS GE 2 OR FILE_TEST(PS_FILE) EQ 0 THEN BEGIN
+			DB=READALL(FILE)
+			OK=WHERE(DB.USE EQ 'USE' AND DB.IRRS443 NE MISSINGS(DB.IRRS443))
+			D = DB[OK]
+			S=SORT(D.CHLOR_A)
+			D=D(S)
+
+			PSPRINT,/HALF,/COLOR,FILENAME=PS_FILE
+			SET_PMULTI
+
+;			===> IRRS !
+			OC4_5 = A_OC4_5(D.IRRS443,D.IRRS489,D.IRRS510, D.IRRS555)
+
+			CUM_RMS = FLTARR(N_ELEMENTS(D))
+			FOR NTH=0,N_ELEMENTS(D)-1 DO BEGIN & CUM_RMS[NTH] = (RMS(ALOG10(D(0:NTH).CHLOR_A),ALOG10(OC4_5(0:NTH)))).RMS & ENDFOR
+		  FONT_TIMES
+		  PAL_36
+			PLOT, D.CHLOR_A, CUM_RMS,/NODATA,/XLOG
+			GRIDS,COLOR=34,THICK=2
+			OPLOT,D.CHLOR_A, CUM_RMS, COLOR=6
+
+;			$$$ Read Subset ***
+			D=READALL(DIR_SAVE+'OC_NOMAD_SUBSET-EDIT.SAVE')
+
+			S=SORT(D.CHLOR_A)
+			D=D(S)
+
+			OC4_4 				= A_OC4_4(D.RRS443,D.RRS489,D.RRS510, D.RRS555)
+			OC4_5 				= A_OC4_5(D.RRS443,D.RRS489,D.RRS510, D.RRS555)
+			OC4_5_4TH 		= A_OC4_5_4TH(D.RRS443,D.RRS489,D.RRS510, D.RRS555)
+
+			A_OC4_5SUBSET = A_OC4_5_SUBSET(D.RRS443,D.RRS489,D.RRS510, D.RRS555)
+			A_OC4_5SUBSET_NO_PALMER_LTER = A_OC4_5_SUBSET_NO_PALMER_LTER(D.RRS443,D.RRS489,D.RRS510, D.RRS555)
+
+			CUM_RMS_4 = FLTARR(N_ELEMENTS(D))
+			CUM_RMS_5 = FLTARR(N_ELEMENTS(D))
+			CUM_RMS_5_4TH = FLTARR(N_ELEMENTS(D))
+			CUM_RMS_5_SUBSET = FLTARR(N_ELEMENTS(D))
+			CUM_RMS_5_SUBSET_NO_PALMER_LTER = FLTARR(N_ELEMENTS(D))
+
+;			===> Work on subset and RRS (NOT IRRS)
+			FOR NTH=0,N_ELEMENTS(D)-1 DO BEGIN
+				CUM_RMS_4[NTH] = (RMS(ALOG10(D(0:NTH).CHLOR_A),ALOG10(OC4_4(0:NTH)))).RMS
+				CUM_RMS_5[NTH] = (RMS(ALOG10(D(0:NTH).CHLOR_A),ALOG10(OC4_5(0:NTH)))).RMS
+				CUM_RMS_5_4TH[NTH] = (RMS(ALOG10(D(0:NTH).CHLOR_A),ALOG10(OC4_5_4TH(0:NTH)))).RMS
+
+				CUM_RMS_5_SUBSET[NTH] = (RMS(ALOG10(D(0:NTH).CHLOR_A),ALOG10(A_OC4_5SUBSET(0:NTH)))).RMS
+				CUM_RMS_5_SUBSET_NO_PALMER_LTER[NTH]	= (RMS(ALOG10(D(0:NTH).CHLOR_A),ALOG10(A_OC4_5SUBSET_NO_PALMER_LTER(0:NTH)))).RMS
+			ENDFOR
+
+		  FONT_TIMES
+		  PAL_36
+			PLOT, D.CHLOR_A, CUM_RMS_4,/NODATA,/XLOG,YRANGE=[0,1.0],/YSTYLE,XTITLE=UNITS('CHLOR_A',/NAME,/UNIT),YTITLE='Cum RMSE'
+			GRIDS,COLOR=34,THICK=2
+			OPLOT,D.CHLOR_A, CUM_RMS_4, COLOR=6	,PSYM=1,SYMSIZE=0.05
+			OPLOT,D.CHLOR_A, CUM_RMS_5, COLOR=21,PSYM=1,SYMSIZE=0.05
+;			OPLOT,D.CHLOR_A, CUM_RMS_5_4TH, COLOR=27
+
+	;		OPLOT,D.CHLOR_A, CUM_RMS_5_SUBSET, COLOR=26
+	;		OPLOT,D.CHLOR_A, CUM_RMS_5_SUBSET_NO_PALMER_LTER, COLOR=29
+			PSPRINT
+
+			PRINT, MINMAX(CUM_RMS_4)
+			PRINT, LAST(CUM_RMS_4)
+			OK=WHERE(CUM_RMS_4 EQ MIN(CUM_RMS_4))
+			PRINT, D[OK].CHLOR_A
+
+			PRINT, MINMAX(CUM_RMS_5)
+			PRINT, LAST(CUM_RMS_5)
+			OK=WHERE(CUM_RMS_5 EQ MIN(CUM_RMS_5))
+			PRINT, D[OK].CHLOR_A
+			STOP
+  	ENDIF
+  ENDIF ;IF DO_OC_NOMAD_INTERP_VS_MEASURED
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+; *****************************************************
+  IF DO_OC_NOMAD_INTERP_VS_MEASURED GE 1 THEN BEGIN
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC_NOMAD_INTERP_VS_MEASURED'
+  	OVERWRITE = DO_OC_NOMAD_INTERP_VS_MEASURED EQ 2
+  	FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+  	PS_FILE = DIR_PLOTS + 'OC_NOMAD-INTERP_VS_MEASURED.PS'
+  	IF DO_OC_NOMAD_INTERP_VS_MEASURED GE 2 OR FILE_TEST(PS_FILE) EQ 0 THEN BEGIN
+  		OC_NOMAD_INTERP_VS_MEASURED, FILE ,DIR_PLOTS=DIR_PLOTS
+  	ENDIF
+  ENDIF ;IF DO_OC_NOMAD_INTERP_VS_MEASURED
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+; *****************************************************
+  IF DO_OC_NOMAD_SPECTRAL_INDEX_PLOT GE 1 THEN BEGIN
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC_NOMAD_SPECTRAL_INDEX_PLOT'
+  	FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+  	PS_FILE = DIR_PLOTS + 'OC_NOMAD_SPECTRAL_INDEX_PLOT.PS'
+
+  	IF DO_OC_NOMAD_SPECTRAL_INDEX_PLOT GE 2 OR FILE_TEST(PS_FILE) EQ 0 THEN BEGIN
+  		OC_NOMAD_SPECTRAL_INDEX_PLOT, FILE ,DIR_PLOTS=DIR_PLOTS
+  	ENDIF
+  	ENDIF ;IF DO_OC_NOMAD_SPECTRAL_INDEX_PLOT
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+; *****************************************************
+  IF DO_OC_NOMAD_VS_OC_MODELS GE 1 THEN BEGIN
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC_NOMAD_VS_OC_MODELS'
+  	FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+  	PS_FILE = DIR_PLOTS + 'OC_NOMAD_VS_OC_MODELS.PS'
+  	IF DO_OC_NOMAD_VS_OC_MODELS GE 2 OR FILE_TEST(PS_FILE) EQ 0 THEN BEGIN
+  		OC_NOMAD_VS_OC_MODELS, FILE ,DIR_PLOTS=DIR_PLOTS
+  	ENDIF
+  	ENDIF ;IF DO_OC_NOMAD_VS_OC_MODELS
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+; *****************************************************
+  IF DO_OC_NOMAD_VS_MBR_PLOT GE 1 THEN BEGIN
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC_NOMAD_VS_MBR_PLOT'
+  	FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+  	PS_FILE = DIR_PLOTS + 'OC_NOMAD_VS_MBR_PLOT.PS'
+  	IF DO_OC_NOMAD_VS_MBR_PLOT GE 2 OR FILE_TEST(PS_FILE) EQ 0 THEN BEGIN
+  		OC_NOMAD_VS_MBR_PLOT, FILE ,DIR_PLOTS=DIR_PLOTS
+  	ENDIF
+  	ENDIF ;IF DO_OC_NOMAD_VS_MBR_PLOT
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+; *****************************************************
+  IF DO_OC_NOMAD_SPECTRA_PLOT GE 1 THEN BEGIN
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC_NOMAD_SPECTRA_PLOT'
+  	OVERWRITE = DO_OC_NOMAD_INTERP_VS_MEASURED EQ 2
+  	OC_NOMAD_SPECTRA_PLOT, DIR_IN= DIR_SAVE ,DIR_OUT=DIR_PLOTS
+  	ENDIF ;IF DO_OC_NOMAD_SPECTRA_PLOT
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+
+
+
+
+
+
+
+
+
+; *****************************************************
+  IF DO_R_VS_IDL GE 1 THEN BEGIN
+; *****************************************************
+  	PRINT, 'S T E P:   DO_R_VS_IDL'
+  	FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+   	PS_FILE = DIR_PLOTS + 'R_VS_IDL.PS'
+  	IF DO_R_VS_IDL GE 2 OR FILE_TEST(PS_FILE) EQ 0 THEN BEGIN
+  		 PSPRINT,FILENAME=PS_FILE,/COLOR,/FULL
+  	   PAL_36
+  		 DB=READALL(FILE)
+  		 OK=WHERE(DB.USE EQ 'USE' AND DB.IRRS443 NE MISSINGS(DB.IRRS443))
+
+  		 D=DB[OK]
+  		 OC4_4 = A_OC4_4(D.IRRS443, D.IRRS489 , D.IRRS510,D.IRRS555)
+  		 OC4_5_5 = A_OC4_5(D.IRRS443, D.IRRS489 , D.IRRS510,D.IRRS555,DEG=5)
+
+  		 MBR = (D.IRRS443>D.IRRS489>D.IRRS510)/D.IRRS555
+  		 CHLOR_A = D.CHLOR_A
+
+       L_MBR = ALOG10(MBR)
+       L_CHLOR_A = ALOG10(CHLOR_A)
+       MBR1 = L_MBR
+       MBR2 = L_MBR^2
+       MBR3 = L_MBR^3
+       MBR4 = L_MBR^4
+       MBR5 = L_MBR^5
+       STRUCT= REPLICATE(CREATE_STRUCT('MBR1',0.0,'MBR2',0.0,'MBR3',0.0,'MBR4',0.0,'MBR5',0.0,'CHLOR_A',0.0),N_ELEMENTS(D))
+       STRUCT.MBR1=MBR1
+       STRUCT.MBR2=MBR2
+       STRUCT.MBR3=MBR3
+       STRUCT.MBR4=MBR4
+       STRUCT.MBR5=MBR5
+       STRUCT.CHLOR_A=L_CHLOR_A
+       STRUCT_2CSV,DIR_SAVE+'MBR_CHL_4R.CSV',STRUCT
+
+
+;			*** RUN R AND THE FOLLOWING COMMANDS:
+;			db <- read.csv('MBR_CHL_4R.CSV')
+;			summary(db)
+ ;		rq(formula = CHLOR_A ~ MBR1+MBR2+MBR3, tau = 0.5,data=db)
+
+
+ 			A = [0.3409815,  -2.5640316,   0.9340695]
+				MODEL_R_2 =    10^(a[0] + a[1]*MBR1 +  a(2)*MBR2 )
+
+;			 RESULTS FROM R
+			A=[  0.297006,   -2.817895 ,   2.477171,   -1.460743 ]
+ 					MODEL_R_3 =    10^(a[0] + a[1]*MBR1 +  a(2)*MBR2   + a(3)*MBR3)
+
+ 			A = [ 0.3030386,  -2.8548710,   2.2765634,  -0.6730730,  -0.6025392]
+				MODEL_R_4 =    10^(a[0] + a[1]*MBR1 +  a(2)*MBR2   + a(3)*MBR3 +  a(4)*MBR4  )
+
+ 			A = [ 0.2989971,  -3.0720106 ,  2.6707658 ,  2.0276281, -7.6060707,   4.2534665 ]
+ 				MODEL_R_5 =    10^(a[0] + a[1]*MBR1 +  a(2)*MBR2   + a(3)*MBR3 +  a(4)*MBR4 + a(5)*MBR5  )
+
+
+
+  		; R_SLOPE 	= -1.9071891
+  		; R_INT 		= 0.3278785
+
+				SET_PMULTI,2
+  		 PLOT,MBR,CHLOR_A,/XLOG,/YLOG,PSYM=1,SYMSIZE=0.25,YRANGE=[0.01,100],/nodata
+			 GRIDS,COLOR=34
+			 OPLOT,MBR,CHLOR_A,PSYM=1,SYMSIZE=0.25
+
+  		 OPLOT, MBR,OC4_4,COLOR=34,PSYM=1,SYMSIZE=0.2
+  		 OPLOT, MBR,OC4_5_5,COLOR=7,PSYM=1,SYMSIZE=0.2
+  	;	 OPLOT, MBR,MODEL_R_2,COLOR=18,PSYM=1,SYMSIZE=0.2
+  		 OPLOT, MBR,MODEL_R_3,COLOR=21,PSYM=1,SYMSIZE=0.2
+  		; OPLOT, MBR,MODEL_R_4,COLOR=26,PSYM=1,SYMSIZE=0.2
+  		 ;OPLOT, MBR,MODEL_R_5,COLOR=28,PSYM=1,SYMSIZE=0.2
+  		 MODEL_R_3_ADJ = 10^( (ALOG10(MODEL_R_3)- (-0.0133))/0.9522)
+
+			OPLOT, MBR, MODEL_R_3_ADJ, PSYM=1,SYMSIZE=0.1,COLOR = 16
+
+			SET_PMULTI,2
+			PLOTXY,CHLOR_A,OC4_5_5,/LOGLOG,PSYM=1,SYMSIZE=0.25 ,DECIMALS=4,XRANGE=[0.01,100],YRANGE=[0.01,100],PARAMS=[1,2,3,4,8,10]
+
+			SET_PMULTI,4
+  		PLOTXY,CHLOR_A,MODEL_R_2,/LOGLOG,PSYM=1,SYMSIZE=0.25 ,DECIMALS=4,XRANGE=[0.01,100],YRANGE=[0.01,100],PARAMS=[1,2,3,4,8,10]
+  		PLOTXY,CHLOR_A,MODEL_R_3,/LOGLOG,PSYM=1,SYMSIZE=0.25 ,DECIMALS=4,XRANGE=[0.01,100],YRANGE=[0.01,100],PARAMS=[1,2,3,4,8,10]
+  		PLOTXY,CHLOR_A,MODEL_R_4,/LOGLOG,PSYM=1,SYMSIZE=0.25 ,DECIMALS=4,XRANGE=[0.01,100],YRANGE=[0.01,100],PARAMS=[1,2,3,4,8,10]
+  		PLOTXY,CHLOR_A,MODEL_R_5,/LOGLOG,PSYM=1,SYMSIZE=0.25 ,DECIMALS=4,XRANGE=[0.01,100],YRANGE=[0.01,100],PARAMS=[1,2,3,4,8,10]
+
+
+			SET_PMULTI,2
+			PLOTXY,CHLOR_A,MODEL_R_3_ADJ,/LOGLOG,PSYM=1,SYMSIZE=0.25 ,DECIMALS=4,XRANGE=[0.01,100],YRANGE=[0.01,100],PARAMS=[1,2,3,4,8,10]
+
+			Q=QUANTILE(ALOG10(CHLOR_A),ALOG10(MODEL_R_3_ADJ),PSYM=1,SYMSIZE=0.1 )
+
+  		PSPRINT
+
+  		 STOP
+  	ENDIF
+  	ENDIF ;IF DO_OC_NOMAD_VS_MBR_PLOT
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+; *****************************************************
+  IF DO_OC2_5 GE 1 THEN BEGIN   ;    S E A W I F S
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC2_4'
+  	OVERWRITE = DO_OC2_4 EQ 2
+   STEP = 2 & DO_LPR=0
+		IF STEP EQ 1 THEN BEGIN
+			PRINT,'STEP 1 Uses the TRIMMED OC_NOMAD_EDIT_TRIM_OC4_4.SAVE database to Generate Model Coefficients'
+			MP_OC_SOLVE,FILE=FILE, alg='OC2.5', MP=1,DEG=3,LL='LL',precision=0.00001d,SCALER=5,METHOD=2,FTOL=0.00001D,RANGE_CHL=[0.001,70.0],RANGE_BR=[0.1,6.5],COEFFS=coeffs,DIR_PLOTS=dir_plots
+		  PRINT, COEFFS
+		ENDIF
+		IF STEP EQ 2 THEN BEGIN
+			PRINT,'STEP 4 Generates a final ps file with formatted equation'
+		  MP_OC_SOLVE,FILE=FILE, alg='OC2.5', MP=1,DEG=3,LL='LL',precision = 0.00001d,SCALER=5, METHOD=2, FTOL=0.00001D,$
+		  						 RANGE_CHL=[0.001,1E6],COEFFS=coeffs,GRAPH_COEFFS= [0.319, -2.336, 0.879, -0.135, -0.071],DIR_PLOTS=dir_plots,/FORMULA,DO_LPR=DO_LPR
+		  PRINT, COEFFS
+		ENDIF
+	ENDIF ;IF DO_OC2_4
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+; *****************************************************
+  IF DO_OC3C_5 GE 1 THEN BEGIN   ;    C Z C S
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC3C_5'
+  	OVERWRITE = DO_OC3C_5 EQ 2
+   STEP = 1 & DO_LPR=1
+		IF STEP EQ 1 THEN BEGIN
+			FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+			PRINT,'STEP 1 Uses the TRIMMED OC_NOMAD_EDIT_TRIM_OC4_4.SAVE database to Generate Model Coefficients'
+			MP_OC_SOLVE,FILE=FILE, alg='OC3C.5', MP=0,DEG=4,LL='LL',precision=0.00001d,SCALER=3,METHOD=1,FTOL=0.00001D,RANGE_CHL=[0.001,70.0],COEFFS=coeffs,DIR_PLOTS=dir_plots,DO_LPR=DO_LPR
+		  PRINT, COEFFS
+		ENDIF
+		IF STEP EQ 2 THEN BEGIN
+			FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+			PRINT,'STEP 4 Generates a final ps file with formatted equation'
+		  MP_OC_SOLVE,FILE=FILE, alg='OC3C.5', MP=0,DEG=4,LL='LL',precision = 0.00001d,SCALER=3, METHOD=1, FTOL=0.00001D,$
+		  						 RANGE_CHL=[0.001,1E6],COEFFS=coeffs,GRAPH_COEFFS=[0.362, -4.066, 5.125, -2.645,-0.597],DIR_PLOTS=dir_plots,/FORMULA,DO_LPR=DO_LPR,decimals=5
+		  PRINT, COEFFS
+		ENDIF
+	ENDIF ;IF DO_OC3C_5
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+; *****************************************************
+  IF DO_OC4O_5 GE 1 THEN BEGIN   ;    O C T S
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC4O_5'
+  	OVERWRITE = DO_OC4O_5 EQ 2
+   	STEP = 1 & DO_LPR=1
+		IF STEP EQ 1 THEN BEGIN
+			FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+			PRINT,'STEP 1 Uses the TRIMMED OC_NOMAD_EDIT_TRIM_OC4_4.SAVE database to Generate Model Coefficients'
+		  MP_OC_SOLVE,FILE=FILE, alg='OC4O.5', MP=0,DEG=4,LL='LL',precision=0.00001d,SCALER=3,METHOD=1,FTOL=0.000035D,DECIMALS=4,RANGE_CHL=[0.0001,90.0],COEFFS=coeffs,DIR_PLOTS=dir_plots,DO_LPR=DO_LPR
+		  PRINT, COEFFS
+		ENDIF
+		IF STEP EQ 2 THEN BEGIN
+			FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+			PRINT,'STEP 4 Generates a final ps file with formatted equation'
+		  MP_OC_SOLVE,FILE=FILE, alg='OC4O.5', MP=0,DEG=4,LL='LL',precision = 0.00001d,SCALER=3, METHOD=1, FTOL=0.00001D,DECIMALS=4,$
+		  						 RANGE_CHL=[0.001,1E6],COEFFS=coeffs,GRAPH_COEFFS= [0.405, -2.900, 1.690, 0.530, -1.144],DIR_PLOTS=dir_plots,/FORMULA,DO_LPR=DO_LPR
+		  PRINT, COEFFS
+		ENDIF
+	ENDIF ;IF DO_OC4O_5
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+; *****************************************************
+  IF DO_OC4E_5 GE 1 THEN BEGIN   ;    M E R I S
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC4E_5'
+  	OVERWRITE = DO_OC4E_5 EQ 2
+   STEP = 2 & DO_LPR=0
+		IF STEP EQ 1 THEN BEGIN
+			FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+			PRINT,'STEP 1 Uses the TRIMMED OC_NOMAD_EDIT_TRIM_OC4_4.SAVE database to Generate Model Coefficients'
+		  MP_OC_SOLVE,FILE=FILE, alg='OC4E.5', MP=0,DEG=4,LL='LL',precision=0.00001d,SCALER=3,METHOD=1,FTOL=0.00001D,RANGE_CHL=[0.0001,70.0], COEFFS=coeffs,DIR_PLOTS=dir_plots
+		  PRINT, COEFFS
+		ENDIF
+		IF STEP EQ 2 THEN BEGIN
+			FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+			PRINT,'STEP 4 Generates a final ps file with formatted equation'
+		  MP_OC_SOLVE,FILE=FILE, alg='OC4E.5', MP=0,DEG=4,LL='LL',precision = 0.00001d,SCALER=3, METHOD=1, FTOL=0.00001D,$
+		  						 RANGE_CHL=[0.001,1E6],COEFFS=coeffs,GRAPH_COEFFS= [0.368000,-2.81400, 1.45600, 0.768000, -1.29200],DIR_PLOTS=dir_plots,/FORMULA,DO_LPR=DO_LPR
+		  PRINT, COEFFS
+		ENDIF
+	ENDIF ;IF DO_OC4E_5
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+; *****************************************************
+  IF DO_OC3M_5 GE 1 THEN BEGIN   ;    M O D I S
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC3M_5'
+  	OVERWRITE = DO_OC3M_5 EQ 2
+   STEP = 1 & DO_LPR=1
+		IF STEP EQ 1 THEN BEGIN
+			FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+			PRINT,'STEP 1 Uses the TRIMMED OC_NOMAD_EDIT_TRIM_OC4_4.SAVE database to Generate Model Coefficients'
+			MP_OC_SOLVE,FILE=FILE, alg='OC3M.5', MP=0,DEG=3,LL='LL',precision=0.00001d,SCALER=7,METHOD=8,FTOL=0.00001D,RANGE_CHL=[0.01,70.0],range_br=[0.01,20.0],COEFFS=coeffs,DIR_PLOTS=dir_plots,DO_LPR=DO_LPR
+		  PRINT, COEFFS
+		ENDIF
+		IF STEP EQ 2 THEN BEGIN
+			FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+			PRINT,'STEP 4 Generates a final ps file with formatted equation'
+		  MP_OC_SOLVE,FILE=FILE, alg='OC3M.5', MP=0,DEG=4,LL='LL',precision = 0.00001d,SCALER=5, METHOD=1, FTOL=0.00001D,$
+		  						 RANGE_CHL=[0.001,1E6],COEFFS=coeffs,GRAPH_COEFFS=	[0.2830,-2.753,1.457,0.659,-1.403],DIR_PLOTS=dir_plots,/FORMULA,DO_LPR=DO_LPR
+		  PRINT, COEFFS
+		ENDIF
+	ENDIF ;IF DO_OC3M_5
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+; *****************************************************
+  IF DO_OC3S_4 GE 1 THEN BEGIN   ;    S E A W I F S
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC3S_4'
+  	OVERWRITE = DO_OC3S_4 EQ 2
+   STEP = 1 & DO_LPR=1
+		IF STEP EQ 1 THEN BEGIN
+			PRINT,'STEP 1 Uses the TRIMMED OC_NOMAD_EDIT_TRIM_OC4_4.SAVE database to Generate Model Coefficients'
+			MP_OC_SOLVE,FILE=FILE, alg='OC3S.5', MP=0,DEG=4,LL='LL',precision=0.00001d,SCALER=5,METHOD=3,FTOL=0.00001D,RANGE_CHL=[0.01,70.0],range_br=[0.01,20.0],COEFFS=coeffs,DIR_PLOTS=dir_plots
+		  PRINT, COEFFS
+		ENDIF
+		IF STEP EQ 2 THEN BEGIN
+			PRINT,'STEP 4 Generates a final ps file with formatted equation'
+		  MP_OC_SOLVE,FILE=FILE, alg='OC3S.5', MP=0,DEG=4,LL='LL',precision = 0.00001d,SCALER=5, METHOD=2, FTOL=0.00001D,$
+		  						 RANGE_CHL=[0.001,1E6],COEFFS=coeffs,GRAPH_COEFFS=	[0.2830,-2.753,1.457,0.659,-1.403],DIR_PLOTS=dir_plots,/FORMULA,DO_LPR=DO_LPR
+		  PRINT, COEFFS
+		ENDIF
+	ENDIF ;IF DO_OC3S_4
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+; *****************************************************
+  IF DO_OC4G_5 GE 1 THEN BEGIN   ;    O C S
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC4G_5'
+  	OVERWRITE = DO_OC4G_5 EQ 2
+   	STEP = 3 & DO_LPR=0
+		IF STEP EQ 1 THEN BEGIN
+			FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+			PRINT,'STEP 1 Uses the TRIMMED OC_NOMAD_EDIT_TRIM_OC4_4.SAVE database to Generate Model Coefficients'
+		  MP_OC_SOLVE,FILE=FILE, alg='OC4G.5', MP=0,DEG=4,LL='LL',precision=0.000001d,SCALER=5,METHOD=1,FTOL=0.00001D,RANGE_CHL=[0.0001,70.0],COEFFS=coeffs,DIR_PLOTS=dir_plots
+		  PRINT, COEFFS ; 0.40426014      -2.6883913       1.4601261      0.29736590     -0.77805370
+		ENDIF
+		IF STEP EQ 2 THEN BEGIN
+			 ; use ocwidget.pro to get 1.000 and 0.000 ; this yields [0.405,-2.690,1.460,0.297,-0.779]
+		ENDIF
+		IF STEP EQ 3 THEN BEGIN
+			FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+			PRINT,'STEP 4 Generates a final ps file with formatted equation'
+		  MP_OC_SOLVE,FILE=FILE, alg='OC4G.5', MP=0,DEG=4,LL='LL',precision = 0.00001d,SCALER=5, METHOD=1, FTOL=0.00001D,$
+		  						 RANGE_CHL=[0.001,1E6],COEFFS=coeffs,GRAPH_COEFFS=[0.405,-2.690,1.460,0.297,-0.779],DIR_PLOTS=dir_plots,/FORMULA,DO_LPR=DO_LPR
+		ENDIF
+	ENDIF ;IF DO_OC4G_5
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+; *****************************************************
+  IF DO_OC2_550_555_4 GE 1 THEN BEGIN   ;    O C S
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC2_550_555_4'
+  	OVERWRITE = DO_OC4G_5 EQ 2
+   	STEP = 1 & DO_LPR=0
+		IF STEP EQ 1 THEN BEGIN
+			FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+			PRINT,'STEP 1 Uses the TRIMMED OC_NOMAD_EDIT_TRIM_OC4_4.SAVE database to Generate Model Coefficients'
+		  MP_OC_SOLVE,FILE=FILE, alg='OC2_550_555.4', MP=0,DEG=4,LL='LL',precision=0.000001d,SCALER=5,METHOD=1,FTOL=0.00001D,RANGE_CHL=[0.0001,70.0],COEFFS=coeffs,DIR_PLOTS=dir_plots
+		  PRINT, COEFFS ; 0.40426014      -2.6883913       1.4601261      0.29736590     -0.77805370
+		ENDIF
+		IF STEP EQ 2 THEN BEGIN
+			 ; use ocwidget.pro to get 1.000 and 0.000 ; this yields [0.405,-2.690,1.460,0.297,-0.779]
+		ENDIF
+		IF STEP EQ 3 THEN BEGIN
+			FILE = DIR_SAVE +'OC_NOMAD-EDIT-INTERP-TRIM.SAVE'
+			PRINT,'STEP 4 Generates a final ps file with formatted equation'
+		  MP_OC_SOLVE,FILE=FILE, alg='OC4G.4', MP=0,DEG=4,LL='LL',precision = 0.00001d,SCALER=5, METHOD=1, FTOL=0.00001D,$
+		  						 RANGE_CHL=[0.001,1E6],COEFFS=coeffs,GRAPH_COEFFS=[0.405,-2.690,1.460,0.297,-0.779],DIR_PLOTS=dir_plots,/FORMULA,DO_LPR=DO_LPR
+		ENDIF
+	ENDIF ;IF DO_OC4G_5
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+
+
+; *************************************************************************************************************
+; *************************************************************************************************************
+; *************************************************************************************************************
+
+; *****************************************************
+  IF DO_OC_ALG GE 1 THEN BEGIN   ;    O C S
+; *****************************************************
+  	PRINT, 'S T E P:   DO_OC_ALG'
+  	OVERWRITE = DO_OC_ALG EQ 2
+  	ps=1
+  	SW_OC4G_VS_OC4,ps=ps
+   	OC_ALG, DIR_PLOTS=dir_plots,ps=ps
+	ENDIF ;IF DO_OC4G_5
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+
+  DONE:
+
+  PRINT,'END OF A_OC_MAIN..PRO'
+  END; #####################  End of Routine ################################

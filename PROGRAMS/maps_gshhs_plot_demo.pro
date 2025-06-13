@@ -1,0 +1,23 @@
+
+PRO MAPS_GSHHS_PLOT_DEMO
+
+  PAL_LANDMASK,R,G,B
+  
+  
+  LEVELS = [1,2,3,4]
+  levels = 2
+  FOR N=0, 3 DO BEGIN
+    ZWIN, [1024,1024]
+    MAPS_SET, 'NEC'
+    
+    MAPS_GSHHS_PLOT, !S.MASTER + 'gshhs_f.b',/FILL, MAP_LEVEL=LEVELS(N), minarea=2.0E7
+   
+    MASK = TVRD()
+    ZWIN
+    WRITE_PNG,!S.IDL + 'GSHHS'+NUM2STR(LEVELS(N))+'.PNG', MASK,R,G,B
+  ENDFOR
+
+
+
+
+END

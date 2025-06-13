@@ -1,0 +1,286 @@
+; $ID:	PLT_XY_DEMO.PRO,	2020-07-01-12,	USER-KJWH	$
+; 
+PRO PLT_XY_DEMO
+
+; #########################################################################; 
+;+
+; THIS PROGRAM IS AN DEMO FOR PLT_XY
+
+
+; MODIFICATION HISTORY:
+;     APR 19, 2004  WRITTEN BY: J.E. O'REILLY
+;     APR 27,2014,JOR XLOG,YLOG
+;     MAY 1,2014,JOR, LEG RENAMED STATS FOR CONSISTENCY WITH PLT_HIST2D AND OLDER PROS
+;                     LEG IS RESERVED FOR LEGEND IN FUTURE VERSIONS
+;     JUL 3,2014,JOR REVISED KEYWORD INPUTS TO PLT_XY
+;                   
+;-
+; #########################################################################
+
+;*************************
+ROUTINE_NAME  = 'PLT_XY_DEMO'
+;**************************
+
+; SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
+; SSSSS       S W I T C H E S   ALPHAS   CONTROLLING WHICH PROCESSING STEPS TO DO SSSSS
+;SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS;	
+;   ( BLANK DO NOT DO THE STEP)
+;	1 (DO THE STEP)
+; O (DO THE STEP AND OVERWRITE ANY OUTPUT IF IT ALREAD EXISTS)
+; S (STOP IN THE STEP)
+; R (PROCESS FILES IN REVERSE ORDER)
+; ================>
+; SWITCHES CONTROLLING WHICH PROCESSING STEPS TO DO:
+  DO_DEFAULT_PLOT = 0
+  DO_JAY_PLOT     = 1
+  DO_PLAIN_SCATTER=	0
+  DO_KEYWORDS     = 0
+  DO_DOUBLE_SPACE = 0
+  DO_PLT_TXT      = 0
+  DO_MISSING      = 0  
+  DO_XLOG         = 0
+  DO_YLOG         = 0
+  DO_XYLOG        = 0 
+  DO_PANEL_PLOT   = 0
+  DO_LAYOUT_PLOT  = 0
+ 
+;SSSSS     END OF SWITCHES     SSSSS
+
+;******************************
+IF DO_DEFAULT_PLOT GE 1 THEN BEGIN
+;******************************
+  , 'DO_DEFAULT_PLOT'
+  IF DO_DEFAULT_PLOT EQ 3 THEN STOP & OVERWRITE = DO_DEFAULT_PLOT EQ 2
+  XY=BIVARIATE(300) 
+  PLT_XY,XY.X,XY.Y,TITLE = 'DEFAULT PLOT',$
+  FILE = !S.IDL_TEMP +'DO_DEFAULT_PLOT.PNG',/CLOSE
+  
+  , 'DO_DEFAULT_PLOT'
+ENDIF;IF DO_DEFAULT_PLOT GE 1 THEN BEGIN
+; ||||||||||||||||||||||||||||||||||||||||
+; 
+; 
+;******************************
+IF DO_JAY_PLOT GE 1 THEN BEGIN
+;******************************
+  , 'DO_JAY_PLOT'
+  IF DO_JAY_PLOT EQ 3 THEN STOP & OVERWRITE = DO_JAY_PLOT EQ 2
+  XY=BIVARIATE(300) 
+  PLT_XY,XY.X,XY.Y,TITLE = 'JAY PLOT',/JAY,$
+  FILE = !S.IDL_TEMP +'DO_JAY_PLOT.PNG',/CLOSE
+  
+  , 'DO_JAY_PLOT'
+ENDIF;IF DO_JAY_PLOT GE 1 THEN BEGIN
+; ||||||||||||||||||||||||||||||||||||||||;  
+;***********************************
+IF DO_PLAIN_SCATTER GE 1 THEN BEGIN
+;***********************************
+, 'DO_PLAIN_SCATTER'
+IF DO_PLAIN_SCATTER EQ 3 THEN STOP & OVERWRITE = DO_PLAIN_SCATTER EQ 2
+  XY=BIVARIATE(300) 
+  PLT_XY,XY.X,XY.Y,$
+  FILE = !S.IDL_TEMP +'DO_PLAIN_SCATTER.PNG',TITLE = 'PLAIN SCATTER',/CLOSE
+  , 'DO_PLAIN_SCATTER'
+ENDIF ;   IF DO_PLAIN_SCATTER GE 1 THEN BEGIN
+; |||||||||||||||||||||||||||||||||||||||||||
+;
+; 
+; 
+; ;******************************
+IF DO_DOUBLE_SPACE GE 1 THEN BEGIN
+;******************************
+    , 'DO_DOUBLE_SPACE'
+    IF DO_DOUBLE_SPACE EQ 3 THEN STOP & OVERWRITE = DO_DOUBLE_SPACE EQ 2 
+      XY=BIVARIATE(300) 
+      PLT_XY,XY.X,XY.Y,$
+      FILE = !S.IDL_TEMP +'DO_DOUBLE_SPACE.PNG',$
+      /DOUBLE_SPACE,STATS_POS = [0.15,0.8],TITLE ='DOUBLE_SPACE',/STATS_ADD,/CLOSE      
+    , 'DO_DOUBLE_SPACE'
+  ENDIF ;   IF DO_DOUBLE_SPACE GE 1 THEN BEGIN
+; ||||||||||||||||||||||||||||||||||||||||; 
+; ; 
+;******************************
+IF DO_KEYWORDS GE 1 THEN BEGIN
+  ;******************************
+  , 'DO_KEYWORDS'
+  IF DO_KEYWORDS EQ 3 THEN STOP & OVERWRITE = DO_KEYWORDS EQ 2
+  PRINT, 'THIS STEP USES MANY OF THE KEYWORDS TO MAKE AN UGLY PLOT'& WAIT,1
+  XY=BIVARIATE(300)
+  PLT_XY,XY.X,XY.Y,$
+    FILE = !S.IDL_TEMP +'DO_KEYWORDS.PNG',DECIMALS = 2,$
+    
+    AXES_THICK =3,$
+    AXES_COLOR = 'INDIGO',$
+    AXES_FONT_SIZE = 32,$
+    
+    SYMBOL='TRIANGLE',$
+    SYM_COLOR='GREEN',$
+    SYM_SIZE=5,$
+    SYM_FILLED= 1,$
+    SYM_FILL_COLOR = 'PINK',$
+    
+    STATS_COLOR = 'TEAL ',$
+    STATS_POS = [0.80,0.25],$
+    STATS_SIZE = 31,$
+    
+    MEAN_SYMBOL = 'SQUARE',$
+    MEAN_SIZE = 21,$
+    MEAN_THICK = 15,$
+    MEAN_COLOR = 'YELLOW',$
+    
+    REG_COLOR = 'CYAN',$
+    REG_THICK = 31,$
+    REG_MID_COLOR = 'BLACK',$
+    REG_MID_THICK = 1,$
+    
+    ONE_COLOR = 'LIME GREEN',$
+    ONE_THICK = 31,$
+    
+    TITLE = 'UGLY PLOT',$
+    XTITLE = 'HELLO',$
+    YTITLE = 'GOODBYE',$
+    XLOG=1,YLOG = 1,$
+    DELAY = 0,$
+    BACKGROUND_COLOR = 'PALE GOLDENROD'
+  , 'DO_KEYWORDS'
+ENDIF ;   IF DO_KEYWORDS GE 1 THEN BEGIN
+; ||||||||||||||||||||||||||||||||||||||||
+
+;****************************
+IF DO_PLT_TXT GE 1 THEN BEGIN
+; ***************************
+  , 'DO_PLT_TXT'
+  OVERWRITE = DO_PLT_TXT EQ 2 & IF DO_PLT_TXT EQ 3 THEN STOP
+  XY=BIVARIATE(30)
+  TXT = SINDGEN(30)
+  PLT_XY,XY.X,XY.Y,TXT,/DATA,$
+    FILE = !S.IDL_TEMP +'DO_PLT_TXT.PNG',TXT_SIZE = 21,TITLE = 'DO_PLT_TXT',/CLOSE
+     , 'DO_PLT_TXT'
+ENDIF ; IF DO_PLT_TXT GE 1 THEN BEGIN
+; ||||||||||||||||||||||||||||||||||||
+
+;****************************
+IF DO_MISSING GE 1 THEN BEGIN
+;***************************
+  , 'DO_MISSING'
+  OVERWRITE = DO_MISSING EQ 2 & IF DO_MISSING EQ 3 THEN STOP
+  X = INTERVAL([-3,3],BASE = 10) & Y=X  ; I have a conflict with RANGE in INTERVAL
+  MISSINGX = 100 & PRINT,'MISSINGX = 100' 
+  PLT_XY,X,Y,$
+    FILE = !S.IDL_TEMP +'DO_MISSING.PNG',XLOG = 1,YLOG = 1,$
+        MISSINGX = MISSINGX,$
+        SYMBOL=SYMBOL,SYM_SIZE=5,SYM_COLOR=SYM_COLOR,SYM_THICK=4,$
+        SYM_FILLED=SYM_FILLED,/CLOSE      
+        
+  , 'DO_MISSING'
+ENDIF ; IF DO_MISSING GE 1 THEN BEGIN
+; ||||||||||||||||||||||||||||||||||||
+; 
+; 
+;****************************
+IF DO_XLOG GE 1 THEN BEGIN
+;****************************
+PRINT,'NOT WORKING?'
+STOP
+  , 'DO_XLOG'
+  OVERWRITE = DO_XLOG EQ 2 & IF DO_XLOG EQ 3 THEN STOP
+  X = INTERVAL([-3,3],BASE = 10) & Y=X
+  PLT_XY,X,Y,$
+    FILE = !S.IDL_TEMP +'DO_XLOG.PNG',XLOG = 1,$
+        SYMBOL=SYMBOL,SYM_SIZE=5,SYM_COLOR=SYM_COLOR,SYM_THICK=4,$
+        SYM_FILLED=SYM_FILLED,TITLE = 'DO_XLOG',SYM_CLIP=0
+  , 'DO_XLOG'
+ENDIF ; IF DO_XLOG GE 1 THEN BEGIN
+; ||||||||||||||||||||||||||||||||||||
+
+;****************************
+IF DO_YLOG GE 1 THEN BEGIN
+;***************************
+  PRINT,'NOT WORKING?'
+  STOP
+  , 'DO_YLOG'
+  OVERWRITE = DO_YLOG EQ 2 & IF DO_YLOG EQ 3 THEN STOP
+  X = INTERVAL([-3,3],BASE = 10) & Y=X
+  PLT_XY,X,Y,$
+    FILE = !S.IDL_TEMP +'DO_YLOG.PNG',YLOG = 1,$
+    MISSINGX = MISSINGX,$
+    SYMBOL=SYMBOL,SYM_SIZE=5,SYM_COLOR=SYM_COLOR,SYM_THICK=4,$
+    SYM_FILLED=SYM_FILLED,TITLE = 'DO_YLOG',SYM_CLIP=0
+  , 'DO_YLOG'
+ENDIF ; IF DO_YLOG GE 1 THEN BEGIN
+; ||||||||||||||||||||||||||||||||||||
+
+;****************************
+IF DO_XYLOG GE 1 THEN BEGIN
+  ;***************************
+  , 'DO_XYLOG'
+  OVERWRITE = DO_XYLOG EQ 2 & IF DO_XYLOG EQ 3 THEN STOP
+  X = INTERVAL([-3,3],BASE = 10) & Y=X
+  PLT_XY,X,Y,$
+    FILE = !S.IDL_TEMP +'DO_XYLOG.PNG',XLOG = 1,YLOG = 1,$  
+    SYMBOL=SYMBOL,SYM_SIZE=5,SYM_THICK=8,$
+    SYM_FILLED=SYM_FILLED,$
+    TITLE = 'DO_XYLOG',MEAN_SIZE = 53,MEAN_COLOR='RED',SYM_CLIP=0,/REG_ADD,/STATS_ADD
+  , 'DO_XYLOG'
+ENDIF ; IF DO_XYLOG GE 1 THEN BEGIN
+
+
+;******************************
+IF DO_PANEL_PLOT GE 1 THEN BEGIN
+;******************************
+  , 'DO_PANEL_PLOT'
+  IF DO_PANEL_PLOT EQ 3 THEN STOP & OVERWRITE = DO_PANEL_PLOT EQ 2
+ ; W = WINDOW(/BUFFER)
+  W = WINDOW()
+  N = 2
+  ;FFFFFFFFFFFFFFFFFFFFFFFF
+  FOR NUM = 1,N DO BEGIN
+    ;IF NUM EQ 1 THEN POSITION = GET_PANEL(N) ELSE POSITION = GET_PANEL()
+    IF NUM EQ 1 THEN POSITION = GET_PANEL(N,BOT = 0.0) ELSE POSITION = GET_PANEL()
+    IF NUM EQ N THEN POSITION = GET_PANEL(N,BOT = 0.1) ;ELSE POSITION = GET_PANEL()
+
+    P,NUM,ROUNDS(POSITION,3)
+    XY=BIVARIATE(100)
+    FILE = ROUTINE_NAME + '.PNG'
+    PLT_XY,XY.X,XY.Y,$
+           POSITION=POSITION,/CURRENT, OBJ=OBJ,AXES_FONT_SIZE = 5
+           
+    
+  ENDFOR;FOR NUM = 10,100 DO BEGIN 
+  ;FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+  
+  , 'DO_PANEL_PLOT'
+ENDIF;IF DO_PANEL_PLOT GE 1 THEN BEGIN
+; ||||||||||||||||||||||||||||||||||||||||;
+
+;******************************
+IF DO_LAYOUT_PLOT GE 1 THEN BEGIN
+  ;******************************
+  , 'DO_LAYOUT_PLOT'
+  IF DO_LAYOUT_PLOT EQ 3 THEN STOP & OVERWRITE = DO_LAYOUT_PLOT EQ 2
+  ; W = WINDOW(/BUFFER)
+  W = WINDOW()
+  N = 10
+  ;FFFFFFFFFFFFFFFFFFFFFFFF
+  FOR NUM = 1,N DO BEGIN
+    LAYOUT = [1,N,NUM]
+    
+    IF NUM EQ 10 THEN  MARGIN = [0.05,0.5,0.0,0.0] ELSE  MARGIN = [0.05,0,0,0]
+    P,'LAYOUT',LAYOUT
+    XY=BIVARIATE(100)
+    FILE = ROUTINE_NAME + '.PNG'
+    PLT_XY,XY.X,XY.Y,$
+      LAYOUT=LAYOUT,/CURRENT, OBJ=OBJ,AXES_FONT_SIZE = 5,TITLE = 'HELLO',$
+      MARGIN = MARGIN
+
+
+  ENDFOR;FOR NUM = 10,100 DO BEGIN
+  ;FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+
+  , 'DO_LAYOUT_PLOT'
+ENDIF;IF DO_LAYOUT_PLOT GE 1 THEN BEGIN
+; ||||||||||||||||||||||||||||||||||||||||;
+
+
+
+END; #####################  END OF ROUTINE ################################

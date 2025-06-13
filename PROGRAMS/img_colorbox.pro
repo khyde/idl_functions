@@ -1,0 +1,55 @@
+; $ID:	IMG_COLORBOX.PRO,	2020-07-01-12,	USER-KJWH	$
+;###########################################################################################################
+	PRO IMG_COLORBOX,PAL=PAL,TRUE=TRUE,FILE=FILE
+
+;+
+; NAME:
+;		IMG_COLORBOX
+;
+; PURPOSE:
+;		THIS PROCEDURE WILL MAKE A COLOR BOX PNG BY USING COLORBOX.PRO
+;		
+; CATEGORY:
+;		IMG FAMILY
+;
+; CALLING SEQUENCE:IMG_COLORBOX
+;
+; KEYWORD PARAMETERS:
+;		PAL:	NAME OF PALETTE PROGRAM [DEFAULT : PAL_SW3]
+;   TRUE: WRITE A TRUE COLOR IMAGE INSTEAD OF THE DEFAULT 8-BIT PNG
+;   FILE: NAME OF PNGFILE CREATED BY THIS PROGRAM
+; OUTPUTS:
+;		 A COLORBOX PNG
+;
+
+;
+; MODIFICATION HISTORY:
+;			WRITTEN NOV. 2,2009 BY J.O'REILLY
+;			MAR 7,2013,JOR ADDED KEYWORD PAL
+;			MAR 25,2014,JOR:PNGFILE = !S.DIR_TEMP + 'COLORBOX-'+_PAL + '.PNG'
+;     APR 17,2014,JOR, CHANGED DIR TO !S,TEMP
+;                      ADDED KEYWORDS TRUE
+;                      ADDED STRUCT_PRINT
+
+;###########################################################################################################
+;-
+;	******************************
+	ROUTINE_NAME = 'IMG_COLORBOX'
+; ******************************
+	IF N_ELEMENTS(PAL) NE 1 THEN _PAL='PAL_SW3' ELSE _PAL = PAL
+	
+  BOX = 300
+  
+  IMAGE=COLORBOX(BOX,PAL=PAL,/RGB,/NO_NUMBER)
+  IBOX=FIX(BOX)      
+  CALL_PROCEDURE,_PAL,R,G,B
+  IF NONE(TRUE) THEN IM = IMAGE ELSE IM = IMAGE_2TRUE(IMAGE,R,G,B)
+  PRINT,'IMAGE CARACTERISTICS:>>>' & WAIT,1
+  STRUCT_PRINT,SIZEXYZ(IM)
+  IF ANY(TRUE) THEN SUFFIX = '-TRUE' ELSE SUFFIX = ''
+  FILE = !S.IDL_TEMP + ROUTINE_NAME + '-'+_PAL + SUFFIX +'.PNG'
+  WRITE_PNG,FILE,IM,R,G,B
+  PFILE,FILE
+  
+
+END; #####################  END OF ROUTINE ################################

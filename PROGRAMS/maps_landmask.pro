@@ -1,0 +1,157 @@
+; $ID:	MAPS_LANDMASK.PRO,	2021-04-15-17,	USER-KJWH	$
+;+
+;#############################################################################################################
+PRO MAPS_LANDMASK, MAPP, PX=PX, PY=PY, VERBOSE=VERBOSE, OVERWRITE=OVERWRITE
+;
+; PURPOSE: MAKES LANDMASKS IMAGE FILES FROM IDL MAP_CONTINENTS 
+;         
+;
+; CATEGORY: MAPS
+;
+;
+; INPUTS:  MAPP: A STANDARD MAP NAME [E.G. 'NEC']
+
+;
+; OPTIONAL INPUTS:
+;   NONE:
+;
+; KEYWORD PARAMETERS:
+;    PX......... WIDTH IN PIXELS
+;    PY......... HEIGHT IN PIXELS
+;    OVERWRITE.. REPLACE OUTPUT IF IT ALREADY EXISTS
+;           
+; OUTPUTS: 1) LANDMASK_FILE 
+;          2) TOPO_SAV [INTEGER ARRAY WITH POSITIVE=LAND; NEGATIVE = WATER]
+;          3) BATHY_PNG [BROWSE PNG OF THE WATER DEPTHS IN THE MAPP
+;
+; EXAMPLES: 
+;   MAPS_LANDMASK,'NEC',/OVERWRITE;   
+;   MAPS_LANDMASK,'NEC' ; WILL SKIP OVER WHEN OUTPUT FILES ALREADY EXISTS
+;   MAPS_LANDMASK,'EQ_NWA',/OVERWRITE
+;   MAPS_LANDMASK,'ALASKA',/OVERWRITE
+;   MAPS_LANDMASK,'US_ECO',/OVERWRITE
+;   MAPS_LANDMASK,'GEQ'
+;   MAPS_LANDMASK,'NEC',/OVERWRITE
+;   MAPS_LANDMASK,'ALASKA'
+;   MAPS_LANDMASK,'NORTHEAST_US_CONTINENTAL_SHELF_J'
+;   MAPS_LANDMASK,'LME_NORTHEAST_US_CONTINENTAL_SHELF'
+;   MAPS_LANDMASK,'SMI'; THIS WILL READ ALL 33 SRTM FILES
+;   MAPS_LANDMASK,'MOLLWEIDE'; THIS WILL READ ALL 33 SRTM FILES
+;   MAPS_LANDMASK,'NEC2',/OVERWRITE
+;   MAPS_LANDMASK,'RI_SOUND',PX = 240,PY = 240,/OVERWRITE
+;   MAPS_LANDMASK,'NWA',/OVERWRITE,/VERBOSE
+;
+; MODIFICATION HISTORY:;       
+;       APR 01, 2014, WRITTEN BY J.O'REILLY
+;       APR 05, 2014 - JOR:  NOW USING SRTM30PLUS FILES FOR EACH MAP DOMAIN (e.g. w100n40.Bathymetry.srtm)
+;       APR 14, 2014 - JOR:  NOW USING CONTOUR TO DELINEATE COASTLINE FROM DISTRACTING FEATURES ON LAND 
+;       APR 16, 2014 - JOR:  ADDED METHOD KEYWORD
+;                            REVISED PER KIM HYDE [NOW MAKING BATHY_SAVE_FILES]
+;       DEC 08, 2014 - JOR:  CHANGED IMAGE_PXPY TO IMG_XPYP
+;       DEC 09, 2014 - JOR:  POS =POSITIONS('T',OBJ=BYT,ASPECT=ASPECT,_EXTRA=_EXTRA)
+;       DEC 10, 2015 - JOR:  ADDED IMGR TO MAKE BROWSE PNGS OF THE SRTM ITOPO DEPTH ARRAYS
+;       DEC 13, 2015 - JOR:  REARRANGED PROGRAM ELEMENTS IN BETTER ORDER 
+;                            [SO LANDMASK IS MADE EARLIER] TO DELINEATE COASTLINE [1M DEPTHS]
+;       DEC 14, 2015 - JOR:  REMOVED KEY METHOD,STREAMLINED, ADDED PROD [TOPO] TO TOPO_SAV
+;                            AND BATHY TO BATHY_SAV FOR FILE NAME PARSING OF PROD
+;       DEC 16, 2015 - JOR:  STREAMLINED, SIMPLIFIED, FEWER FILES MADE [ONLY NEED TO SAVE THE TOPO FILE,WHICH MAY BE USED FOR BATHY - DEPTH
+;                            NEW DIR FOR TOPO SAV FILES : !S.IDL_TOPO
+;                            REMOVED METHOD KEYWORD
+;       JAN 02, 2016 - JOR:  Replaced MAPS_TOPO with TOPO_MAP
+;       JAN 07, 2015 - KWJH: Formatting
+;       MAR 18, 2016 - JEOR: ; ===> DEFINE THE COAST USING IDL [NOT ITOPO]
+;       MAR 20, 2016 - JEOR: Added function REMOVE_LAKE_BOUNDARIES
+;       MAR 22, 2016 - KJWH: Added VERBOSE keyword
+;                            Updated formatting
+;                            Removed the first WRITE_PNG call because it is not necessary since the image is written again later
+;                            Removed TITLE, ASPECT and BUFFER keywords because they are no longer used in the program
+;       MAR 24, 2016 - KJWH: Updated MAPS_COASTLINE call
+;                            Updated MAPS_LANDMASK_CLEANUP call
+;                            TODO: Make decisions on MAPS_LANDMASK_CLEANUP based on the type of map and resolution      
+;       MAR 28, 2016 - KJWH: Added COAST_THICK_CODE to represent the "thick" coastline removed by MAPS_LANDMASK_CLEANUP        
+;                            Removed '-IDL' from the file name    
+;       DEC 05, 2017 - KJWH: Added functionality to create L3B landmasks from the GS maps     
+;                            *** NOTE, L3B masks are saved as .SAV files because we are not able to create 1D .PNG files   
+;       MAY 30, 2019 - KJWH: Added steps to find the OUT_OF_AREA regions for maps such as ROBINSON and MOLLWEIDE by checking the lons and lats (from MAPS_2LONLAT)
+;                            Added IMGR, FIXED to quickly view the image that is being saved                                 
+;
+;#################################################################################
+;-
+;******************************
+ ROUTINE_NAME  = 'MAPS_LANDMASK'
+;******************************
+
+;#####     CONSTANTS     #####
+  PAL_LANDMASK, R,G,B
+
+; ===> CODES IN THE LANDMASK [ NOT USING 3 & 4]
+  OCEAN_CODE          = 0
+  COAST_CODE          = 1
+  COAST_THICK_CODE    = 2
+  LAND_CODE           = 3
+  LAKE_CODE           = 4
+  LAKESIDE_CODE       = 5
+  SMALL_LAKE_CODE     = 6
+  SMALL_LAKESIDE_CODE = 7
+  OUT_OF_AREA_CODE    = 8
+
+  MP = STRUPCASE(MAPP)  
+
+; ===> CHECK IF FILE IS L3B MAP AND GET GS PAIR
+  IF IS_L3B(MAPP) THEN GS = MAPS_L3B_GET_GS(MAPP) ELSE GS = []  
+  IF KEY(GS) THEN MP = GS
+  
+; ===> GET MAP INFO 
+  SZ = MAPS_SIZE(MP)
+  IF NONE(PX) THEN PX=SZ.PX
+  IF NONE(PY) THEN PY=SZ.PY
+  
+; ===> MAKE THE LANDMASK_FILE NAME 
+  LANDMASK_FILE = !S.LANDMASKS +'MASK_LAND-' +MP+'-PXY_'+ROUNDS(PX)+'_'+ROUNDS(PY)+'.PNG'
+  IF KEY(GS) THEN BEGIN
+    LSZ = MAPS_SIZE(MAPP,PX=LPX,PY=LPY)
+    LANDMASK_FILE = !S.LANDMASKS +'MASK_LAND-' +MAPP+'-PXY_'+ROUNDS(LPX)+'_'+ROUNDS(LPY)+'.SAV'
+  ENDIF
+  
+; ===> SKIP THIS MAPP IF OUTPUT ALREADY EXISTS  
+  IF FILE_TEST(LANDMASK_FILE) EQ 1 AND NOT KEY(OVERWRITE) THEN BEGIN
+    IF KEY(VERBOSE) THEN PFILE,LANDMASK_FILE,/K
+    GOTO, DONE ; >>>>>>>>>
+  ENDIF;  IF FILE_TEST(LANDMASK_FILE) EQ 1 AND NONE(OVERWRITE)THEN BEGIN
+
+;###################################################################################
+
+; ===> DEFINE THE COAST USING IDL METHOD       
+  MAPS_SET, MP, PX=PX,PY=PY,BKG_COLOR=OCEAN_CODE
+    MAPS_COASTLINE,'FULL',/ADD_LAND,/ADD_COAST,/ADD_LAKES,/ADD_LAKE_SIDE,/ADD_SMALL_LAKES,/ADD_SMALL_LAKE_SIDE
+    MASK = TVRD()
+  ZWIN
+
+;===> FIX THE COASTLINE USING KIM'S ROUTINE
+  FIXED = MAPS_LANDMASK_CLEANUP(MASK)
+
+; ===> FIND ANY PIXELS OUTSIDE OF THE ACTUAL MAP AREA
+  LL = MAPS_2LONLAT(MP, LATS=LATS, LONS=LONS)
+  OK = WHERE(FINITE(LATS) EQ 0 AND FINITE(LONS) EQ 0,COUNT)
+  IF COUNT GE 1 THEN BEGIN
+    FIXED[OK] = OUT_OF_AREA_CODE
+  ENDIF
+
+; ===> CONVERT GS MAP BACK TO L3B
+  IF KEY(GS) THEN BEGIN
+    FIXED = MAPS_L3BGS_SWAP(FIXED)
+    SAVE, FIXED, FILENAME=LANDMASK_FILE
+    PFILE, LANDMASK_FILE
+    GOTO, DONE
+  ENDIF
+  
+; ===> WRITE LANDMASK_FILE
+  I = IMAGE(FIXED,RGB_TABLE=CPAL_READ('PAL_LANDMASK'))
+  WAIT, 10
+  I. CLOSE
+  WRITE_PNG,LANDMASK_FILE,FIXED,R,G,B 
+  PFILE, LANDMASK_FILE
+  
+  DONE:
+  
+END; #####################  END OF ROUTINE ################################

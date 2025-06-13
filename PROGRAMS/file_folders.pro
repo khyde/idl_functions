@@ -1,0 +1,63 @@
+; $ID:	FILE_FOLDERS.PRO,	2020-06-30-17,	USER-KJWH	$
+;##########################################################################
+ FUNCTION FILE_FOLDERS, PATH, FOLDERS=FOLDERS
+;+
+; NAME:
+;       FILE_FOLDERS
+;
+; PURPOSE:
+;		  MAKE FOLDER AND SUBFOLDERS AND RETURN A STRUCTURE WITH THE PATHS FOR SUBFOLDERS
+; EXAMPLE:
+;         DIRS=FILE_FOLDERS(!S.MAIN + 'JUNK\',FOLDERS = 'JUNKY') & ST,DIRS
+;         DIRS=FILE_FOLDERS(!S.DATASETS + 'JUNK\',FOLDERS = 'SAV') & ST,DIRS
+
+
+; KEYWORDS: 
+;   FOLDERS NAMES OF FOLDERS TO MAKE UNDER THE PATH E.G. FOLDERS =['DATA','PLOTS','SAVE']
+;   
+; MODIFICATION HISTORY:
+;       WRITTEN BY:  J.E.O'REILLY  NOV 9, 2006
+;##########################################################################
+;-
+;***************************
+ROUTINE_NAME='FILE_FOLDERS'
+;***************************
+;===> DEFAULTS:
+SUB_FOLDERS = ['DATA','PLOTS','SAVE']
+
+IF NONE(PATH) THEN  MESSAGE,'ERROR: MUST PROVIDE PATH'	
+; >>> ENSURE A PATH DELITER AT THE END OF PATH
+DELIM = PATH_SEP()
+;  ADD DELIM TO PATH IF MISSING
+PATH=  PATH+DELIM
+
+; >>> NOW REMOVE 2 OCCURANCES OF DELIM (IF PRESENT)
+PATH= REPLACE(PATH,DELIM+DELIM,DELIM)
+	
+; >>> ENSURE THERE ARE NO DUPLICATE FOLDER NAMES  
+  IF ANY(FOLDERS) THEN BEGIN
+    ALL_FOLDERS = [FOLDERS, SUB_FOLDERS]
+    S=SORT(ALL_FOLDERS)
+    ALL_FOLDERS = ALL_FOLDERS(S)
+    U=UNIQ(ALL_FOLDERS)
+    ALL_FOLDERS= ALL_FOLDERS(U)
+    SUB_FOLDERS = ALL_FOLDERS
+  ENDIF ELSE BEGIN
+  ENDELSE ;IF ANY(FOLDERS) THEN BEGIN
+
+  FOLDERS = PATH+SUB_FOLDERS+DELIM
+
+; *********************************************
+; ******** M A K E    F O L D E R S   *********
+; *********************************************
+  ALL = CREATE_STRUCT('PATH',PATH)
+  FOR NTH = 0,N_ELEMENTS(FOLDERS)-1 DO BEGIN
+    AFOLDER= FOLDERS[NTH]
+    IF FILE_TEST(AFOLDER,/DIRECTORY) EQ 0L THEN FILE_MKDIR,AFOLDER
+    ALL =  CREATE_STRUCT(ALL,SUB_FOLDERS[NTH],FOLDERS[NTH])
+  ENDFOR
+
+RETURN,ALL
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+END; #####################  END OF ROUTINE ################################

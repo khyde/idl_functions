@@ -1,0 +1,266 @@
+; $ID:	SATSHIP_MATCHUP.PRO,	2020-06-30-17,	USER-KJWH	$
+
+FUNCTION SATSHIP_MATCHUP, SATFILE=SATFILE,SATPRODS=SATPRODS,SHIPFILE=SHIPFILE,SHIPPRODS=SHIPPRODS,ANCPRODS=ANC_PRODS,MATCHUP_TIME_DIF=MATCHUP_TIME_DIF,$
+                          MIN_SURF_DEPTH=MIN_SURF_DEPTH, MIN_PIX_PER=MIN_PIX_PER, MIN_STD=MIN_STD, SKIP_STATS=SKIP_STATS, ERROR=ERROR,ERR_MSG=ERR_MSG
+
+;+
+;NAME:
+;   SATSHIP_MATCHUP.PRO
+;
+; PURPOSE:
+;   Routine to MATCHUP the SHIP and SAT data and generate stats if AROUND > 0
+;    
+; CATEGORY:
+;   SATSHIP
+;
+; CALLING SEQUENCE:
+;  SATPROD = SATSHIP_MATCHUP(SHIPFILE=SHIPFILE, SATFILE=SATFILE, SATPROD, SHIPPROD) 
+;  
+; INPUTS:
+;   SHIPFILE    = SHIPDATA to match up with the extracted satellite data
+;   SATFILE     = Extracted SATDATA
+;   SATPRODS    = PROD and ALG of satellite data to match-up with ship data
+;   SHIPPRODS   = SHIPDATA product to match-up with the SATDATA products
+;
+; OPTIONAL INPUTS:
+;   ANCPRODS       = ANCILLARY products to include in output
+;   MIN_SURF_DEPTH = Minimum depth to be considered a surface value
+;   MIN_PIX_PER    = Minimum percent number of pixels to calculate the complete match-up statistics (Bailey & Werdell, 2006 use minimum of 50%)
+;   MIN_STD        = Minimum standard deviation a value must be within to be considered for the statistics (Baily & Werdell, 2006 use +/- 1.5)
+;
+; KEYWORD PARAMETERS:
+;   SKIP_STATS...... Keyword to skip adding the STAT variables to the structure
+;
+; OUTPUTS:
+;   This function returns a structure with satellite data products
+;   
+; OPTIONAL OUTPUTS:
+;   ERROR
+;   ERR_MSG
+;
+; EXAMPLE:
+;   
+; NOTES:
+;   See Bailey & Werdell, 2006 for published match-up "rules"
+;
+; MODIFICATION HISTORY:
+;   Written May 12, 2015 by K.J.W.Hyde, 28 Tarzwell Drive, NMFS, NOAA 02882 (kimberly.hyde@noaa.gov)
+;   Modification History
+;           
+;                                
+;-
+; *************************************************************************
+
+  ROUTINE_NAME='SATSHIP_MATCHUP'
+  DASH = DELIMITER(/DASH)
+  UL = DELIMITER(/UL)
+  ERROR = 0
+  ERR_MSG = []
+
+  IF NONE(MIN_PIX_PER)      THEN MIN_PIX_PER      = .5       ; Must have 50% of valid pixels to be considered for the overall match-up statistics
+  IF NONE(MIN_SURF_DEPTH)   THEN MIN_SURF_DEPTH   = 5        ; If MIN(PROFILE_DETPH) is > 5, it is not considered to be a "surface" value
+  IF NONE(MATCHUP_TIME_DIF) THEN MATCHUP_TIME_DIF = [3.,6.,12.] ; Time difference for final MATCHUP stats
+  
+; ===> Read SATFILE
+  IF NONE(SATFILE) THEN SATFILE = DIALOG_PICKFILE(TITLE='Pick save files') 
+  SATDATA = IDL_RESTORE(SATFILE)  
+  SATTAGS = TAG_NAMES(SATDATA)
+  AROUND  = SATDATA[0].SAT_AROUND
+  ASIZE = (AROUND * 2 ) + 1
+  MIN_GOOD = ASIZE * ASIZE * MIN_PIX_PER
+  LA = LONARR(ASIZE,ASIZE) & LA(*,*) = MISSINGS(LA)
+  FA = FLTARR(ASIZE,ASIZE) & FA(*,*) = MISSINGS(FA)
+
+; ===> Read SHIPFILE
+  SHIPDATA = READALL(SHIPFILE)
+  OUTSTRUCT = CREATE_STRUCT('SHIPFILE',SHIPFILE,'SATFILE',SATFILE)
+  ANCSTRUCT = []
+  IF KEY(ANCPRODS) THEN BEGIN
+    FOR A=0, N_ELEMENTS(ANCPRODS)-1 DO ANCSTRUCT=STRUCT_MERGE(ANCSTRUCT,CREATE_STRUCT(ANCPRODS[N],0.0))
+  ENDIF ELSE ANCPRODS = []
+   
+  FOR N=0, N_ELEMENTS(SATPRODS)-1 DO BEGIN
+    IF KEYWORD_SET(SKIP_STATS) THEN $
+      MSTATS = CREATE_STRUCT('SHIP_PROD','','SAT_PROD','','N',0L,'TIME_DIF_MAX',0.0) ELSE $
+      MSTATS = CREATE_STRUCT('SHIP_PROD','','SAT_PROD','','N',0L,'TIME_DIF_MAX',0.0,'SLOPE',0.0,'RSQR',0.0,'MED_RATIO',0.0,'MAPD',0.0,'RMSE',0.0,'PERCENT_BIAS',0.0,'PERCENTILE_25',0.0,'PERCENTILE_75',0.0,'SIQR',0.0,$
+                                                                                    'LOG10_SLOPE', 0.0,'LOG10_RSQ', 0.0,'LOG10_RMSE',0.0,'LOG10_PER_BIAS',0.0,$
+                                                                                    'GSLOPE',0.0,'GRSQR',0.0,'MED_GRATIO',0.0,'GMAPD',0.0,'GRMSE',0.0,'GPERCENT_BIAS',0.0,'GPERCENTILE_25',0.0,'GPERCENTILE_75',0.0,'GSIQR',0.0,$
+                                                                                    'LOG10_GSLOPE',0.0,'LOG10_GRSQ',0.0,'LOG10_GRMSE',0.0,'LOG10_GPER_BIAS',0.0)
+    IF KEYWORD_SET(SKIP_STATS) THEN MSTATS = STRUCT_2MISSINGS(MSTATS) ELSE MSTATS = REPLICATE(STRUCT_2MISSINGS(MSTATS),N_ELEMENTS(MATCHUP_TIME_DIF))
+
+    SPROD = SATPRODS[N]
+    IPROD = SHIPPRODS[N]
+    ITAG  = WHERE(TAG_NAMES(SHIPDATA) EQ IPROD)
+    STAG0 = WHERE(TAG_NAMES(SATDATA)  EQ 'SAT_CENTER_'+SPROD)
+    STAG  = WHERE(TAG_NAMES(SATDATA)  EQ 'SAT_'       +SPROD)
+    IF MIN([ITAG,STAG0,STAG]) EQ -1 THEN BEGIN
+      MESSAGE, 'ERROR: Product tag not found in ship or sat data structure'
+    ENDIF
+        
+    OUT_TAG = SPROD + '_' + IPROD
+    IF KEYWORD_SET(SKIP_STATS) THEN $
+      TEMP = CREATE_STRUCT('CRUISE','','STATION','','SAMPLE_ID','','SHIPPROD','','SATPROD','','SENSOR','',$
+      'SHIPDATE','','SATDATE','','TIME_DIF_HR',0.0,'SHIP_DEPTH',0.0,'SURFACE_DEPTH',0.0,'SHIP_BOTTOM',0.0,$
+      'SHIP_LAT',0.0,'SHIP_LON',0.0,'SAT_LAT_0',0.0,'SAT_LON_0',0.0,'DISTANCE_METERS',0.0,'SAT_LATS','','SAT_LONS','',$
+      'PIXEL_DIMS','','AVG_PIXEL_SIZE',0.0,'SAT_PIXEL_AREA',0.0,'SHIPDATA',0.0,'SATDATA_0',0.0,'SATDATA','','N',0L) ELSE $
+      TEMP = CREATE_STRUCT('CRUISE','','STATION','','SAMPLE_ID','','SHIPPROD','','SATPROD','','SENSOR','','N',0L,$
+                           'SHIPDATE','','SATDATE','','TIME_DIF_HR',0.0,'SHIP_DEPTH',0.0,'SURFACE_DEPTH',0.0,'SHIP_BOTTOM',0.0,$
+                           'SHIP_LAT',0.0,'SHIP_LON',0.0,'SAT_LAT_0',0.0,'SAT_LON_0',0.0,'DISTANCE_METERS',0.0,'SAT_LATS','','SAT_LONS','',$
+                           'PIXEL_DIMS','','AVG_PIXEL_SIZE',0.0,'SAT_PIXEL_AREA',0.0,'SHIPDATA',0.0,'SATDATA_0',0.0,'SATDATA','',$
+                           'MEDIAN',0.0,'RATIO', 0.0,'MEAN', 0.0,'FILTER_MEAN', 0.0,'STD', 0.0,'CV', 0.0,'MEAN_DIF', 0.0,'RPD', 0.0,'APD', 0.0,$
+                                        'GRATIO',0.0,'GMEAN',0.0,'FILTER_GMEAN',0.0,'GSTD',0.0,'GCV',0.0,'GMEAN_DIF',0.0,'GRPD',0.0,'GAPD',0.0)
+    IF ANCSTRUCT NE [] THEN TEMP = STRUCT_MERGE(TEMP,ANCSTRUCT)
+    TEMP = STRUCT_2MISSINGS(TEMP)
+    TEMP.SHIPPROD        = IPROD
+    TEMP.SATPROD         = SPROD
+    IF IPROD EQ SPROD THEN OUTPROD = SPROD ELSE OUTPROD = SPROD+'_'+IPROD
+    
+    IF HAS(SHIPDATA,'STATION') EQ 0 THEN BEGIN
+      SHIPDATA = STRUCT_MERGE(SHIPDATA,REPLICATE(CREATE_STRUCT('STATION',''),N_ELEMENTS(SHIPDATA)))
+      SATDATA.STATION = ''
+    ENDIF
+    IF HAS(SHIPDATA,'DEPTH') EQ 0 THEN BEGIN
+      SHIPDATA = STRUCT_MERGE(SHIPDATA,REPLICATE(CREATE_STRUCT('DEPTH',0.0),N_ELEMENTS(SHIPDATA)))
+      SATDATA.STATION = 0.0
+    ENDIF
+    OK = WHERE(FLOAT(SATDATA.STATION) EQ 0.0,COUNT)
+    IF COUNT GT 1 THEN SATDATA[OK].STATION = ''
+    SID = NUM2STR(SATDATA.SHIP_DATE) + '_' + NUM2STR(SATDATA.STATION)
+    BSETS = WHERE_SETS(NUM2STR(STRMID(SHIPDATA.DATE,0,12))+'_'+NUM2STR(SHIPDATA.LAT)+'_'+NUM2STR(SHIPDATA.LON)+'_'+SHIPDATA.CRUISE+'_'+SHIPDATA.STATION)
+    STRUCT = []
+    FOR S=0, N_ELEMENTS(BSETS)-1 DO BEGIN
+      SUBS = WHERE_SETS_SUBS(BSETS(S))
+      SHIPSUBS = SHIPDATA(SUBS)
+      SHIPSUBS = SHIPSUBS[SORT(FLOAT(SHIPSUBS.DEPTH))]                  ; Sort based on depth
+      DEPTH = FLOAT(SHIPSUBS.DEPTH)                
+      IF MIN(DEPTH) GT 10.0 THEN CONTINUE                               ; Skip if min depth is greater than 10.0 (can narrow down the min depth parameters later)
+      OK = WHERE(SHIPSUBS.(ITAG) NE MISSINGS(SHIPSUBS.(ITAG)),COUNT)    ; Remove any missing data
+      IF COUNT EQ 0 THEN CONTINUE                                       ; If all data re missing, then skip
+      SHIPSUBS = SHIPSUBS[OK]                                           ; Subset based on non missing data
+      SHIPID = NUM2STR(SHIPSUBS.DATE)+'_'+SHIPSUBS.STATION
+      OK = WHERE_MATCH(SHIPID,SID,COUNT,VALID=VALID)                    ; Find matching satellite IDs
+      IF COUNT EQ 0 THEN CONTINUE                                       ; If no matching satellite IDs are found, skip
+      FOR V=0, COUNT-1 DO BEGIN                                         ; Loop through matching satellite IDs (can have multiple sensors and multiple days depending on the time window)
+        SAT = SATDATA(VALID[V])
+        STR = REPLICATE(TEMP,N_ELEMENTS(SHIPSUBS))
+        STR.CRUISE           = SHIPSUBS.CRUISE
+        STR.STATION          = SHIPSUBS.STATION
+    ;    STR.SAMPLE_ID        = SHIPSUBS.SAMPLE_ID
+        STR.SHIP_DEPTH       = FLOAT(SHIPSUBS.DEPTH)
+    ;    STR.SHIP_BOTTOM      = FLOAT(SHIPSUBS.WATER_DEPTH)
+        STR[0].SURFACE_DEPTH = STR(FIRST([WHERE(STR.SHIP_DEPTH EQ MIN(STR.SHIP_DEPTH))])).SHIP_DEPTH
+        STR.SENSOR           = SAT.SENSOR
+        STR.SHIPDATE         = SAT.SHIP_DATE
+        STR.SATDATE          = SAT.SAT_DATE
+        STR.TIME_DIF_HR      = SAT.TIME_DIF_HOURS
+        STR.SHIP_LAT         = SAT.SHIP_LAT
+        STR.SHIP_LON         = SAT.SHIP_LON
+        STR.SAT_LAT_0        = SAT.SAT_LAT_0
+        STR.SAT_LON_0        = SAT.SAT_LON_0
+        STR.PIXEL_DIMS       = NUM2STR(ASIZE)+'X'+NUM2STR(ASIZE)
+        STR.AVG_PIXEL_SIZE   = 0.0  ; Need to determine how to calculate the pixel size
+        STR.SAT_PIXEL_AREA   = 0.0  ; Need to determine how to calculate the pixel area
+        FOR A=0, N_ELEMENTS(ANCPRODS)-1 DO BEGIN
+          POS = WHERE(TAG_NAMES(STR) EQ ANCPRODS(A))
+          SPOS = WHERE(TAG_NAMES(SAT) EQ ANCPRODS(A))
+          STR.(POS) = SAT.(POS)
+        ENDFOR   
+      
+        SDATA = SAT.(STAG)
+        VDATA = SDATA[WHERE(SDATA NE MISSINGS(SDATA),/NULL,COUNT_GOOD)] ; Find valid SAT data
+        STR.N         = COUNT_GOOD
+        IF VDATA NE [] THEN BEGIN
+        
+          STR.DISTANCE_METERS = MAP_2POINTS(SAT.SHIP_LON,SAT.SHIP_LAT,SAT.SAT_LON_0,SAT.SAT_LAT_0,/METERS)
+          STR.SAT_LATS        = STRJOIN(REFORM(ROUNDS(SAT.SAT_LAT,4),N_ELEMENTS(SAT.SAT_LAT)),';')
+          STR.SAT_LONS        = STRJOIN(REFORM(ROUNDS(SAT.SAT_LON,4),N_ELEMENTS(SAT.SAT_LAT)),';')
+          
+          STR.SHIPDATA  = FLOAT(SHIPSUBS.(ITAG))
+          STR.SATDATA_0 = SAT.(STAG0) 
+          STR.SATDATA   = STRJOIN(REFORM(ROUNDS(SDATA,4),N_ELEMENTS(SDATA)),';')
+          IF COUNT_GOOD GT 1 AND ~KEYWORD_SET(SKIP_STATS) THEN BEGIN
+            SSTATS        = STATS(VDATA,/QUIET)
+            STR.MEDIAN    = SSTATS.MED
+            STR.RATIO     = SSTATS.MEAN/STR.SHIPDATA
+            STR.MEAN      = SSTATS.MEAN
+            STR.STD       = SSTATS.STD
+            STR.CV        = SSTATS.CV
+            STR.MEAN_DIF  = STR.SHIPDATA-STR.MEAN
+            STR.RPD       = ((SSTATS.MEAN-STR.SHIPDATA)/STR.SHIPDATA)*100
+            STR.APD       = ABS(STR.RPD)
+            OK = WHERE(VDATA GE (1.5*SSTATS.STD)-SSTATS.MEAN AND VDATA LE (1.5*SSTATS.STD)+SSTATS.MEAN,COUNT)
+            IF COUNT GE 1 THEN STR.FILTER_MEAN = MEAN(VDATA[OK])
+    
+          ; GEOMETRIC STATS  
+            STR.GMEAN     = SSTATS.GMEAN
+            STR.GRATIO    = SSTATS.GMEAN/STR.SHIPDATA
+            STR.GSTD      = SSTATS.GSTD
+            STR.GCV       = SSTATS.GCV
+            STR.GMEAN_DIF = STR.SHIPDATA-STR.GMEAN
+            STR.GRPD      = ((SSTATS.GMEAN-STR.SHIPDATA)/STR.SHIPDATA)*100
+            STR.GAPD      = ABS(STR.GRPD)
+            OK = WHERE(VDATA GE (1.5*SSTATS.GSTD)-SSTATS.GMEAN AND VDATA LE (1.5*SSTATS.GSTD)+SSTATS.GMEAN,COUNT)
+            IF COUNT GE 1 THEN STR.FILTER_GMEAN = GEOMEAN(VDATA[OK])
+          ENDIF
+        ENDIF  
+        IF STRUCT EQ [] THEN STRUCT = STR ELSE STRUCT = [STRUCT,STR] ; STRUCT_CONCAT(STRUCT,STR)
+      ENDFOR
+    ENDFOR
+    IF HAS(STRUCT,'SURFACE_DEPTH') THEN BEGIN
+      OK = WHERE(STRUCT.SURFACE_DEPTH GT MIN_SURF_DEPTH,COUNT)
+      IF COUNT GE 1 THEN STRUCT[OK].SURFACE_DEPTH = MISSINGS(0.0)
+    ENDIF
+    OUTSTRUCT = STRUCT_MERGE(OUTSTRUCT,CREATE_STRUCT(OUTPROD,STRUCT))
+    
+    IF ~KEYWORD_SET(SKIP_STATS) THEN BEGIN
+      FOR T=0, N_ELEMENTS(MATCHUP_TIME_DIF)-1 DO BEGIN
+        OK = WHERE(STRUCT.SHIPDATA NE MISSINGS(0.0) AND STRUCT.N GE MIN_GOOD AND STRUCT.TIME_DIF_HR LE MATCHUP_TIME_DIF(T) AND STRUCT.SURFACE_DEPTH NE MISSINGS(0.0),COUNT_GOOD)
+        GOOD    = STRUCT[OK]
+        SSTATS  = STATS2(GOOD.SHIPDATA,GOOD.MEAN,MODEL='RMA')
+        GSTATS  = STATS2(GOOD.SHIPDATA,GOOD.GMEAN,MODEL='RMA')
+        LSTATS  = STATS2(ALOG10(GOOD.SHIPDATA),ALOG10(GOOD.MEAN),MODEL='RMA')
+        LGSTATS = STATS2(ALOG10(GOOD.SHIPDATA),ALOG10(GOOD.GMEAN),MODEL='RMA')
+        
+        MSTATS[T].SHIP_PROD      = IPROD
+        MSTATS[T].SAT_PROD       = SPROD
+        MSTATS[T].N              = COUNT_GOOD
+        MSTATS[T].TIME_DIF_MAX   = MATCHUP_TIME_DIF(T)
+        IF COUNT_GOOD EQ 0 THEN CONTINUE
+        MSTATS[T].SLOPE           = SSTATS.SLOPE
+        MSTATS[T].RSQR            = SSTATS.RSQ
+        MSTATS[T].MED_RATIO       = MEDIAN(GOOD.RATIO)
+        MSTATS[T].MAPD            = MEDIAN(GOOD.APD)
+        MSTATS[T].RMSE            = RMSE(GOOD.SHIPDATA,GOOD.MEAN)
+        MSTATS[T].PERCENT_BIAS    = ((TOTAL(GOOD.MEAN-GOOD.SHIPDATA)/COUNT_GOOD)/MEAN(GOOD.SHIPDATA))*100
+        MSTATS[T].PERCENTILE_25   = PERCENTILE(GOOD.MEAN/GOOD.SHIPDATA,PERCENT=25)
+        MSTATS[T].PERCENTILE_75   = PERCENTILE(GOOD.MEAN/GOOD.SHIPDATA,PERCENT=75)
+        MSTATS[T].SIQR            = (MSTATS[T].PERCENTILE_75-MSTATS[T].PERCENTILE_25)/2
+        
+        MSTATS[T].LOG10_SLOPE     = LSTATS.SLOPE
+        MSTATS[T].LOG10_RSQ       = LSTATS.RSQ
+        MSTATS[T].LOG10_RMSE      = LSTATS.RMSE
+        MSTATS[T].LOG10_PER_BIAS  = LSTATS.PER_BIAS
+        
+        MSTATS[T].GSLOPE          = GSTATS.SLOPE
+        MSTATS[T].GRSQR           = GSTATS.RSQ
+        MSTATS[T].MED_GRATIO      = MEDIAN(GOOD.GRATIO)
+        MSTATS[T].GMAPD           = MEDIAN(GOOD.GAPD)
+        MSTATS[T].GRMSE           = RMSE(GOOD.SHIPDATA,GOOD.GMEAN)
+        MSTATS[T].GPERCENT_BIAS   = ((TOTAL(GOOD.GMEAN-GOOD.SHIPDATA)/COUNT_GOOD)/GEOMEAN(GOOD.SHIPDATA))*100
+        MSTATS[T].GPERCENTILE_25  = PERCENTILE(GOOD.GMEAN/GOOD.SHIPDATA,PERCENT=25)
+        MSTATS[T].GPERCENTILE_75  = PERCENTILE(GOOD.GMEAN/GOOD.SHIPDATA,PERCENT=75)
+        MSTATS[T].GSIQR           = (MSTATS[T].GPERCENTILE_75-MSTATS[T].GPERCENTILE_25)/2
+  
+        MSTATS[T].LOG10_GSLOPE    = LGSTATS.SLOPE
+        MSTATS[T].LOG10_GRSQ      = LGSTATS.RSQ
+        MSTATS[T].LOG10_GRMSE     = LSTATS.RMSE
+        MSTATS[T].LOG10_GPER_BIAS = LSTATS.PER_BIAS
+  
+      ENDFOR  
+    ENDIF             
+    IF N EQ 0 THEN MSTRUCT = MSTATS ELSE MSTRUCT = [MSTRUCT,MSTATS] ; STRUCT_CONCAT(MSTRUCT,MSTATS)
+  ENDFOR
+  
+  RETURN, STRUCT_MERGE(OUTSTRUCT,CREATE_STRUCT('MATCHUP_STATS',MSTRUCT))
+  DONE:
+END; #####################  End of Routine ################################

@@ -1,0 +1,65 @@
+; $ID:	WHERE_STRUCT_MISS.PRO,	2020-07-01-12,	USER-KJWH	$
+;+
+;#############################################################################################################
+	FUNCTION WHERE_STRUCT_MISS,STRUCT,COUNT
+
+;
+; PURPOSE:  EVALUATE ALL TAGS IN A STRUCTURE FOR ANY THAT ARE NOT FINITE 
+;
+; CATEGORY:	STRUCT
+;
+; CALLING SEQUENCE: WHERE_STRUCT_MISS,STRUCT
+;
+; INPUTS: STRUCT A STRUCTURE ARRAY
+;         
+;		
+; OPTIONAL INPUTS:
+;		NONE:	
+;		
+; KEYWORD PARAMETERS:  OUT OUTPUT FILE NAME [USUALLY  A CSV]
+;		
+
+; OUTPUTS: SUBSCRIPTS WHERE ANY OF THE TAGS IN THE STRUCT ARE MISSING
+; 
+; EXAMPLES: 
+; 
+;
+; MODIFICATION HISTORY:
+;			SEP 21,2014,  WRITTEN BY J.O'REILLY 
+;			
+;			
+;			
+;#################################################################################
+;-
+;*********************************
+ROUTINE_NAME  = 'WHERE_STRUCT_MISS'
+;*********************************
+
+TAGNAMES  = TAG_NAMES(STRUCT)
+
+SUBS = -1L
+;*************************************
+FOR TAG = 0,N_TAGS(STRUCT)-1 DO BEGIN
+;*************************************
+  NAME = TAGNAMES(TAG)
+  PFILE,NAME,/R
+  DATA = STRUCT.(TAG)
+  IF IDLTYPE(DATA) NE 'STRING' THEN BEGIN
+    OK = WHERE(FINITE(DATA) EQ 0 OR DATA EQ MISSINGS(DATA),COUNT) 
+  ENDIF ELSE BEGIN
+    OK = WHERE(DATA EQ MISSINGS(DATA) OR DATA EQ 'NaN',COUNT)
+  ENDELSE;IF IDLTYPE(DATA) NE 'STRING' THEN BEGIN
+    
+  IF COUNT GE 1 THEN SUBS = [SUBS,OK]
+  ENDFOR;FOR TAG = 0,N_TAGS(STRUCT)-1 DO BEGIN
+  ;FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+  SUBS = SUBS(1:*)
+  IF SAME(SUBS) THEN SUBS = FIRST(SUBS)
+  ;===> GET UNIQUE SUBSCRIPTS [FOR EACH RECORD/ROW]
+  SUBS = SUBS(UNIQUE(SORT(SUBS)))
+ COUNT = N_ELEMENTS(SUBS)
+ RETURN,SUBS
+
+
+
+END; #####################  END OF ROUTINE ################################

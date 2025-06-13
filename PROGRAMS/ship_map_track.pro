@@ -1,0 +1,88 @@
+; $ID:	SHIP_MAP_TRACK.PRO,	2020-06-26-15,	USER-KJWH	$
+
+function ship_map_track, lonD,latD,DATA, MAP=MAP, PAL=pal, _EXTRA=_extra
+;+
+; NAME:
+;       ship_map_track
+;
+; PURPOSE:
+;
+;
+; CATEGORY:
+;
+;
+; CALLING SEQUENCE:
+;       ship_map_track(LOND,LATD,DATA)
+;
+; INPUTS:
+;
+;
+; KEYWORD PARAMETERS:
+;
+; OUTPUTS:
+;
+; SIDE EFFECTS:
+;       None.
+;
+; RESTRICTIONS:
+;       None.
+;
+; PROCEDURE:
+;       Straightforward.
+;
+; MODIFICATION HISTORY:
+;       Adopted from map_track.pro ,  T.Ducas Aug30,2001
+;-
+
+
+  IF N_ELEMENTS(MAP) NE 1 THEN MAP='NEC'
+  IF N_ELEMENTS(PAL) NE 1 THEN PAL='PAL_SW3'
+
+  IF N_ELEMENTS(LOND) LT 1 THEN RETURN, -1L
+  IF N_ELEMENTS(LATD) LT 1 THEN RETURN, -1L
+
+  ok = WHERE(DATA NE MISSINGS(DATA),COUNT)
+  IF COUNT GE 1 THEN BEGIN
+  LOND=LOND[OK]
+  LATD=LATD[OK]
+  DATA=DATA[OK]
+  IF N_ELEMENTS(RANGE) NE 2 THEN RANGE = [MIN(DATA),MAX(DATA)]
+  ; ==============>
+; If data provided then make a ribbon rainbow plot
+  IF N_ELEMENTS(DATA) EQ 0 THEN COLORS= 0
+  IF N_ELEMENTS(DATA) EQ 1 THEN COLORS = scale([0.,DATA], [1,249.])
+  ;IF N_ELEMENTS(DATA) GT 1 THEN COLORS = scale(ALOG10(DATA), [1,250.])
+  ;IF N_ELEMENTS(DATA) GT 1 THEN COLORS= BYTSCL(ALOG10(DATA),TOP=249)
+  ;IF N_ELEMENTS(DATA) GT 1 THEN COLORS= BYTSCL((DATA),TOP=249)
+   IF N_ELEMENTS(DATA) GT 1 THEN COLORS= BYTSCL(ALOG10(DATA),TOP=249)
+  ;  IF N_ELEMENTS(DATA) GT 1 THEN COLORS= BYTSCL((DATA),TOP=249)
+
+  ZWIN,[1024,1024]
+  A=EXECUTE(PAL)
+  SETCOLOR,255
+  ERASE,255
+  CMD = 'MAP_'+MAP
+  A=EXECUTE(CMD)
+  MAP_CONTINENTS,/HIRES,/COAST,COLOR=0,THICK=1
+   PLOTS, LOND,LATD,COLOR=COLORS,psym=1,symsize=0.5,thick=1,_EXTRA=_extra
+  IMAGE=TVRD()
+  ZWIN
+
+
+;  LEG = LEGEND(px=512,py=128,charsize=2.0,/whole,BACKGROUND=255,pos=[.04,.1,.96,.23],$
+ ;                xtitle=NAME, minval = MIN(ALOG10(DATA)), maxval=MAX(ALOG10(DATA)),$
+ ;                MINCOLOR=1,maxcolor=249,$
+ ;                PAL='PAL_SW3')
+;
+;
+ ; IMAGE(2,870)=LEG
+
+
+  RETURN,IMAGE
+  ENDIF ELSE RETURN, -1L
+
+
+
+
+
+  END; OF PROGRAM

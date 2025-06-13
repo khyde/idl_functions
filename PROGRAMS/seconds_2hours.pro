@@ -1,0 +1,57 @@
+; $ID:	SECONDS_2HOURS.PRO,	2020-07-01-12,	USER-KJWH	$
+;#############################################################################################################
+	FUNCTION SECONDS_2HOURS,VALUES,WHOLE=WHOLE
+	
+;  PRO SECONDS_2HOURS
+;+
+; NAME:
+;		SECONDS_2HOURS
+;
+; PURPOSE: THIS FUNCTION CONVERTS SECONDS TO HOURS
+;
+; CATEGORY:
+;		DATE_TIME
+;		 
+;
+; CALLING SEQUENCE:RESULT = SECONDS_2HOURS(VALUES)
+;
+; INPUTS:
+;		VALUES:	SECONDS
+;		
+; OPTIONAL INPUTS:
+;		NONE:	
+;		
+; KEYWORD PARAMETERS:
+;   WHOLE: RETURN WHOLE HOURS NOT DECIMAL FRACTIONS 
+
+; OUTPUTS:
+;   MINUTES 
+;		
+;; EXAMPLES:
+;  PRINT, SECONDS_2HOURS(60*60)
+;  PRINT, SECONDS_2HOURS(60*50)
+;  PRINT, SECONDS_2HOURS(60*62)
+;  PRINT, SECONDS_2HOURS(60*60*60.)
+;  PRINT,SECONDS_2HOURS(216000)
+;
+;
+; MODIFICATION HISTORY:
+;			WRITTEN DEC 30,2012  J.O'REILLY
+
+;#################################################################################
+;
+;
+;-
+;	*******************************************
+ROUTINE_NAME='SECONDS_2HOURS'
+; *******************************************
+
+; ===> USEFUL WORDS FOR SEARCHING:
+; STOP PRINT N_ELEMENTS  ENDFOR SWITCHES  RETURN    ,
+; 
+_VALUES = VALUES
+HOURS = DOUBLE(VALUES/60./60)
+IF KEYWORD_SET(WHOLE) THEN HOURS = ULONG64(HOURS)
+RETURN,HOURS
+DONE:          
+	END; #####################  END OF ROUTINE ################################

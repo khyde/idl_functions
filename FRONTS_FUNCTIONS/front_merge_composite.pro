@@ -1,0 +1,282 @@
+; $ID:	FRONT_MERGE_COMPOSITE.PRO,	2023-09-21-13,	USER-KJWH	$
+  PRO FRONT_MERGE_COMPOSITE, FILES, PRODS=PRODS, MAP_OUT=MAP_OUT, MASK_CODES=MASK_CODES, MASK_NAMES=MASK_NAMES,$
+                             SKIP_ORIGINAL=SKIP_ORIGINAL, ADD_BATHY=ADD_BATHY, BATHY_DEPTHS=BATHY_DEPTHS, NO_COLORBAR=NO_COLORBAR, $
+                             NROWS=NROWS, NCOLS=NCOLS, BUFFER=BUFFER, OVERWRITE=OVERWRITE, _EXTRA=_EXTRA
+
+;+
+; NAME:
+;   FRONT_MERGE_COMPOSITE
+;
+; PURPOSE:
+;   Create a composite figure of the merged frontal data
+;
+; CATEGORY:
+;   FRONTS_FUNCTIONS
+;
+; CALLING SEQUENCE:
+;   FRONT_MERGE_COMPOSIT, FILES
+;
+; REQUIRED INPUTS:
+;   FILES.......... Array of merged frontal files
+;
+; OPTIONAL INPUTS:
+;   DIR_OUT....... Output directory for the PNG files
+;   PROD.......... Product name (used for scaling and lables)
+;   MAP_OUT....... The output map projection
+;   NROWS......... The number of rows in the composite
+;   NCOLS......... The number of columns in the composite
+;
+; KEYWORD PARAMETERS:
+;   OVERWRITE...... Overwrite if the file exists
+;   BUFFER......... To hide the graphics while writing
+;   
+;
+; OUTPUTS:
+;   A PNG file 
+;
+; OPTIONAL OUTPUTS:
+;   None
+;
+; COMMON BLOCKS: 
+;   None
+;
+; SIDE EFFECTS:  
+;   None
+;
+; RESTRICTIONS:  
+;   None
+;
+; EXAMPLE:
+; 
+;
+; NOTES:
+;   
+;   
+; COPYRIGHT: 
+; Copyright (C) 2021, Department of Commerce, National Oceanic and Atmospheric Administration, National Marine Fisheries Service,
+;   Northeast Fisheries Science Center, Narragansett Laboratory.
+;   This software may be used, copied, or redistributed as long as it is not sold and this copyright notice is reproduced on each copy made.
+;   This routine is provided AS IS without any express or implied warranties whatsoever.
+;
+; AUTHOR:
+;   This program was written on April 23, 2021 by Kimberly J. W. Hyde, Northeast Fisheries Science Center | NOAA Fisheries | U.S. Department of Commerce, 28 Tarzwell Dr, Narragansett, RI 02882
+;    
+; MODIFICATION HISTORY:
+;   Apr 23, 2021 - KJWH: Initial code written
+;-
+; ****************************************************************************************************
+  ROUTINE_NAME = 'FRONT_MERGE_COMPOSITE'
+  COMPILE_OPT IDL2
+  SL = PATH_SEP()
+  
+  ; ===> SET UP DEFAULTS
+  ADD_CB=1
+  IF NONE(FONT_SIZE)      THEN FONT_SIZE  = 16
+  IF NONE(CFONT_SIZE)     THEN CFONT_SIZE = 12
+  IF NONE(FONT_STYLE)     THEN FONT_STYLE = 'BOLD'
+  IF NONE(PAL)            THEN PAL = 'PAL_DEFAULT' & RGB = CPAL_READ(PAL)
+  IF NONE(LAND_COLOR)     THEN LAND_COLOR  = 252
+  IF NONE(COAST_COLOR)    THEN COAST_COLOR = 0
+  IF N_ELEMENTS(BATHY_DEPTHS) GT 0 THEN BEGIN
+    OK = WHERE(BATHY_DEPTHS GT 0, COUNT)
+    IF COUNT GT 0 THEN BATHY_DEPTHS[OK] = BATHY_DEPTHS[OK]*(-1)
+  ENDIF
+
+  IF ANY(DIMS) THEN BEGIN
+    DIMS = STRSPLIT(STRUPCASE(DIMS),'X',/EXTRACT)
+    IF NONE(NCOLS) THEN NCOLS = DIMS[0]
+    IF NONE(NROWS) THEN NROWS = DIMS[1]
+  ENDIF
+
+  ; ===> Set up default plot spacing
+  IF NONE(BUFFER) THEN BUFFER = 0 ; Do plotting in background
+  IF NONE(SPACE)  THEN SPACE  = 10
+  IF NONE(LEFT)   THEN LEFT   = SPACE * 3
+  IF NONE(RIGHT)  THEN RIGHT  = SPACE * 3
+  IF NONE(TOP)    THEN TOP    = SPACE * 4
+  IF NONE(BOTTOM) THEN BOTTOM = SPACE * 3
+  IF NONE(CBSPACE) THEN CBSPACE = SPACE * 10 ELSE CBSPACE = 0
+
+
+  ; ===> Check the input file(s)
+  FLS = FILES
+  FP = PARSE_IT(FILES,/ALL)
+  
+  ; ===> Loop through files
+  LAND = []
+  FOR NTH=0, N_ELEMENTS(FLS)-1 DO BEGIN
+    AFILE = FLS[NTH]
+    FA = PARSE_IT(AFILE,/ALL)
+    CASE FA.PROD OF
+      'GRAD_SST': BEGIN & OPROD='SST'     & END
+      'GRAD_CHL': BEGIN & OPROD='CHLOR_A' & END
+    ENDCASE
+    IF N_ELEMENTS(MAP_OUT) EQ 0 THEN MP = FA.MAP ELSE MP = MAP_OUT
+    IF IS_L3B(MP) THEN MESSAGE, 'ERROR: Must provide MAP_OUT for the L3B files'
+
+    ; ===> Create the output direcgory if not provided
+    IF N_ELEMENTS(DIR_OUT) NE 1 THEN BEGIN
+      IF HAS(FA.DIR,'SAVE') EQ 0 THEN MESSAGE, 'ERROR: Need to update the output directory code that is looking for "STACKED_FILES" in the directory name.'
+      DIR = REPLACE(FA.DIR,SL+'SAVE'+SL,SL+'COMPOSITE'+SL)
+    ENDIF ELSE DIR = DIR_OUT
+    IF MP NE FA.MAP THEN DIR = REPLACE(DIR,FA.MAP,MP)
+    DIR_TEST, DIR
+
+    OUTFILE = DIR + FA.NAME + '-MERGE_COMPOSITE.png'
+    IF FILE_MAKE(AFILE,OUTFILE,OVERWRITE=OVERWRITE) EQ 0 THEN CONTINUE                       ; Skip if the output file already exists
+
+    IF LAND EQ [] THEN LAND = READ_LANDMASK(MP,/STRUCT)
+    IF LAND.MAP_NAME NE MP THEN LAND = READ_LANDMASK(MP,/STRUCT)                             ; Confirm the LANDMASK is correct
+
+    D = STRUCT_READ(AFILE, STRUCT=S, MAP_OUT=MP)
+    IF IS_L3B(S.MAP) THEN IF HAS(S,'BINS') EQ 0 THEN MESSAGE, 'ERROR: Structure must have the L3B bins array.'
+    IF HAS(S,'BINS') THEN BINS=S.BINS
+    OK = WHERE(TAG_NAMES(S) EQ FA.PROD,COUNT)
+    IF COUNT EQ 0 THEN MESSAGE, 'ERROR: ' + STRJOIN(FPRODS,', ') + ' not found in ' + AFILE
+
+    MDAT = S.(OK)
+    NDAT = S.NUMBER_OBSERVATIONS
+    BDAT = S.FILE_BITS
+    CASE OPROD OF 
+      'SST':     ORG = S.SST_FILES
+      'CHLOR_A': ORG = S.CHLOR_A_FILES
+    ENDCASE
+    OFP = PARSE_IT(ORG,/ALL)
+    INF = S.INFILES   & IFP = PARSE_IT(INF,/ALL)
+    TAGS = [OPROD, FA.PROD, FA.PROD, 'DIF', 'NUMBER_OBSERVATIONS']
+      
+    NROWS = 4
+    NCOLS = N_ELEMENTS(ORG)
+
+    MS = MAPS_SIZE(MP,PX=PX,PY=PY)
+    XNSPACE = NCOLS-1 & YNSPACE = NROWS-1
+    IF N_ELEMENTS(XDIM)  EQ 0 THEN XDIM   = PX
+    IF N_ELEMENTS(YDIM)  EQ 0 THEN YDIM   = PY
+    WIDTH   = LEFT   + NCOLS*XDIM + XNSPACE*SPACE + RIGHT + CBSPACE
+    HEIGHT  = BOTTOM + NROWS*YDIM + YNSPACE*SPACE + TOP
+    SCL = 1
+    WHILE WIDTH GT 1400 DO BEGIN
+      XDIM = PX/SCL
+      YDIM = PY/SCL
+      WIDTH   = LEFT   + NCOLS*XDIM + XNSPACE*SPACE + RIGHT + CBSPACE
+      HEIGHT  = BOTTOM + NROWS*YDIM + YNSPACE*SPACE + TOP 
+      SCL = SCL + 1
+      IF SCL GT 10 THEN MESSAGE, 'ERROR: Unable to get the correct image dimensions'
+    ENDWHILE
+
+    WIMG = WINDOW(DIMENSIONS=[WIDTH,HEIGHT],BUFFER=BUFFER)
+    TXT = TEXT(0.5,0.98,FA.PERIOD,FONT_STYLE='BOLD',FONT_SIZE=14,ALIGNMENT=0.5)
+    COUNTER = 0
+    R = 0
+    FOR W=0, NROWS-1 DO BEGIN
+      APROD = TAGS[W]
+      _PAL = 'PAL_DEFAULT'
+      CB_TITLE = UNITS(APROD)
+      CBTICKNAME = []
+      CASE APROD OF
+        'SST': BEGIN & IMGPROD = 'SST_0_30' & _PAL='PAL_BLUE_RED' & CBTICKNAME=[0,5,10,15,20,25,30] & END
+        'GRAD_SST': BEGIN & IMGPROD = 'GRAD_SST_0.1_1.0' & CBTICKNAME=['0.1','0.2','0.3','0.5','0.7','1.0'] & END
+        'DIF': BEGIN & IMGPROD = 'DIF_-0.5_0.5' & _PAL='PAL_ANOM_BWR' & CB_TITLE='File - Merged Difference' & END
+        'CHLOR_A': IMGPROD = 'CHLOR_A_0.03_30'
+        'GRAD_CHL': IMGPROD = 'GRAD_CHL_1_1.3'
+        ELSE: IMGPROD = ''
+      ENDCASE
+  
+      YPOS = HEIGHT-TOP-YDIM*W-SPACE*W            ; Determine the top position of the image
+      CASE W OF
+        0: BEGIN
+          IMG_TITLES = OFP.SENSOR
+          IF ~SAME(IFP.DAYNIGHT) THEN IMG_TITLES = IMG_TITLES + ' - ' + IFP.DAYNIGHT
+          FOR O=0, N_ELEMENTS(ORG)-1 DO BEGIN
+            OSI = SENSOR_INFO(ORG[O])
+            XPOS = LEFT + O*XDIM + O*SPACE  ; Determine the left side of the image
+            POS = [XPOS,YPOS-YDIM,XPOS+XDIM,YPOS]
+            PRODS_2PNG, ORG[O], PROD=S.INDATA_PROD, SPROD=IMGPROD, ADD_CB=0, PAL=_PAL, IMG_POS=POS, MAPP=MP, DEPTH=BATHY_DEPTHS, OUTLINE_IMG=OUTLINE, OUT_COLOR=0, MASK=MASK, OUT_THICK=3, /CURRENT, /DEVICE, BUFFER=BUFFER
+            TXT = TEXT(XPOS+5,YPOS-5,IMG_TITLES[O],FONT_SIZE=FONT_SIZE,FONT_STYLE=FONT_STYLE,VERTICAL_ALIGNMENT=1,/DEVICE)
+          ENDFOR
+          
+        END  
+        1: BEGIN
+          FOR I=0, N_ELEMENTS(INF)-1 DO BEGIN      
+            XPOS = LEFT + I*XDIM + I*SPACE  ; Determine the left side of the image
+            POS = [XPOS,YPOS-YDIM,XPOS+XDIM,YPOS]
+            PRODS_2PNG, INF[I], PROD=APROD, SPROD=IMGPROD, ADD_CB=0, PAL=_PAL, IMG_POS=POS, MAPP=MP, DEPTH=BATHY_DEPTHS, OUTLINE_IMG=OUTLINE, OUT_COLOR=0, MASK=MASK, OUT_THICK=3, /CURRENT, /DEVICE, BUFFER=BUFFER
+            TXT = TEXT(XPOS+5,YPOS-5,IMG_TITLES[I],FONT_SIZE=FONT_SIZE,FONT_STYLE=FONT_STYLE,VERTICAL_ALIGNMENT=1,/DEVICE)
+          ENDFOR
+         
+        END
+        2: BEGIN
+          XPOS = LEFT+SPACE   ; Determine the left side of the image
+          POS = [XPOS,YPOS-YDIM,XPOS+XDIM,YPOS]
+          CBTICKNAME=['0.1','0.2','0.3','0.5','0.7','1.0']
+          PRODS_2PNG, DATA_IMAGE=MDAT, PROD=APROD, SPROD=IMGPROD, ADD_CB=0, PAL=_PAL, IMG_POS=POS, MAPP=MP, DEPTH=BATHY_DEPTHS, OUTLINE_IMG=OUTLINE, OUT_COLOR=0, MASK=MASK, OUT_THICK=3, /CURRENT, /DEVICE, BUFFER=BUFFER
+          CBPOS = FLOAT([XPOS+XDIM+SPACE,YPOS-YDIM+SPACE,XPOS+XDIM+SPACE+CBSPACE/3,YPOS-SPACE])
+          CBPOS = [CBPOS[0]/WIDTH,CBPOS[1]/HEIGHT,CBPOS[2]/WIDTH,CBPOS[3]/HEIGHT] ; Convert to NORMAL values
+          CBAR, IMGPROD, OBJ=WIMG, CB_TICKNAMES=CBTICKNAME, FONT_SIZE=CFONT_SIZE, FONT_STYLE=FONT_STYLE, CB_TYPE=5, CB_POS=CBPOS, PAL=PAL
+          TXT = TEXT(XPOS+5,YPOS-5,'MERGED',FONT_SIZE=FONT_SIZE,FONT_STYLE=FONT_STYLE,VERTICAL_ALIGNMENT=1,/DEVICE)
+
+
+          XPOS = LEFT+SPACE*3+XDIM+CBSPACE   ; Determine the left side of the image
+          POS = [XPOS,YPOS-YDIM,XPOS+XDIM,YPOS]
+          IMGPROD = 'NUM_0_' + NUM2STR(N_ELEMENTS(INF))
+          CBTICKNAMES = NUM2STR(INDGEN(N_ELEMENTS(INF))+1)
+          PRODS_2PNG, DATA_IMAGE=NDAT, PROD='NUM', SPROD=IMGPROD, ADD_CB=0, PAL=_PAL, IMG_POS=POS, MAPP=MP, DEPTH=BATHY_DEPTHS, OUTLINE_IMG=OUTLINE, OUT_COLOR=0, MASK=MASK, OUT_THICK=3, /CURRENT, /DEVICE, BUFFER=BUFFER
+          CBPOS = FLOAT([XPOS+XDIM+SPACE,YPOS-YDIM+SPACE,XPOS+XDIM+SPACE+CBSPACE/3,YPOS-SPACE])
+          CBPOS = [CBPOS[0]/WIDTH,CBPOS[1]/HEIGHT,CBPOS[2]/WIDTH,CBPOS[3]/HEIGHT] ; Convert to NORMAL values
+          CBAR, IMGPROD, OBJ=WIMG, CB_TICKNAMES=CBTICKNAMES, FONT_SIZE=CFONT_SIZE, FONT_STYLE=FONT_STYLE, CB_TYPE=5, CB_POS=CBPOS, CB_TITLE='# Observations', PAL=PAL
+
+          XPOS = LEFT+SPACE*5+XDIM*2+CBSPACE*2   ; Determine the left side of the image
+          POS = [XPOS,YPOS-YDIM,XPOS+XDIM,YPOS]
+          NBITS =  NUM2STR(BITS(REPLICATE(1,N_ELEMENTS(INF)),/BIT_POSITION))
+          IMGPROD = 'NUM_0_' + NBITS
+          PRODS_2PNG, DATA_IMAGE=BDAT, PROD='NUM', SPROD=IMGPROD, ADD_CB=0, PAL=_PAL, IMG_POS=POS, MAPP=MP, DEPTH=BATHY_DEPTHS, OUTLINE_IMG=OUTLINE, OUT_COLOR=0, MASK=MASK, OUT_THICK=3, /CURRENT, /DEVICE, BUFFER=BUFFER
+          RGBS = CPAL_READ(_PAL)
+          FOR B=0, NBITS DO BEGIN
+            BT = BITS(B)
+            LBL = 'Files: ' 
+            LFILES = []
+            FOR T=0, N_ELEMENTS(INF)-1 DO IF BT[T] EQ 1 THEN LFILES = [LFILES,T+1] 
+            CASE N_ELEMENTS(LFILES) OF
+              0: LBL = 'No files'
+              1: LBL = 'File ' + NUM2STR(LFILES)
+              ELSE: LBL = 'Files ' + STRJOIN(NUM2STR(LFILES),', ')
+            ENDCASE  
+            BIT = PRODS_2BYTE(B,PROD=IMGPROD)
+            RGB = RGBS[*,BIT]
+            SYB = SYMBOL(XPOS+XDIM+SPACE*2,YPOS-SPACE*1.75*B+2,'HLINE',SYM_THICK=6, LABEL_STRING=LBL,SYM_COLOR=RGB,LABEL_COLOR=RGB,LABEL_FONT_SIZE=CFONT_SIZE,/DEVICE)
+          ENDFOR
+        END  
+        
+        3: BEGIN
+          FOR D=0, N_ELEMENTS(INF)-1 DO BEGIN
+            XPOS = LEFT + D*XDIM + D*SPACE  ; Determine the left side of the image
+            POS = [XPOS,YPOS-YDIM,XPOS+XDIM,YPOS]
+            I = STRUCT_READ(INF[D],MAP_OUT=MP)
+            DIF = I-MDAT
+            OK = WHERE(I EQ MISSINGS(I) AND MDAT EQ MISSINGS(MDAT))
+            DIF[OK] = MISSINGS(0.0)
+            OK = WHERE(I EQ MISSINGS(I) AND MDAT NE MISSINGS(MDAT))
+            DIF[OK] = 0.0
+            PRODS_2PNG, DATA_IMAGE=DIF, PROD='DIF', SPROD=IMGPROD, ADD_CB=0, PAL=_PAL, IMG_POS=POS, MAPP=MP, DEPTH=BATHY_DEPTHS, OUTLINE_IMG=OUTLINE, OUT_COLOR=0, MASK=MASK, OUT_THICK=3, /CURRENT, /DEVICE, BUFFER=BUFFER
+          ENDFOR
+        END  
+        
+      ENDCASE
+      CBPOS = FLOAT([XPOS+XDIM+SPACE,YPOS-YDIM+SPACE,XPOS+XDIM+SPACE+CBSPACE/3,YPOS-SPACE])
+      CBPOS = [CBPOS[0]/WIDTH,CBPOS[1]/HEIGHT,CBPOS[2]/WIDTH,CBPOS[3]/HEIGHT] ; Convert to NORMAL values
+      IF W NE 2 THEN CBAR, IMGPROD, CB_TICKNAME=CBTICKNAME, OBJ=WIMG, FONT_SIZE=CFONT_SIZE, FONT_STYLE=FONT_STYLE, CB_TYPE=5, CB_POS=CBPOS, CB_TITLE=CB_TITLE, PAL=_PAL
+    ENDFOR ; NROWS
+    
+    PRINT, 'Writing ' + OUTFILE
+    WIMG.SAVE, OUTFILE, RESOLUTION=RESOLUTION
+    WIMG.CLOSE
+
+
+  ENDFOR ; FILES
+    
+    
+    
+    
+
+
+END ; ***************** End of FRONT_MERGE_COMPOSIT *****************

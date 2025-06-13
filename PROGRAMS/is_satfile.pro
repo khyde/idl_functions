@@ -1,0 +1,48 @@
+; $ID:	IS_SATFILE.PRO,	2020-06-26-15,	USER-KJWH	$
+;+
+;#############################################################################################################
+	FUNCTION IS_SATFILE, NAME
+
+; PURPOSE: THIS FUNCTION TESTS IF A FILE NAME IS A SATFILE (L1A, L2, L3B, MUR, AVHRR) FILE
+; 
+; CATEGORY:	LOGICAL
+;
+; CALLING SEQUENCE: RESULT = IS_SATFILE(NAME)
+;
+; INPUTS: NAME TO CHECK  
+;
+; OUTPUTS: LOGICAL 1 OR 0
+;		
+; EXAMPLES:
+;   PRINT, IS_SATFILE('A2017050.L3b_DAY_CHL.nc'); = 1
+;   PRINT, IS_SATFILE('Z2002003.L3B2_DAY_CHL.nc'); = 1
+;   PRINT, IS_SATFILE('S1997264155040.L1A_MLAC.x.hdf'); = 1
+;   PRINT, IS_SATFILE('A2017002174500.L1A_LAC'); = 1
+;   PRINT, IS_SATFILE('S1997264155040.L2_MLAC_OC'); = 1
+;   PRINT, IS_SATFILE('19810831024637-NCEI-L3C_GHRSST-SSTskin-AVHRR_Pathfinder-PFV5.3_NOAA07_G_1981243_night-v02.0-fv01.0.nc') ; = 1
+;   PRINT, IS_SATFILE('20170302090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1.nc'); = 1
+;   PRINT, IS_SATFILE('D_20020606-MUR-V04.1-1KM-L3B2-SST.SAV'); = 0
+;   PRINT, IS_SATFILE('D_19970921-SEAWIFS-R2015-2KM-L3B2-PPD-VGPM2.SAV'); = 0
+;   PRINT, IS_SATFILE('SEAWIFS-R2015-L3B2-CHLOR_A-PAN-SUBAREAS.SAV'); = 0
+;        
+; MODIFICATION HISTORY:
+;			Written:  MAR 08, 2017 by K.J.W. Hyde, 28 Tarzwell Drive, NMFS, NOAA 02882 (kimberly.hyde@noaa.gov)
+;     Modified: 
+;####################################################################################
+;-
+;************************
+  ROUTINE_NAME  = 'IS_SATFILE'
+;************************
+  
+  IF NONE(NAME) THEN MESSAGE,'ERROR: NAME IS REQUIRED'
+  NAME = STRUPCASE(NAME)
+  
+  RESULT = REPLICATE(0,N_ELEMENTS(NAME))
+  SATFILE = GET_SATTYPE(NAME)
+
+  OK = WHERE(SATFILE NE '',COUNT)
+  IF COUNT GE 1 THEN RESULT[OK] = 1
+  
+  RETURN, RESULT
+
+END; #####################  END OF ROUTINE ################################

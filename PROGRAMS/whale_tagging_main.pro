@@ -1,0 +1,180 @@
+; $ID:	WHALE_TAGGING_MAIN.PRO,	2021-04-15-17,	USER-KJWH	$
+
+	PRO WHALE_TAGGING_MAIN, BUFFER=BUFFER
+
+;+
+; NAME:
+;		WHALE_TAGGING_MAIN
+;
+; PURPOSE:
+;		This procedure is the MAIN program to download the near real time satellite data, process it, and make it available for quick viewing.
+;
+; CATEGORY:
+;
+;
+; CALLING SEQUENCE:
+;
+; INPUTS:
+;
+; OPTIONAL INPUTS:
+;
+; KEYWORD PARAMETERS:
+;
+; OUTPUTS:
+;		This procedure produces mapped satellite images
+;
+; OPTIONAL OUTPUTS:
+; COMMON BLOCKS:
+; SIDE EFFECTS:
+; RESTRICTIONS:
+;	PROCEDURE:
+; EXAMPLE:
+;
+;	NOTES:
+;
+;
+; MODIFICATION HISTORY:
+;			Written Nov 24, 2015 by K.J.W.Hyde, 28 Tarzwell Drive, NMFS, NOAA 02882 (kimberly.hyde@noaa.gov)
+;			                     Adapted from CLIVEC_SAT_IMAGES_MAIN
+;			                     
+;-
+;	****************************************************************************************************
+	ROUTINE_NAME = 'WHALE_TAGGING_MAIN'
+
+;	===> Initialize ERROR to a null string. If errors are encountered ERROR will be set to a message.
+;			 The calling routine can check error (e.g.IF ERROR NE 0 then there was a problem and do this or that)
+	ERROR = ''
+	PROJ = 'WHALES'
+	SL = DELIMITER(/PATH)
+
+    
+  MAIN_DIR = !S.PROGRAMS
+  
+  DIR_PROJ         = !S.LOCAL + 'PROJECTS' + SL + PROJ + SL + 'SATDATA' + SL
+  DIR_Z            = DIR_PROJ + 'Z' + SL
+  DIR_COMPS        = DIR_PROJ + 'COMPOSITES' + SL 
+        
+  
+  REPEAT_SAT_PROCESSING:
+  
+  SL = PATH_SEP()
+  IF NONE(BUFFER) THEN BUFFER = 1
+
+; ===> FTP directory information
+  FTP   = 'ftp://samoa.gsfc.nasa.gov/subscriptions/'
+  MODISA = 'MODISA/XM/whitman/1384/'
+  MODIST = 'MODIST/XM/whitman/2679/'
+  VIIRS  = 'VIIRS/XM/whitman/2680/'
+  DIRS   =  FTP + [MODISA, MODIST, VIIRS]
+
+  PRODS = ['CHLOR_A-OCI']
+  MAPS  = ['NEC']
+
+;goto, SKIP_SAVE_SEARCH    
+
+  RFILES = []
+  LFILES = []
+  LOOK = 0
+  FOR DTH=0, N_ELEMENTS(DIRS)-1 DO BEGIN
+    WGET_SUBSCRIPTION, DIRS(DTH), DIR_Z, REMOTE_FILES=REMOTE_FILES, EXT='nc', GET_FILES=GET_FILES, LOCAL_FILES=LOCAL_FILES, LOOK=LOOK 
+    RFILES = [RFILES,REMOTE_FILES]
+  ENDFOR    
+  CD, !S.PROGRAMS
+  LFILES = LOCAL_FILES
+  FL = FILE_PARSE(LFILES)
+  
+  OK = WHERE_MATCH(RFILES,FL.NAME_EXT,COUNT,COMPLEMENT=COMPLEMENT,VALID=VALID,NINVALID=NINVALID,INVALID=INVALID)
+  L = LFILES(INVALID) ; Files that are on the local server, but no longer available on the remote FTP server
+  SI = SENSOR_INFO(L)
+    
+    
+; If the corresponding save files are present and the file is no longer on the remote server, then delete the .nc file from the local directory.
+; These are temporary files and we do not need to retain them long term
+  DFILES = [] ; Start list of files to delete
+  EFILES = FILE_SEARCH(DIR_PROJ + SL + [MAPS] + SL + 'SAVE' + SL + '_EXCLUDE' + SL + '*.TXT') ; Find the EXCLUDE files and find the corresponding LFILES to delete
+  FP = PARSE_IT(EFILES,/ALL)
+  INAMES = INAME_MAKE(PERIOD=FP.PERIOD, SENSOR=FP.SENSOR, SATELLITE=FP.SATELLITE, METHOD=FP.METHOD, COVERAGE=FP.COVERAGE)
+  OK = WHERE_MATCH(INAMES,SI.INAME,COUNT,COMPLEMENT=COMPLEMENT,VALID=VALID,NINVALID=NINVALID,INVALID=INVALID)    
+  IF COUNT GE 1 THEN DFILES = [DFILES,L(VALID)]   
+  
+  IF NINVALID EQ 0 THEN GOTO, SKIP_SAVE_SEARCH
+  L = L(INVALID)      ; Now only look through the files that are not in the exclude list
+  SI = SENSOR_INFO(L)
+  SFILES = []
+  FOR M=0, N_ELEMENTS(MAPS)-1 DO BEGIN
+    AMAP = MAPS(M)
+    FOR S=0, N_ELEMENTS(PRODS)-1 DO BEGIN
+      DIR_SAVE = DIR_PROJ + SL + AMAP + SL + 'SAVE'  + SL + PRODS(S) + SL
+      SFILES = [SFILES,FILE_SEARCH(DIR_SAVE + 'S_*.SAV')]
+    ENDFOR
+  ENDFOR
+  FP = PARSE_IT(SFILES,/ALL)
+  INAMES = INAME_MAKE(PERIOD=FP.PERIOD, SENSOR=FP.SENSOR, SATELLITE=FP.SATELLITE, METHOD=FP.METHOD, COVERAGE=FP.COVERAGE)
+  OK = WHERE_MATCH(INAMES,SI.INAME,COUNT,COMPLEMENT=COMPLEMENT,VALID=VALID,NINVALID=NINVALID,INVALID=INVALID)
+  IF COUNT GE 1 THEN DFILES = [DFILES,L(VALID)]
+  
+  SKIP_SAVE_SEARCH:
+  IF ANY(DFILES) THEN FILE_DELETE, DFILES,/VERBOSE
+      
+  FILES = FILE_SEARCH(DIR_Z + '*.nc')
+  FP = PARSE_IT(FILES)
+  DATERANGE = [MIN(SATDATE_2DATE(FP.FIRST_NAME)),MAX(SATDATE_2DATE(FP.FIRST_NAME))] 
+  SAVE_MAKE_L2,FILES,PRODS=PRODS,MAP_OUT=MAPS,OVERWRITE=OVERWRITE,/SKIP_AREA
+  
+  DIR_MUR  = !S.DATASETS + 'SST-MUR-1KM' + SL + 'L4' + SL
+  FILES = FILE_SEARCH(DIR_MUR+'*JPL-L4*MUR*.nc',COUNT=BFILES)
+  FILES = DATE_SELECT(FILES,DATERANGE,COUNT=COUNT)    
+  SAVE_MAKE_GHRSST,FILES,MAPS_OUT=MAPS,DIR_OUT=DIR_PROJ,OVERWRITE=OVERWRITE
+    
+    ; Create STATS
+  PERIOD_CODES_IN  = ['S', 'S']
+  PERIOD_CODES_OUT = ['D8','M']
+  PRODS = ['CHLOR_A-OCI','SST']
+  FOR M=0, N_ELEMENTS(MAPS)-1 DO BEGIN
+    AMAP = MAPS(M)
+    MASK = READ_LANDMASK(AMAP,/STRUCT)
+    PAL = 'PAL_BR'
+    DIMS  = 400
+    XGAP  = 10
+    XSIDE = 20
+    YTOP  = 20
+    YBOT  = 60
+    NPROD = N_ELEMENTS(PRODS)
+    
+    FOR O=0, N_ELEMENTS(PERIOD_CODES_OUT)-1 DO BEGIN
+      W = WINDOW(DIMENSIONS=[XSIDE*2+DIMS*NPROD+XGAP*NPROD-1,DIMS+YTOP+YBOT],BUFFER=BUFFER)
+      FOR N=0, N_ELEMENTS(PRODS)-1 DO BEGIN
+        APROD = PRODS(N)
+        IF APROD EQ 'SST' AND PERIOD_CODES_IN(O) EQ 'S' THEN PC_IN = 'D' ELSE PC_IN = PERIOD_CODES_IN(O)
+        DIR_SAVE   = DIR_PROJ +  AMAP + SL + 'SAVE'   + SL + APROD + SL
+        DIR_STATS  = DIR_PROJ +  AMAP + SL + 'STATS'  + SL + APROD + SL & DIR_TEST, DIR_STATS
+        DIR_BROWSE = DIR_PROJ +  AMAP + SL + 'BROWSE' + SL + APROD + SL & DIR_TEST, DIR_BROWSE
+        FILES = FILE_SEARCH(DIR_SAVE + PC_IN + '_*-M*' + AMAP + '*' + APROD + '*.SAV',COUNT=COUNT)
+        IF COUNT EQ 0 THEN CONTINUE
+        STRUCT_SD_2PNG_NG, FILES, DIR_OUT=DIR_BROWSE, /ADD_LAND, /ADD_COLORBAR, /ADD_COAST, PAL='PAL_BR'
+        STATS_ARRAYS_PERIODS, FILES, STAT_PROD=APROD, DIR_OUT=DIR_STATS, PERIOD_CODE_OUT=PERIOD_CODES_OUT(O), OVERWRITE=OVERWRITE, VERBOSE=VERBOSE       
+        FILES = FILE_SEARCH(DIR_STATS + PERIOD_CODES_OUT(O) + '_*' + APROD + '*.SAV')
+        FP = PARSE_IT(FILES)
+        OK = WHERE(FP.DATE_END EQ MAX(FP.DATE_END))
+        DPS = DATE_PARSE(FP[OK].DATE_START)
+        DPE = DATE_PARSE(FP[OK].DATE_END)
+        TITLE = DPS.SLASH_DATE + ' - ' + DPE.SLASH_DATE
+        D = STRUCT_READ(FILES[OK])
+        B = PRODS_2BYTE(D,PROD=VALIDS('PRODS',APROD))
+        B(MASK.LAND) = 252
+        B(MASK.COAST) = 0
+        POS = [XSIDE+DIMS*N+XGAP*N,YBOT,XSIDE+DIMS*(N+1)+XGAP*(N+1),YBOT+DIMS]
+        IM = IMAGE(B,RGB_TABLE=CPAL_READ(PAL),POSITION=POS,/CURRENT,/DEVICE)
+        IMPOS = IM.POSITION
+        TXT = TEXT((IMPOS[0]+IMPOS(2))/2.0,IMPOS(3),TITLE,ALIGNMENT=0.5,VERTICAL_ALIGNMENT=0.0)
+        BAR = COLOR_BAR_SCALE_NG(PROD=APROD,SPECIAL_SCALE=SPECIAL_SCALE,PX=POS[0]+5,PY=POS[1]-15,CHARSIZE=12,BACKGROUND=255,XDIM=DIMS,YDIM=YBOT/3,PAL=PAL,VERTICAL=0,RIGHT=0,BOTTOM=1,FONT='HELVETICA',/CURRENT,/DEVICE,COLOR=COLOR)
+      ENDFOR
+      W.SAVE, DIR_COMPS + FP[OK].PERIOD + '-' + AMAP + '-CHLOR_SST' + '.png'
+      W.CLOSE
+    ENDFOR
+
+  ENDFOR
+;    
+    
+    
+END; #####################  End of Routine ################################

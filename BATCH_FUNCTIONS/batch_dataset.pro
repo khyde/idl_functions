@@ -1,0 +1,134 @@
+; $ID:	BATCH_DATASET.PRO,	2023-12-07-16,	USER-KJWH	$
+  PRO BATCH_DATASET, DATASETS, MAPS=MAPS, DO_ALL=DO_ALL, $
+                     DATERANGE=DATERANGE, DOWNLOAD_DATERANGE=DOWNLOAD_DATERANGE, $
+                     NC2STACKED_PRODS=NC2STACKED_PRODS, STAT_PRODS=STAT_PRODS, FRONT_PRODS=FRONT_PRODS, NETCDF_PRODS=NETCDF_PRODS, PSC_ALGS=PSC_ALGS,$
+                     _EXTRA=EXTRA
+
+;+
+; NAME:
+;   BATCH_DATASET
+;
+; PURPOSE:
+;   $PURPOSE$
+;
+; CATEGORY:
+;   BATCH_FUNCTIONS
+;
+; CALLING SEQUENCE:
+;   BATCH_DATASET,$Parameter1$, $Parameter2$, $Keyword=Keyword$, ....
+;
+; REQUIRED INPUTS:
+;   Parm1.......... Describe the positional input parameters here. 
+;
+; OPTIONAL INPUTS:
+;   Parm2.......... Describe optional inputs here. If none, delete this section.
+;
+; KEYWORD PARAMETERS:
+;   KEY1........... Document keyword parameters like this. Note that the keyword is shown in ALL CAPS!
+;
+; OUTPUTS:
+;   OUTPUT.......... Describe the output of this program or function
+;
+; OPTIONAL OUTPUTS:
+;   None
+;
+; COMMON BLOCKS: 
+;   None
+;
+; SIDE EFFECTS:  
+;   None
+;
+; RESTRICTIONS:  
+;   None
+;
+; EXAMPLE:
+; 
+;
+; NOTES:
+;   $Citations or any other useful notes$
+;   
+; COPYRIGHT: 
+; Copyright (C) 2023, Department of Commerce, National Oceanic and Atmospheric Administration, National Marine Fisheries Service,
+;   Northeast Fisheries Science Center, Narragansett Laboratory.
+;   This software may be used, copied, or redistributed as long as it is not sold and this copyright notice is reproduced on each copy made.
+;   This routine is provided AS IS without any express or implied warranties whatsoever.
+;
+; AUTHOR:
+;   This program was written on December 07, 2023 by Kimberly J. W. Hyde, Northeast Fisheries Science Center | NOAA Fisheries | U.S. Department of Commerce, 28 Tarzwell Dr, Narragansett, RI 02882
+;    
+; MODIFICATION HISTORY:
+;   Dec 07, 2023 - KJWH: Initial code written
+;-
+; ****************************************************************************************************
+  ROUTINE_NAME = 'BATCH_DATASET'
+  COMPILE_OPT IDL3
+  SL = PATH_SEP()
+  
+  IF ~N_ELEMENTS(DATERANGE) THEN DR = [] ELSE DR = GET_DATERANGE(DATERANGE)
+  
+  ; ===> Manually adjust the processing steps as needed
+  IF HAS(EXTRA,'DOWNLOAD_FILES') OR KEYWORD_SET(DO_ALL) THEN DOWNLOAD_FILES = 1 ELSE DOWNLOAD_FILES = 0
+  IF HAS(EXTRA,'NC_2STACKED')    OR KEYWORD_SET(DO_ALL) THEN NC_2STACKED = 1    ELSE NC_2STACKED = 0
+  IF HAS(EXTRA,'DO_PSC')         OR KEYWORD_SET(DO_ALL) THEN PSC = 1            ELSE PSC = 0
+  IF HAS(EXTRA,'DO_PPD')         OR KEYWORD_SET(DO_ALL) THEN PPD = 1            ELSE PPD = 0
+  IF HAS(EXTRA,'DO_FRONTS')      OR KEYWORD_SET(DO_ALL) THEN FRONTS = 1         ELSE FRONTS = 0
+  IF HAS(EXTRA,'DO_STATS')       OR KEYWORD_SET(DO_ALL) THEN DO_STATS = 1       ELSE DO_STATS = 0
+  IF HAS(EXTRA,'DO_ANOMS')       OR KEYWORD_SET(DO_ALL) THEN DO_ANOMS = 1       ELSE DO_ANOMS = 0
+  IF HAS(EXTRA,'NETCDFS')        OR KEYWORD_SET(DO_ALL) THEN NETCDFS = 1        ELSE NETCDFS = 0
+  IF HAS(EXTRA,'STAT_PERIODS') THEN SPERIODS = EXTRA.STAT_PERIODS ELSE SPERIODS = ['W','M','A','WEEK','MONTH','ANNUAL']
+  IF HAS(EXTRA,'ANOM_PERIODS') THEN APERIODS = EXTRA.ANOM_PERIODS ELSE APERIODS = ['W','M','A']
+
+  FOR D=0, N_ELEMENTS(DATASETS)-1 DO BEGIN
+    DSET = DATASETS[D]
+    
+    SPRODS = []
+    FPRODS = []
+    CPRODS = []
+    CASE DSET OF
+      'OCCCI':      BEGIN & MAPIN=['L3B4','L3B2'] & NPRODS='CHLOR_A-CCI' & FPRODS='CHLOR_A-CCI' & CPRODS='CHLOR_A-CCI' & END                ; NPRODS =['RRS','KD490','ADG','APH','ATOT','BBP']
+      'MUR':        BEGIN & MAPIN=['L3B4','L3B2'] & NPRODS='SST' & END
+      'GLOBCOLOUR': BEGIN & MAPIN='L3B4'          & NPRODS=['CHLOR_A-GSM','PAR'] & SPRODS='CHLOR_A-GSM' & CPRODS='CHLOR_A-GSM' & END
+      'AVHRR':      BEGIN & MAPIN='L3B4'          & NPRODS='SST' & END
+      'ACSPO':      BEGIN & MAPIN='L3B2'          & NPRODS='SST' & FPRODS='SST' & CPRODS='SST' & END
+      'ACSPONRT':   BEGIN & MAPIN='L3B2'          & NPRODS='SST' & FPRODS='SST' & CPRODS='SST' & END
+    ENDCASE
+    IF SPRODS EQ [] THEN SPRODS = NPRODS
+    
+    IF N_ELEMENTS(NC2STACKED_PRODS) THEN NPRODS=NC2STACKED_PRODS
+    IF N_ELEMENTS(STAT_PRODS) THEN SPRODS=STAT_PRODS
+    IF N_ELEMENTS(FRONT_PRODS) THEN FPRODS=FRONT_PRODS
+    IF N_ELEMENTS(NETCDF_PRODS) THEN CPRODS=NETCDF_PRODS
+    IF N_ELEMENTS(MAPS) THEN MAPIN=MAPS
+    IF N_ELEMENTS(PSC_ALGS) THEN PSCALG = PSC_ALGS ELSE PSCALGS = 'TURNER'
+    
+    IF KEYWORD_SET(DOWNLOAD_FILES) THEN BEGIN
+      IF ~N_ELEMENTS(DOWNLOAD_DATERANGE) THEN DWLD_DTR = DR ELSE DWLD_DTR = DOWNLOAD_DATERANGE
+      CASE DSET OF
+        'OCCCI': BEGIN
+          DWLD_ESA_OCCCI, YEARS=YEAR_RANGE(DWLD_DTR)                                               ; Download the full product suite (CHL, RRS, IOP) for the 4km global data
+          DWLD_ESA_OCCCI_SUBSET, YEARS=YEAR_RANGE(DWLD_DTR)                              ; Download the 1km chlorophyll data subset to the U.S. east coast
+        END ; OCCCI
+        'MUR':        DWLD_MUR_SST,    YEARS=YEAR_RANGE(DWLD_DTR)  
+        'AVHRR':      DWLD_AVHRR_SST,  YEARS=YEAR_RANGE(DWLD_DTR) 
+        'GLOBCOLOUR': DWLD_GLOBCOLOUR, DATERANGE=DWLD_DTR, PRODS=['CHL1','PAR']
+        'ACSPO':      DWLD_ACSPO_SST,  DATERANGE=DWLD_DTR 
+        'ACSPONRT':   DWLD_ACSPO_SST,  DATERANGE=DWLD_DTR, DATASETS='NRT' 
+      ENDCASE
+    ENDIF
+    
+    IF KEYWORD_SET(NC_2STACKED) THEN BEGIN
+      FILES_2STACKED_WRAPPER, DSET, PRODS=NPRODS, DATERANGE=DR, OVERWRITE=OVERWRITE
+ ;     IF DSET EQ 'OCCCI' THEN FILES_2STACKED_WRAPPER, DSET, PRODS=NPROD, MAP_IN='1KM', DATERANGE=DR, OVERWRITE=OVERWRITE
+    ENDIF
+    
+    IF KEYWORD_SET(DO_STATS) THEN STACKED_STATS_WRAPPER, DSET, PRODS=SPRODS, PERIODS=SPERIODS, MAPP=MAPIN, DATERANGE=DR, OVERWRITE=OVERWRITE
+    IF KEYWORD_SET(DO_DOY)   THEN STACKED_STATS_WRAPPER, DSET, PRODS=SPRODS, PERIODS=['D3','D8','DOY'], MAPP=MAPIN, DATERANGE=DR, OVERWRITE=OVERWRITE
+    IF KEYWORD_SET(DO_ANOMS) THEN STACKED_ANOMS_WRAPPER, DSET, PRODS=SPRODS, PERIODS=APERIODS,MAPP=MAPIN, DATERANGE=DR, OVERWRITE=OVERWRITE
+  
+    IF KEYWORD_SET(PSC) THEN STACKED_MAKE_PRODS_WRAPPER, DSET, /DO_PSC, PSC_ALGS=PSCALGS, DO_STATS=DO_STATS, DO_ANOMS=DO_ANOMS, MAPP=MAPIN, DATERANGE=DR, OVERWRITE=OVERWRITE
+    IF KEYWORD_SET(PPD) THEN STACKED_MAKE_PRODS_WRAPPER, DSET, /DO_PPD, /DO_INTERP,DO_STATS=DO_STATS, DO_ANOMS=DO_ANOMS, DATERANGE=DR, OVERWRITE=OVERWRITE
+    IF KEYWORD_SET(FRONTS) AND FPRODS NE [] THEN STACKED_MAKE_FRONTS_WRAPPER, DSET, /DO_STATS, /DO_FRONT_NETCDF, /DO_STAT_NETCDF, DATERANGE=DR, OVERWRITE=OVERWRITE
+  ENDFOR
+
+
+END ; ***************** End of BATCH_DATASET *****************

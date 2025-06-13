@@ -1,0 +1,172 @@
+; $ID:	PSERIES_PSTATS_MAIN.PRO,	2020-06-30-17,	USER-KJWH	$
+PRO PSERIES_PSTATS_MAIN
+
+
+	ROUTINE_NAME='PSERIES_PSTATS_MAIN'
+  PRINT, 'Running: '+ROUTINE_NAME
+	COMPUTER=GET_COMPUTER()
+
+	DO_SEA_AQU_PSTATS   = 1
+	DO_CZCS_PSTATS      = 0
+
+  DRIVE = 'S'
+
+	IF COMPUTER EQ 'SWORDFISH' THEN BEGIN & DO_SEA_AQU_PSTATS   = 1 & DRIVE = 'E' & ENDIF
+	IF COMPUTER EQ 'LIONFISH'  THEN BEGIN &	DO_CZCS_PSTATS      = 1 & DRIVE = 'T' & ENDIF
+	IF COMPUTER EQ 'STINGRAY'  THEN BEGIN & DO_SEA_AQU_PSTATS   = 1 & DRIVE = 'S' & ENDIF
+
+	STAT_TYPES = ['NUM','MIN','MAX', 'JD_MIN','JD_MAX','P_1','P_50','P_99','MEAN','STD',$
+								'INT_D','SLOPE_D','R_D',$
+								'INT_M_ANOM','SLOPE_M_ANOM','R_M_ANOM',$
+								'M_JD_MIN','M_JD_MAX','MONTH_JD_MIN','MONTH_JD_MAX','Y_JD_MIN','Y_JD_MAX',$
+								'W_JD_MIN','W_JD_MAX','WEEK_JD_MIN','WEEK_JD_MAX',$
+   							'T0_ACT','T0_ACF',$
+   							'LNP_D_MAX_PEAK',			'LNP_D_PERIOD_MAX',			'LNP_D_FAP',			'LNP_D_SPECTRUM',$
+   							'LNP_M_ANOM_MAX_PEAK','LNP_M_ANOM_PERIOD_MAX','LNP_M_ANOM_FAP',	'LNP_M_ANOM_SPECTRUM']
+
+
+
+; *********************************************
+	IF 	DO_SEA_AQU_PSTATS GE 1 THEN BEGIN
+; *********************************************
+		OVERWRITE  = DO_SEA_AQU_PSTATS GE 2
+		OVERWRITE  = 0
+
+		DO_ALL            = 1
+		DO_SINGLE_YEARS   = 0
+
+
+		STAT_TYPES = ['NUM','MIN','MAX','JD_MIN','JD_MAX','P_1','P_50','P_99','MEAN','STD',$
+								'INT_D','SLOPE_D','R_D','INT_M_ANOM','SLOPE_M_ANOM','R_M_ANOM',$
+								'M_JD_MIN','M_JD_MAX','W_JD_MIN','W_JD_MAX']
+
+		PROD = 'CHLOR_A'
+
+		PSERIES_FILE = DRIVE + ':\OC-SEA_AQU-LAC-NEC\ts_images\pseries\TS_IMAGES-SEA_AQU-LAC-NEC-CHLOR_A-PSERIES_4120.INT'
+		CSV_FILE     = DRIVE + ':\OC-SEA_AQU-LAC-NEC\ts_images\pseries\TS_IMAGES-SEA_AQU-LAC-NEC-CHLOR_A-PSERIES_4120.CSV'
+		TEMPLATE     = DRIVE + ':\OC-SEA_AQU-LAC-NEC\ts_images\iseries\TS_IMAGES-SEA_AQU-LAC-NEC-CHLOR_A-TEMPLATE.SAVE'
+		DIR_OUT = DRIVE + ':\OC-SEA_AQU-LAC-NEC\TS_IMAGES\PSTATS\'
+
+
+;		PSERIES_FILE = DRIVE + ':\OC-SEA_AQU-LAC-EC\ts_images\pseries\TS_IMAGES-SEA_AQU-LAC-EC-CHLOR_A-PSERIES_4186.INT'
+;		CSV_FILE     = DRIVE + ':\OC-SEA_AQU-LAC-EC\ts_images\pseries\TS_IMAGES-SEA_AQU-LAC-EC-CHLOR_A-PSERIES_4186.CSV'
+;		TEMPLATE     = DRIVE + ':\OC-SEA_AQU-LAC-EC\ts_images\iseries\TS_IMAGES-SEA_AQU-LAC-EC-CHLOR_A-TEMPLATE.SAVE'
+;		DIR_OUT = DRIVE + ':\OC-SEA_AQU-LAC-EC\TS_IMAGES\PSTATS\'
+
+
+	; =====>
+		IF KEYWORD_SET(DO_ALL) THEN BEGIN
+			DO_PSTATS_2SAVE = 0
+			DATE_RANGE = ['19980101','20081231']
+			STAT_TYPES = ['MONTH_JD_MIN','MONTH_JD_MAX','Y_JD_MIN','Y_JD_MAX','WEEK_JD_MIN','WEEK_JD_MAX']
+			TS_PSERIES_STATS,PSERIES_FILE,CSV_FILE=CSV_FILE,TEMPLATE=TEMPLATE,$
+															DIR_OUT=dir_out,DATA_TYPE=data_type,$
+		           								PROD=prod,FILE_LABEL=file_label,  $
+		           								MIN_GOOD=min_good, $
+		           								STAT_TYPES = STAT_TYPES,$
+		           								DATE_RANGE=date_range,OVERWRITE=overwrite,$
+		           								DO_PSTATS_2SAVE=DO_PSTATS_2SAVE
+		ENDIF;	IF KEYWORD_SET(DO_ALL) THEN BEGIN
+
+
+	; =====>
+		IF KEYWORD_SET(DO_SINGLE_YEARS) THEN BEGIN
+			DO_PSTATS_2SAVE = 0
+			DIR_OUT = DRIVE + ':\OC-SEA_AQU-LAC-NEC\TS_IMAGES\PSTATS\'
+			DIR_OUT = DRIVE + ':\OC-SEA_AQU-LAC-EC\TS_IMAGES\PSTATS\'
+			STAT_TYPES = ['NUM','MIN','MAX','JD_MIN','JD_MAX','P_1','P_50','P_99','MEAN','STD',$
+								'INT_D','SLOPE_D','R_D','INT_M_ANOM','SLOPE_M_ANOM','R_M_ANOM',$
+								'M_JD_MIN','M_JD_MAX','W_JD_MIN','W_JD_MAX']
+
+			YEARS = ['1998','1999','2000','2001','2002','2003','2004','2005','2006','2007','2008']
+		;	IF COMPUTER EQ 'SUNFISH' THEN YEARS =['2005','2006','2007','2008']
+		;	IF COMPUTER EQ 'SWORDFISH' THEN YEARS =['2008']
+			FOR NTH =0L, N_ELEMENTS(YEARS)-1 DO BEGIN
+				DATE_RANGE = [YEARS[NTH]+'0101',YEARS[NTH]+'1231']
+
+				TS_PSERIES_STATS,PSERIES_FILE,CSV_FILE=CSV_FILE,TEMPLATE=TEMPLATE,$
+																DIR_OUT=dir_out,DATA_TYPE=data_type,$
+			           								PROD=prod,FILE_LABEL=file_label,  $
+			           								MIN_GOOD=min_good, $
+			           								STAT_TYPES = STAT_TYPES,$
+			           								DATE_RANGE=date_range,OVERWRITE=overwrite,$
+			           								DO_PSTATS_2SAVE=DO_PSTATS_2SAVE
+
+			ENDFOR
+		ENDIF;	IF KEYWORD_SET(DO_SINGLE_YEARS) THEN BEGIN
+	ENDIF;	IF 	DO_SEA_AQU_PSTATS GE 1 THEN BEGIN
+
+
+
+
+
+; *********************************************
+	IF 	DO_CZCS_PSTATS GE 1 THEN BEGIN
+; *********************************************
+		OVERWRITE = DO_CZCS_PSTATS GE 2
+		OVERWRITE = 0
+
+		DO_ALL            = 0
+		DO_SINGLE_YEARS   = 1
+
+		PROD = 'CHLOR_A'
+		PSERIES_FILE 	= DRIVE + ':\OC-CZCS-MLAC-NEC\ts_images\pseries\TS_IMAGES-CZCS-REPRO1-MLAC-NEC-CHLOR_A-PSERIES_1797.INT'
+		CSV_FILE 			= DRIVE + ':\OC-CZCS-MLAC-NEC\ts_images\pseries\TS_IMAGES-CZCS-REPRO1-MLAC-NEC-CHLOR_A-PSERIES_1797.CSV'
+		TEMPLATE 			= DRIVE + ':\OC-CZCS-MLAC-NEC\ts_images\iseries\TS_IMAGES-CZCS-REPRO1-MLAC-NEC-CHLOR_A-TEMPLATE.SAVE'
+
+		DIR_OUT = 'T:\OC-CZCS-MLAC-NEC\TS_IMAGES\PSTATS\'
+
+
+		STAT_TYPES = ['NUM','MIN','MAX', 'JD_MIN','JD_MAX','P_1','P_50','P_99','MEAN','STD',$
+								'INT_D','SLOPE_D','R_D',$
+								'INT_M_ANOM','SLOPE_M_ANOM','R_M_ANOM',$
+								'M_JD_MIN','M_JD_MAX','MONTH_JD_MIN','MONTH_JD_MAX','Y_JD_MIN','Y_JD_MAX',$
+								'W_JD_MIN','W_JD_MAX','WEEK_JD_MIN','WEEK_JD_MAX',$
+   							'T0_ACT','T0_ACF',$
+   							'LNP_D_MAX_PEAK',			'LNP_D_PERIOD_MAX',			'LNP_D_FAP',			'LNP_D_SPECTRUM',$
+   							'LNP_M_ANOM_MAX_PEAK','LNP_M_ANOM_PERIOD_MAX','LNP_M_ANOM_FAP',	'LNP_M_ANOM_SPECTRUM']
+
+	; ======>
+		IF KEYWORD_SET(DO_ALL) THEN BEGIN
+			DO_PSTATS_2SAVE = 0
+			STAT_TYPES = ['NUM','MIN','MAX','JD_MIN','JD_MAX','P_1','P_50','P_99','MEAN','STD',$
+								'INT_D','SLOPE_D','R_D','INT_M_ANOM','SLOPE_M_ANOM','R_M_ANOM',$
+								'M_JD_MIN','M_JD_MAX','W_JD_MIN','W_JD_MAX']
+
+
+			DATE_RANGE = ['19790101','19851231']
+
+			TS_PSERIES_STATS,PSERIES_FILE,CSV_FILE=CSV_FILE,TEMPLATE=TEMPLATE,$
+														DIR_OUT=dir_out,DATA_TYPE=data_type,$
+	           								PROD=prod,FILE_LABEL=file_label,  $
+	           								MIN_GOOD=min_good, $
+	           								STAT_TYPES = STAT_TYPES,$
+	           								DATE_RANGE=date_range,OVERWRITE=overwrite,$
+	           								DO_PSTATS_2SAVE=DO_PSTATS_2SAVE
+
+		ENDIF;IF KEYWORD_SET(DO_ALL) THEN BEGIN
+
+	; ======>
+		IF KEYWORD_SET(DO_SINGLE_YEARS) THEN BEGIN
+
+			DO_PSTATS_2SAVE = 0
+			STAT_TYPES = ['NUM','MIN','MAX','JD_MIN','JD_MAX','P_1','P_50','P_99','MEAN','STD',$
+								'INT_D','SLOPE_D','R_D','INT_M_ANOM','SLOPE_M_ANOM','R_M_ANOM',$
+								'M_JD_MIN','M_JD_MAX','W_JD_MIN','W_JD_MAX']
+
+			YEARS = ['1979','1980','1981','1982','1983','1984','1985']
+			FOR NTH =0L, N_ELEMENTS(YEARS)-1 DO BEGIN
+				DATE_RANGE = [YEARS[NTH]+'0101',YEARS[NTH]+'1231']
+
+				TS_PSERIES_STATS,PSERIES_FILE,CSV_FILE=CSV_FILE,TEMPLATE=TEMPLATE,$
+																DIR_OUT=dir_out,DATA_TYPE=data_type,$
+			           								PROD=prod,FILE_LABEL=file_label,  $
+			           								MIN_GOOD=min_good, $
+			           								STAT_TYPES = STAT_TYPES,$
+			           								DATE_RANGE=date_range,OVERWRITE=overwrite,$
+			           								DO_PSTATS_2SAVE=DO_PSTATS_2SAVE
+
+			ENDFOR
+		ENDIF;		IF KEYWORD_SET(DO_SINGLE_YEARS) THEN BEGIN
+	ENDIF;	IF 	DO_CZCS_PSTATS GE 1 THEN BEGIN
+END

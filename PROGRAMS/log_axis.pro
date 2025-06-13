@@ -1,0 +1,63 @@
+; $ID:	LOG_AXIS.PRO,	2020-07-08-15,	USER-KJWH	$
+
+ FUNCTION LOG_AXIS, RANGE
+;+
+; NAME:
+; 	LOG_AXIS
+
+;		This Program Computes an appropriate even interval range for a plot axis
+;
+;	EXAMPLES:
+ ; AX = LOG_AXIS([0.41697531,3.1590427])
+
+; 	MODIFICATION HISTORY:
+;			Written March 3, 2006 by J.O'Reilly, 28 Tarzwell Drive, NMFS, NOAA 02882 (Jay.O'Reilly@NOAA.GOV)
+;-
+
+	ROUTINE_NAME='LOG_AXIS'
+
+	_RANGE = MINMAX(RANGE)
+
+
+  D=DECADES()
+  MIN_D = MIN(D)
+  MAX_D = MAX(D)
+
+
+
+;	===> Find nearest subscripts
+  OK=WHERE_NEAREST(D, _RANGE ,NEAR= 10*MAX(_RANGE))
+  SUB_LOW = OK[0]
+  SUB_UPP = OK[1]
+
+;	WWWWWWWWWWWWWWWWWWWWW
+  WHILE D(SUB_LOW) GT _RANGE[0] AND D(SUB_LOW) GT MIN_D DO SUB_LOW = SUB_LOW - 1L
+
+
+;	WWWWWWWWWWWWWWWWWWWWW
+  WHILE D(SUB_UPP) LT _RANGE[1] AND D(SUB_UPP) LT MAX_D DO SUB_UPP = SUB_UPP + 1L
+
+
+
+	TICKV = D(SUB_LOW:SUB_UPP)
+	TICKS = N_ELEMENTS(TICKV)-1
+	TICKNAME = NUM2STR(STRING(TICKV,FORMAT='(F-20.7)'),TRIM=2)
+
+	TICKNAME_MAJOR = TICKNAME
+	IF N_ELEMENTS(TICKNAME) GE  6 THEN BEGIN
+		TICKNAME_MAJOR(1:TICKS-1)=' '
+		OK=WHERE(STRPOS(TICKNAME,'1') GE 0,COUNT)
+		IF COUNT GE 1 THEN TICKNAME_MAJOR[OK]=TICKNAME[OK]
+	ENDIF
+	STRUCT =  CREATE_STRUCT('TITLE','','VAL',TICKV ,'TICKS',TICKS,$
+                         		'TICKV',TICKV,$
+                         		'TICKNAME',TICKNAME ,$
+                         		'TICKNAME_MAJOR',TICKNAME_MAJOR )
+
+
+  RETURN,STRUCT
+
+END; #####################  End of Routine ################################
+
+
+

@@ -1,0 +1,80 @@
+; $ID:	GET_LME_MAPS.PRO,	2020-06-26-15,	USER-KJWH	$
+
+
+;#############################################################################################################
+	FUNCTION GET_LME_MAPS,ALL = ALL 
+	
+;  PRO GET_LME_MAPS
+;+
+; NAME:
+;		GET_LME_MAPS
+;
+; PURPOSE: THIS FUNCTION RETURNS A STRUCTURE WITH THE NAMES AND CODES OF THE LME MAPS
+;
+; CATEGORY:
+;		PROGRAMMING CONTROL
+;		 
+;
+; CALLING SEQUENCE:RESULT = GET_LME_MAPS()
+;
+; INPUTS:
+;		NONE:	
+;		
+; OPTIONAL INPUTS:
+;		NONE:	
+;		
+; KEYWORD PARAMETERS:
+;		ALL: RETURNS ALL 64 LMES (NOT JUST 62)
+
+
+; OUTPUTS:
+;		
+;; EXAMPLES:
+;  DB = GET_LME_MAPS()
+;	NOTES:
+
+;		
+;
+;
+; MODIFICATION HISTORY:
+;			WRITTEN JUN 28,2012  J.O'REILLY
+;			MAY 27,2013,JOR CORRECTED DOCUMENTATION: ALL RETURNS ALL 64 LMES
+;			JUN 6,2013,JOR ADDED PWP SO 63 NOT 62 LMES   IF COUNT EQ 63 THEN BEGIN
+;     SEP 9,2013,JOR,  DB = READ_CSV('D:\IDL\DATA\LMES67_MAPS_MASTER.CSV')
+;                      IF COUNT EQ 67 THEN BEGIN
+;                      NAMES = DB.LME_NAME
+;     SEP 15,2013,JOR, NOW USING 'D:\IDL\DATA\LMES67_DBF_MASTER.SAVE'
+;     FEB 22,2014,JOR: SAVEFILE = !S.DATA +'LMES67_DBF_MASTER.SAVE'  & PFILE,SAVEFILE,/X
+
+;
+
+
+;#################################################################################
+;
+;
+;-
+;	*******************************************
+ROUTINE_NAME='GET_LME_MAPS'
+; *******************************************
+
+  ;===> GET THE  SAVEFILE WITH LME NAMES ,CODES AND LIMITS ADDED FROM STEP DO_ADD_LIMIT_2_LME_MAPS IN UNEP_MAIN
+  SAVEFILE = !S.MASTER +'LMES67_DBF_MASTER.SAVE'  & PFILE,SAVEFILE,/X
+  DB = IDL_RESTORE(SAVEFILE)   ; SEP 15,2013,JOR
+
+
+ 
+    IF KEYWORD_SET(ALL) THEN RETURN,DB
+
+  OK = WHERE(DB.CODE NE '',COUNT)
+  IF COUNT EQ 67 THEN BEGIN
+  DB = DB[OK]
+  MAPS = DB.MAP
+  CODES= DB.CODE
+  NAMES = DB.LME_NAME
+  MAPS = DB.MAP
+  ENDIF ELSE BEGIN
+    STOP
+  ENDELSE
+RETURN,DB
+DONE:          
+	END; #####################  END OF ROUTINE ################################

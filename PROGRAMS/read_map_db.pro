@@ -1,0 +1,60 @@
+; $ID:	READ_MAP_DB.PRO,	2020-06-26-15,	USER-KJWH	$
+;#############################################################################################################
+	FUNCTION READ_MAP_DB,MAPS 
+	
+;  PRO READ_MAP_DB
+;+
+; NAME:
+;		READ_MAP_DB
+;
+; PURPOSE: THIS FUNCTION RETURNS THE DATA ON MAPS IN A STRUCTURE 
+;
+; CATEGORY:
+;		MAPS
+;		 
+;
+; CALLING SEQUENCE:RESULT = READ_MAP_DB(TXT)
+;
+; INPUTS:
+;		MAPS:	NAME(S) OF MAPS EG.[SMI,GEQ,NEC] 
+;		
+; OPTIONAL INPUTS:
+;		NONE:	
+;		
+; KEYWORD PARAMETERS:
+;   NONE
+
+; OUTPUTS: A STRING [E.G.FOR SMI] LIMIT = [-90.000000,-180.00000,90.000000,180.00000]
+;		
+;; EXAMPLES:
+;  MAPS =  READ_MAP_DB() & HELP,MAPS
+;	NOTES:
+
+;		
+;
+;
+; MODIFICATION HISTORY:
+;			WRITTEN OCT 10, 2013 J.O'REILLY
+;			OCT 15,2013,JOR RENAMED TO READ_MAP_DB
+;			NOV 4,2013,JOR SAVEFILE = GET_PATH() + 'IDL\DB\MAP_DATA_MASTER_DB.SAVE'
+;                     REPLACED WHERE_IN WITH WHERE_MATCH [ TO KEEP OUTPUT ORDER IN SYNC WITH INPUT ORDER]
+;     NOV 10,2013,JOR CHANGED DIRECTORY TO 'D:\IDL\MASTER\'
+;     DEC 17, 2013 KJWH: CHANGED GET_PATH() TO !S.MASTER
+;#################################################################################
+;
+;
+;-
+;************************************
+ROUTINE_NAME  = 'READ_MAP_DB'
+;************************************
+;MAP_DATA_MASTER_DB.SAVE
+SAVEFILE = !S.MASTER + 'MAP_DATA_MASTER_DB.SAVE'
+DB = IDL_RESTORE(SAVEFILE)
+IF N_ELEMENTS(MAPS) EQ 0 THEN RETURN,DB
+OK = WHERE_MATCH(DB.MAP,  MAPS,COUNT)
+IF COUNT GE 1 THEN RETURN, DB[OK]
+DONE:          
+	END; #####################  END OF ROUTINE ################################
+
+
+

@@ -1,0 +1,52 @@
+; $ID:	MAPS_VIEW.PRO,	2019-04-29-11,	USER-KJWH	$
+;+
+;#############################################################################################################
+	PRO MAPS_VIEW, MAPP, PNG=PNG, CLOSE=CLOSE, DELAY=DELAY, PX=PX, PY=PY, VERBOSE=VERBOSE, _EXTRA=_EXTRA
+	
+; NAME:
+;		MAPS_VIEW
+;
+; PURPOSE: VIEW INFO IN THE MAPS MASTER DATABASE USING THE SPREAD ROUTINE
+;
+; CATEGORY: MAPS 		 
+;
+; CALLING SEQUENCE: MAPS_VIEW
+;
+; INPUTS: NONE
+;		
+; OPTIONAL INPUTS:	NONE:	
+;	
+; KEYWORD PARAMETERS: _EXTRA: KEYWORDS ARE PASSED TO PRODS_COLORBAR IF PROD IS PROVIDED
+;   PX........ THE PIXEL WIDTH OF THE OUTPUT IMAGE
+;   PY........ THE PIXEL HEIGHT OF THE OUTPUT IMAGE
+;	
+; OUTPUTS: DISPLAYS MASTER MAPS INFO IN A SPREADSHEET WINDOW
+; 
+; EXAMPLES:
+;           MAPS_VIEW
+;           MAPS_VIEW,'nec'
+;           MAPS_VIEW,'NEC',TITLE = 'TESTING'
+;           MAPS_VIEW,'EC',TITLE = 'TESTING PNG',/PNG
+;           
+;		
+; MODIFICATION HISTORY:
+;			WRITTEN JAN 19,2014 J.O'REILLY
+;     JAN 21, 2014 - JEOR: ADDED MAPP,_EXTRA 
+;     FEB 24, 2014 - JEOR: REVISED KEYWORDS PASSED TO MAPS_IMAGE 
+;     DEC  5, 2014 - JEOR: REMOVED PAL = AND KEYWORDS PASSED TO MAPS_IMAGE
+;     DEC 10, 2014 - JEOR: REMOVED MAPS_SORT [MAPS_READ ALWAYS SORTS] 
+;     DEC 15, 2015 - JEOR: FIXED DELAY
+;     JUL 15, 2016 - JEOR: PASS PNG TO MAPS_IMAGE
+;     SEP 23, 2016 - KJWH: Added STRUPCASE(MAPP) to make sure the MAPP is found
+;     APR 29, 2019 - KJWH: Added VERBOSE keyword
+;                          Updated formatting
+;			
+;#################################################################################
+;-
+;****************************
+  ROUTINE_NAME  = 'MAPS_VIEW'
+;****************************
+
+  IF N_ELEMENTS(MAPP) EQ 0 THEN SPREAD, MAPS_READ(/INIT) ELSE MAPS_IMAGE, STRUPCASE(MAPP),PNG=PNG, DELAY=DELAY, PX=PX, PY=PY, VERBOSE=VERBOSE
+
+END; #####################  END OF ROUTINE ################################

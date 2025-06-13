@@ -1,0 +1,46 @@
+; $ID:	SPAN.PRO,	2020-07-08-15,	USER-KJWH	$
+;######################################################################################################
+ FUNCTION SPAN, ARRAY, FIN=FIN
+;+
+; NAME:
+; 	SPAN
+
+;		THIS FUNCTION COMPUTES THE SPAN FOR 2 OR MORE DATA VALUES AS THE ABS(MAX(DATA)-MIN(DATA)
+;
+; SYNTAX:
+;		RESULT = SPAN(DATA)
+;
+; OUTPUT:
+;	 THE ABSOLUTE DIFFERENCE BETWEEN THE MAXIMUM AND MINIMUM OF THE INPUT DATA VALUES
+;
+; ARGUMENTS:
+;		DATA: 	NUMERIC
+;
+; KEYWORDS:
+;
+; EXAMPLE:
+;		DATA = [-4,2,5,9,12.5] & PRINT, SPAN(DATA)
+;
+;	NOTES:
+;
+; MODIFICATION HISTORY:
+;		WRITTEN JAN 23, 2005 BY J.O'REILLY, 28 TARZWELL DRIVE, NMFS, NOAA 02882 (JAY.O'REILLY@NOAA.GOV)
+;		AUG 10,2013,JOR, FORMATTING ,CHANGED PARAMETER TO ARRAY TO AVOID CORRUPTING INPUT
+;		FEB 21,2015,JOR, CHANGE STRINGS [E.G. DATE TO ULONG64
+;		                 RETURN NULL [] INSTEAD OF -1
+;		######################################################################################################
+;-
+;*********************
+ROUTINE_NAME  = 'SPAN'
+;*********************
+IF NONE(ARRAY)  THEN RETURN, []
+DATA = ARRAY
+IF IDLTYPE(DATA) EQ 'STRING' THEN DATA = ULONG64(DATA)
+MINMAX_=MINMAX(DOUBLE(DATA),FIN=FIN)
+RETURN, ABS(MINMAX_[1]-MINMAX_[0])
+
+
+END; #####################  END OF ROUTINE ################################
+
+
+

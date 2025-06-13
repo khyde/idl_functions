@@ -1,0 +1,103 @@
+; $ID:	READ_L3BIN_HDF.PRO,	2020-06-30-17,	USER-KJWH	$
+
+FUNCTION READ_L3BIN_HDF,FILE, PROD, BINS=BINS, NOBS=NOBS, NROWS=NROWS
+
+;+NAME/ONE LINE DESCRIPTION OF ROUTINE:
+;    READ_L3BIN_HDF READS A SPECIFIC PRODUCT FROM A SEAWIFS BIN FILE
+;
+;  NAME:
+;    READ_L3BIN_HDF
+;
+;  PURPOSE:
+;    SIMPLIFIES THE READING OF STANDARD L3 BIN FILE. RETURNS MEAN BIN VALUES FOR A SPECIFIED PRODUCT.
+;
+;  CALLING SEQUENCE:
+;    DATA = READ_L3BIN_HDF(FILENAME,PROD)
+;
+;  INPUT:
+;    FILE - L3BIN FILENAME STRING.
+;    PROD - L3 SDS PRODUCT NAME STRING. IF THIS ENDS IN '_', ALL SDS PRODUCTS OF NAME PROD_NNN (WHERE NNN IS WAVELENGTH) WILL BE RETURNED.
+;
+;    KEYWORDS:           
+;
+;  OUTPUT:
+;    DATA - 1-DIMENSIONAL ARRAY CONTAINING THE REQUESTED PRODUCT.
+;   
+;  OPTIONAL OUTPU:
+;    BINS  - 
+;    NOBS  - 
+;    NROWS -
+;     
+;  SUBROUTINES CALLED:
+;    GET_VDS_IN_VG  
+;
+;  WRITTEN BY:
+;    J. Gales, Futuretech Corp..
+;    B. A. Franz, SAIC General Sciences Corp..
+;    February 2000.
+;
+; MODIFICATION HISTORY:
+;    OCT 29, 2002 - Joel Gales <joel@sherpa.domain.sdps>
+;    DEC 15, 2009 - TD: Comment out variables we do not need at this time,add ERROR keyword
+;    NOV 23, 2015 - KJWH: Renamed READL3BJ to READ_L2BIN_HDF to be consistent with our other READ_xxx programs
+;                         Updated formatting and made consistent with READ_L3BIN_NC
+;-
+
+;********************************
+  ROUTINE_NAME = 'READ_L3BIN_HDF'
+;********************************
+  IF NONE(PROD) THEN MESSAGE,'ERROR: PROD IS REQUIRED'
+
+; ================> IF Problem reading file then return, -1 and write report
+  CATCH, ERROR_STATUS
+  IF ERROR_STATUS NE 0 THEN BEGIN
+    ERROR = 1 & ERROR_STATUS=0 
+    ERR_MSG = !ERROR_STATE.MSG
+    PRINT, ERR_MSG
+    IF VDATA_ID EQ [] THEN STOP
+    HDF_VD_DETACH,vdata_id
+    HDF_CLOSE,fileid
+    RETURN,-1
+  ENDIF
+
+  FILEID = HDF_OPEN(FILE, /READ)
+
+  VREF = HDF_VD_FIND(FILEID,'BinIndex')
+  VDATA_ID = HDF_VD_ATTACH(FILEID, VREF)
+  HDF_VD_GET, VDATA_ID, COUNT=NROWS
+  HDF_VD_DETACH,VDATA_ID
+
+
+  VREF = HDF_VD_FIND(FILEID,'BinList')
+  VDATA_ID = HDF_VD_ATTACH(FILEID, VREF)
+  NREC = HDF_VD_READ(VDATA_ID,BINS,FIELDS='bin_num')
+  NREC = HDF_VD_READ(VDATA_ID,WTS,FIELDS='weights')
+  HDF_VD_DETACH,vdata_id
+
+  IF (PROD EQ '') THEN BEGIN
+		DATA = -1
+		GOTO, SKIP
+  ENDIF
+
+  IF PROD NE 'qual_l3' THEN VD = GET_VDS_IN_VG(FILE,'Level-3 Binned Data','DataSubordinate') ELSE VD = []
+  IF PROD EQ 'qual_l3' THEN VQ = GET_VDS_IN_VG(FILE,'Level-3 Binned Data','DataQuality') ELSE VQ = []
+
+  S = WHERE(STRUPCASE([VD,VQ]) EQ STRUPCASE(PROD))
+  IF (S[0] EQ -1) THEN BEGIN
+ 			HDF_CLOSE,FILEID ; Close file
+      PRINT,'PRODUCT ',PROD,' NOT FOUND IN ',FILE
+      RETURN,-1
+  ENDIF
+
+  VREF = HDF_VD_FIND(FILEID, PROD)
+  VDATA_ID = HDF_VD_ATTACH(FILEID, VREF, /READ)
+  IF PROD EQ 'qual_l3' THEN NREC = HDF_VD_READ(VDATA_ID,SUM,FIELDS=PROD) $
+                       ELSE NREC = HDF_VD_READ(VDATA_ID,SUM,FIELDS=PROD+"_sum")
+  IF PROD EQ 'qual_l3' THEN DATA = SUM ELSE DATA = SUM/WTS
+  HDF_VD_DETACH,VDATA_ID
+
+SKIP:
+  HDF_CLOSE,FILEID
+   
+  RETURN, DATA
+END

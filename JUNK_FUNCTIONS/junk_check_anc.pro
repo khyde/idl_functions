@@ -1,0 +1,48 @@
+; $ID:	JUNK_CHECK_ANC.PRO,	2020-06-03-17,	USER-KJWH	$
+pro junk_check_anc, sensors=sensors, years=years
+
+  IF NONE(SENSORS) THEN SENSORS = ['A','V','S']
+  IF NONE(YEARS)   THEN YEARS   = YEAR_RANGE('1997','2020',/STRING)
+
+  ANC = '/usr/local/seadas_anc/'
+
+  FOR S=0, N_ELEMENTS(SENSORS)-1 DO BEGIN
+    CASE SENSORS(S) OF
+      'A': BEGIN & DIR = !S.MODIS  + 'OC-MODISA-1KM/'  & L1N = '.L1A_LAC.bz2' & L2N = '.L2_LAC_SUB_OC' & END
+      'V': BEGIN & DIR = !S.SEADAS + 'OC-VIIRS-1KM/'   & L1N = '.L1A_SNPP.nc' & L2N = '.L2_OC_SUB'     & END
+      'S': BEGIN & DIR = !S.SEADAS + 'OC-SEAWIFS-1KM/' & L1N = '.L1A_LAC.bz2' & L2N = '.L2_MLAC_OC'    & END
+    ENDCASE
+    FOR Y=0, N_ELEMENTS(YEARS)-1 DO BEGIN
+      FILES = FLS(ANC + SENSORS(S) + YEARS(Y) + '*.a*', COUNT=COUNT)
+      IF COUNT EQ 0 THEN CONTINUE
+      HELP, FILES
+      FILES_2_REMOVE = []
+      FOR F=0, N_ELEMENTS(FILES)-1 DO BEGIN      
+        DELETE = 0
+        TXT = READ_TXT(FILES(F))
+        IF TXT EQ [] THEN BEGIN & DELETE = 1 & GOTO, SKIP & ENDIF
+        IF WHERE_STRING(TXT,'/usr/local/seadas_anc/') EQ [] THEN DELETE = 1
+        IF WHERE_STRING(TXT,'/usr/local/seadas/ocssw/run/var/anc/') NE [] THEN DELETE = 1
+        SKIP:
+        IF DELETE EQ 1 THEN POF, F, FILES     
+        IF DELETE EQ 1 THEN FILES_2_REMOVE = [FILES_2_REMOVE, FILES(F)]
+      ENDFOR
+      IF FILES_2_REMOVE EQ [] THEN CONTINUE
+      FP = FILE_PARSE(FILES_2_REMOVE)
+      L1 = DIR + 'L1A/NC/' + FP.FIRST_NAME + L1N & B1 = DIR + 'L1A/PROCESS/' + FP.FIRST_NAME + L1N & P1 = REPLACE(B1,'.bz2','')
+      L2 = DIR + 'L2/NC/'  + FP.FIRST_NAME + L2N
+      K1 = WHERE(FILE_TEST(L1) EQ 1 AND FILE_TEST(B1) EQ 0 AND FILE_TEST(P1) EQ 0,C1)
+      K2 = WHERE(FILE_TEST(L2) EQ 1,C2)
+      
+      IF C1 GT 0 THEN FILE_COPY, L1(K1), DIR + 'L1A/PROCESS/',/VERBOSE
+      IF C2 GT 0 THEN FILE_MOVE, L2(K2), DIR + 'L1A/SUSPECT/ANCILLARY/',/VERBOSE
+      
+      WRITE_TXT, !S.IDL_TEMP + SENSORS(S) + YEARS(Y) + 'ANCILLARY_FILES_REMOVED-' + NUM2STR(DATE_NOW()) + '.TXT', FILES_2_REMOVE
+      FILE_DELETE, FILES_2_REMOVE, /VERBOSE
+      
+    ENDFOR
+    
+  ENDFOR
+
+
+end

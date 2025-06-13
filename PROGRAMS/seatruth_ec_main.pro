@@ -1,0 +1,355 @@
+; $ID:	SEATRUTH_EC_MAIN.PRO,	2020-07-08-15,	USER-KJWH	$
+;+
+;	This Function Program
+; SYNTAX:
+;	SEATRUTH_EC_MAIN, Param1, Param2 [,/KEY1] [,/KEY2] [KEY3=KEY3] )
+;	Result = SEATRUTH_EC_MAIN(Param1, Param2 [,/KEY1] [,/KEY2] [KEY3=KEY3] )
+; OUTPUT:
+; ARGUMENTS:
+
+; KEYWORDS:
+
+; EXAMPLE:
+; CATEGORY:
+;	SEAWIFS
+; NOTES:
+
+; VERSION:
+;	Jan 17,2001
+; HISTORY:
+;	Jan 17,2001	Written by:	J.E. O'Reilly
+;-
+; *************************************************************************
+
+PRO SEATRUTH_EC_MAIN
+  ROUTINE_NAME='SEATRUTH_EC_MAIN'
+  DISK = 'G:\'
+  FTO = DISK+'FTO\'
+  SEATRUTH = DISK + 'SEATRUTH\'
+  MATCHUP = 'H:\SEAWIFS_EC\REPRO3\SAT_SHIP\'
+
+; SWITCHES
+  DO_FTO_MAIN                = 0
+  DO_ST_TOWNSEND_GLOBEC_EDIT = 0
+  DO_ST_TOWNSEND_ECOHAB_EDIT = 0
+  DO_ST_BALCH_FERRY_EDIT     = 0
+  DO_ST_PAGE_PRINCE5_EDIT    = 0
+  DO_ST_MWRA_EDIT            = 0
+  DO_ST_PHINNEY_EDIT         = 0
+  DO_ST_HARRISON_EDIT        = 0
+  DO_ST_CBP_EDIT             = 0
+  DO_ST_EMAP_DB_CB_EDIT      = 0
+  DO_ST_DURBIN_EDIT      		 = 0
+  DO_ST_DANDONNEAU_EDIT      = 0
+  DO_ST_BBOP_EDIT      		 	 = 0
+
+  DO_MERGE                   = 1
+  DO_SURFACE                 = 1
+
+  DO_TABLE_SOURCES			 		= 1
+  DO_TABLE_SOURCES_PLOT		 	= 0
+
+  DO_EXTRACT_BY_SOURCES		 	= 0
+
+
+; ***************************************************
+; RUN THE FOLLOWING PROGRAMS TO GET THE CSV SAVE FILES
+  IF DO_FTO_MAIN EQ 1 THEN FTO_MAIN
+  IF DO_ST_TOWNSEND_GLOBEC_EDIT EQ 1 THEN  ST_TOWNSEND_GLOBEC_EDIT
+  IF DO_ST_TOWNSEND_ECOHAB_EDIT EQ 1 THEN  ST_TOWNSEND_ECOHAB_EDIT
+  IF DO_ST_BALCH_FERRY_EDIT     EQ 1 THEN  ST_BALCH_FERRY_EDIT
+  IF DO_ST_PAGE_PRINCE5_EDIT    EQ 1 THEN  ST_PAGE_PRINCE5_EDIT
+  IF DO_ST_MWRA_EDIT            EQ 1 THEN  ST_MWRA_EDIT
+  IF DO_ST_PHINNEY_EDIT         EQ 1 THEN  ST_PHINNEY_EDIT
+  IF DO_ST_HARRISON_EDIT        EQ 1 THEN  ST_HARRISON_EDIT
+  IF DO_ST_CBP_EDIT             EQ 1 THEN  ST_CBP_EDIT
+  IF DO_ST_EMAP_DB_CB_EDIT      EQ 1 THEN  ST_EMAP_DB_CB_EDIT
+  IF DO_ST_DURBIN_EDIT      		EQ 1 THEN  ST_DURBIN_EDIT
+  IF DO_ST_DANDONNEAU_EDIT      EQ 1 THEN  ST_DANDONNEAU_EDIT
+  IF DO_ST_BBOP_EDIT      		EQ 1 THEN  ST_BBOP_EDIT
+
+
+  IF DO_MERGE EQ 1 THEN BEGIN
+    ALL=READALL(DISK+'FTO\SAVE\FTO_SEATRUTH.SAVE')
+
+    D=READALL(seatruth+'\TOWNSEND\GLOBEC\ST_TOWNSEND_GLOBEC_EDIT.SAVE')
+    ALL = STRUCT_CONCAT(ALL,D)
+
+    D=READALL(seatruth+'\TOWNSEND\ECOHAB\ST_TOWNSEND_ECOHAB_EDIT.SAVE')
+    ALL = STRUCT_CONCAT(ALL,D)
+
+    D=READALL(seatruth+'\BALCH\ST_BALCH_FERRY_EDIT.SAVE')
+    ALL = STRUCT_CONCAT(ALL,D)
+
+    D=READALL(seatruth+'\PHINNEY\ST_PHINNEY_EDIT.SAVE')
+    ALL = STRUCT_CONCAT(ALL,D)
+
+    D=READALL(seatruth+'\HARRISON\ST_HARRISON_EDIT.SAVE')
+    ALL = STRUCT_CONCAT(ALL,D)
+
+    D=READALL(seatruth+'\PAGE\ST_PAGE_PRINCE5_EDIT.SAVE')
+    ALL = STRUCT_CONCAT(ALL,D)
+
+    D=READALL(seatruth+'\MWRA\ST_MWRA_EDIT.SAVE')
+    ALL = STRUCT_CONCAT(ALL,D)
+
+    D=READALL(seatruth+'\CBP\ST_CBP_EDIT.SAVE')
+    ALL = STRUCT_CONCAT(ALL,D)
+
+    D=READALL(seatruth+'\EMAP_DB_CB\ST_EMAP_DB_CB_EDIT.SAVE')
+    ALL = STRUCT_CONCAT(ALL,D)
+
+ 		D=READALL(seatruth+'\DURBIN\ST_DURBIN_EDIT.SAVE')
+    ALL = STRUCT_CONCAT(ALL,D)
+
+		D=READALL(seatruth+'\DANDONNEAU\ST_DANDONNEAU_EDIT.SAVE')
+    ALL = STRUCT_CONCAT(ALL,D)
+
+		D=READALL(seatruth+'\BBOP\ST_BBOP_EDIT.SAVE')
+    ALL = STRUCT_CONCAT(ALL,D)
+
+
+
+
+;   **************************************
+    OK = WHERE(ALL.CHL NE MISSINGS(ALL.CHL) AND $
+               ALL.CHL NE 0                 AND $
+               ALL.LAT NE MISSINGS(ALL.LAT) AND $
+               ALL.LON NE MISSINGS(ALL.LON) AND $
+               ALL.YEAR NE MISSINGS(ALL.YEAR) AND $
+               ALL.MONTH NE MISSINGS(ALL.MONTH) AND $
+               ALL.DAY NE MISSINGS(ALL.DAY)     AND $
+               ALL.HOUR NE MISSINGS(ALL.HOUR) )
+    ALL = ALL[OK]
+    HELP, ALL
+
+    SAVEFILE = seatruth+'\SEATRUTH_EC.SAVE'
+    SAVE,FILENAME=SAVEFILE,ALL,/COMPRESS
+    SAVE_2CSV,SAVEFILE
+  ENDIF
+
+
+; ************************************************************************
+  IF DO_SURFACE EQ 1 THEN BEGIN
+    SAVEFILE = seatruth+'\SEATRUTH_EC.SAVE'
+    S = READALL(SAVEFILE)
+;   Make a string for unique stations
+    txt = S.CRUISE
+    txt = TXT + S.STA
+    txt = TXT + S.SOURCE
+    txt = TXT + STRING_FORMAT(S.YEAR,FORMAT='(I4)')
+    txt = TXT + STRING_FORMAT(S.MONTH,FORMAT='(I2)')
+    txt = TXT + STRING_FORMAT(S.DAY,FORMAT='(I2)')
+    txt = TXT + STRING_FORMAT(S.HOUR,FORMAT='(I2)')
+    txt = TXT + STRING_FORMAT(S.MINUTE,FORMAT='(I2)')
+    txt = TXT + STRING_FORMAT(S.SECOND,FORMAT='(I2)')
+
+;   ===============> Make a sequence so that the final order of surface is similar to input
+    SEQ = LINDGEN(N_ELEMENTS(TXT))
+
+;   ===============> SORT THE TXT STRING AND DETERMINE THE NUMBER OF UNIQUE STATIONS
+    SRT=SORT(TXT) & TXT = TXT(SRT) & S = S(SRT) & SEQ = SEQ(SRT)
+    U = UNIQ(TXT)
+
+    SUR = S[0]
+    SUR = STRUCT_2MISSINGS(SUR)
+    SUR = REPLICATE(SUR,N_ELEMENTS(U))
+    SEQUENCE = LONARR(N_ELEMENTS(U))
+
+;   LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+    FOR N=0L,N_ELEMENTS(U)-1L DO BEGIN
+      AN = TXT(U(N))
+      SEQUENCE(N) = SEQ(U(N))
+      OK = WHERE(TXT EQ AN,COUNT)
+
+;     =================> Get the set
+      D  = S[OK]
+;     =================> get the shallowest
+      SS = SORT(D.DEPTH) & D = D(SS)
+      SUR(N) = D[0]
+    ENDFOR
+
+;   =================> Reorder to original sequence
+    SRT = SORT(SEQUENCE) & SUR=SUR(SRT)
+
+;   =================>
+;   Now thin to depths less than 4m
+    OK = WHERE(SUR.DEPTH LE 4)
+    SUR = SUR[OK]
+    SAVEFILE = seatruth+'\SEATRUTH_EC_SURF.SAVE'
+    SAVE,FILENAME=SAVEFILE,SUR,/COMPRESS
+    SAVE_2CSV,SAVEFILE
+  ENDIF
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+; ************************************************************************
+ IF DO_TABLE_SOURCES EQ 1 THEN BEGIN
+    S=READALL(seatruth+'\SEATRUTH_EC_SURF.SAVE')
+    JULIAN=JULDAY(S.MONTH,S.DAY,S.YEAR,S.HOUR,S.MINUTE,S.SECOND)
+    MISSION = DT_SAT2JULIAN(['S1997246000000','S20051231000000'])
+    OK = WHERE(JULIAN GE MISSION[0] AND JULIAN LT MISSION[1],COUNT)
+    S=S[OK]
+
+    LAND=READALL('D:\IDL\IMAGES\MASK_EC.PNG')
+    ZWIN,LAND
+    MAP_EC
+
+    W = MAP_DEG2IMAGE(LAND,S.LON,S.LAT,AROUND=3)
+    ZWIN
+
+    GOOD = LONARR(N_ELEMENTS(S))
+    FOR N=0,N_ELEMENTS(S) -1L DO BEGIN
+      SET = W(N,*)
+      OK = WHERE(SET EQ 255,COUNT)
+      IF COUNT GE 1 THEN GOOD(N) = COUNT
+    ENDFOR
+    OK = WHERE(GOOD GT 0,COUNT)
+    S=S[OK]
+
+;   ==============> GET THE UNIQ SOURCES
+    SRT=SORT(S.SOURCE) & S=S(SRT)
+    U=UNIQ(S.SOURCE)
+
+;   RESORT SO CBP FOLLOWS EMAP AND OVERPLOTS EMAP
+
+    TEMP = U[1]
+    U[1] = U(2)
+    U(2) = TEMP
+
+;   =================> Make a structure for output
+    DB = CREATE_STRUCT('SOURCE','','N',0L,'MATCHES',0L)
+    DB = REPLICATE(DB,N_ELEMENTS(U))
+
+    FOR N=0L,N_ELEMENTS(U)-1L DO BEGIN
+      ASOURCE = S(U(N)).SOURCE
+      OK = WHERE(S.SOURCE EQ ASOURCE,COUNT)
+      DB(N).SOURCE = ASOURCE
+      DB(N).N      = COUNT
+    ENDFOR
+
+
+    OUTFILE =seatruth+'\SEATRUTH_EC_SURF_SOURCES_GOOD.SAVE'
+    SAVE,FILENAME=OUTFILE,S,/COMPRESS
+    SAVE_2CSV,OUTFILE
+
+
+;   Now determine the matchups using 0.5 days and 11/49
+    satship=READALL(MATCHUP+'SD_SEAWIFS_EC_SHIP.SAVE')
+    JULIAN_SAT  = DT_SAT2JULIAN(SATSHIP.INAME)
+    JULIAN_SHIP = DT_DATE2JULIAN(SATSHIP.DATE_SHIP)
+
+    COINCIDENCE  = 0.5
+    NGOOD  = 11
+    OK = WHERE(  ABS(JULIAN_SAT-jULIAN_SHIP) LE COINCIDENCE AND $
+                 SATSHIP.N GE Ngood AND $
+                 SATSHIP.MED_SAT_CHL/SATSHIP.SHIP_CHL LE 10 AND  SATSHIP.MED_SAT_CHL/SATSHIP.SHIP_CHL GE 1./10.)
+
+    SATSHIP=SATSHIP[OK]
+
+    SRT = SORT(SATSHIP.SOURCE)
+    SATSHIP=SATSHIP(SRT)
+    U=UNIQ(SATSHIP.SOURCE)
+    FOR N=0L,N_ELEMENTS(U)-1L DO BEGIN
+      ASOURCE = SATSHIP(U(N)).SOURCE
+      BSOURCE = ASOURCE
+      IF ASOURCE EQ 'CPB' THEN BSOURCE = 'CBP'
+      IF ASOURCE EQ 'EMAP_CB' THEN BSOURCE = 'EMAP_DB_CB'
+      IF ASOURCE EQ 'HARRISON' THEN BSOURCE = 'HARRISON_AZMP'
+
+      OK = WHERE(STRPOS(SATSHIP.SOURCE, ASOURCE) GE 0,COUNT_SOURCES)
+      OK = WHERE(STRPOS(DB.SOURCE,BSOURCE) GE 0,COUNT_DB)
+      IF COUNT_DB EQ 1 THEN DB[OK].MATCHES = COUNT_SOURCES ELSE STOP
+    ENDFOR
+
+    OUTFILE =seatruth+'\SEATRUTH_EC_SURF_SOURCES_TABLE.SAVE'
+    SAVE,FILENAME=OUTFILE,DB,/COMPRESS
+    SAVE_2CSV,OUTFILE
+
+ ENDIF
+; |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+; ************************************************************************
+IF DO_TABLE_SOURCES_PLOT EQ 1 THEN BEGIN
+    SET_PLOT,'WIN'
+    S=READALL(seatruth+'\SEATRUTH_EC_SURF_SOURCES_GOOD.SAVE')
+    LAND=READALL('D:\IDL\IMAGES\MASK_EC.PNG')
+    OK = WHERE(LAND EQ 1) & LAND[OK] = 34
+    OK = WHERE(LAND EQ 255) & LAND[OK] = 35
+    ZWIN,LAND
+    MAP_EC
+    TV,LAND
+
+;   ==============> GET THE UNIQ SOURCES
+    SRT=SORT(S.SOURCE) & S=S(SRT)
+    U=UNIQ(S.SOURCE)
+
+;   RESORT SO CBP FOLLOWS EMAP AND OVERPLOTS EMAP
+    TEMP = U[1]
+    U[1] = U(2)
+    U(2) = TEMP
+
+
+    IF N_ELEMENTS(U) GT 13 THEN stop
+
+    COLORS = [4,6,9,10,13,15,18,21,19,27,0,32]
+;   =================> Make a structure for output
+    DB = CREATE_STRUCT('SOURCE','','N',0L)
+    DB = REPLICATE(DB,N_ELEMENTS(U))
+    SET_PMULTI=N_ELEMENTS(U)
+    ;COLOR=3
+    XOFFSET = .50
+    YOFFSET = .45
+    PSYM=0
+    FOR N=0L,N_ELEMENTS(U)-1L DO BEGIN
+      ASOURCE = S(U(N)).SOURCE
+      OK = WHERE(S.SOURCE EQ ASOURCE,COUNT)
+      D=S[OK]
+      COLOR=COLORS(N)
+       PSYM=1
+       THICK=2
+       SYMSIZE=1
+       IF ASOURCE EQ 'PAGE_PRINCE5' THEN BEGIN
+         PSYM=2
+         THICK=4
+         SYMSIZE=2
+       ENDIF
+      PLOTS, D.LON,D.LAT, COLOR=COLORS(N),THICK=THICK,PSYM=PSYM,SYMSIZE=SYMSIZE
+      YOFFSET = YOFFSET - .04
+      TXT = '+ ' + ASOURCE
+      XYOUTS,XOFFSET,YOFFSET,/NORMAL,TXT,COLOR=COLOR,CHARTHICK=2,CHARSIZE=3
+    ENDFOR
+    IMAGE = TVRD()
+    ZWIN
+    PNGFILE = seatruth+'\SEATRUTH_EC_SURF_SOURCES_GOOD.PNG'
+    PAL_36,R,G,B
+    WRITE_PNG,PNGFILE,IMAGE,R,G,B
+ ENDIF
+
+
+; ************************************************************************
+  IF DO_EXTRACT_BY_SOURCES EQ 1 THEN BEGIN
+    SAVEFILE = seatruth+'\SEATRUTH_EC_SURF.SAVE'
+    S = READALL(SAVEFILE)
+    U=UNIQ(S.SOURCE)
+;   LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+    FOR N=0L,N_ELEMENTS(U)-1L DO BEGIN
+      ASOURCE = S(U(N)).SOURCE
+
+      OK = WHERE(S.SOURCE EQ ASOURCE,COUNT)
+    SAVEFILE = seatruth+'\SEATRUTH_EC_SURF_'+ASOURCE+'.SAVE'
+    D=S[OK]
+    PRINT, SAVEFILE
+    SAVE,FILENAME=SAVEFILE,D,/COMPRESS
+    SAVE_2CSV,SAVEFILE
+    ENDFOR
+  ENDIF
+; ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+
+
+END; #####################  End of Routine ################################

@@ -1,0 +1,139 @@
+; $ID:	READ_LANDMASK.PRO,	2019-05-30-16,	USER-KJWH	$
+;#################################################################################################################
+	FUNCTION READ_LANDMASK, MAPP, PX=PX, PY=PY, DIR=DIR, FILENAME=FILENAME, STRUCT=STRUCT, $
+					 								OCEAN=OCEAN, LAND=LAND, COASTLINE=COASTLINE, COAST_THICK=COAST_THICK, $
+					 								LAKE=LAKE, LAKESIDE=LAKESIDE, SMALL_LAKE=SMALL_LAKE, SMALL_LAKESIDE=SMALL_LAKESIDE, OUT_OF_AREA=OUT_OF_AREA
+;+
+; THIS PROGRAM READS A STANDARD LANDMASK IMAGE AND RETURNS EITHER:
+;		A LAND MASK (WITH 1'S FOR LAND), A COAST MASK, A LAKE MASK , A LAKESIDE MASK
+; 	OR
+;		A STRUCTURE WITH SUBSCRIPTS FOR LAND,COAST,LAKE,LAKESIDE,ETC
+;
+;	INPUT
+;		MAPP: THE VALID MAP FOR THE LANDMASK FILE 
+;
+;	OUTPUT
+;		IF NO KEYWORDS PROVIDED THEN THE LANDMASK IMAGE IS RETURNED
+;
+;		IF KEYWORDS (LAND,COAST,LAKE,LAKESIDE) ARE PROVIDED THEN A MASK IS RETURNED WITH 1'S FOR THAT (THOSE) FEATURES
+;		IF KEYWORD STRUCT IS PROVIDED THEN A STRUCTURE IS RETURNED WITH SUBSCRIPTS FOR COASTLINE,LAND,LAKESIDE AND LAKE
+;
+;	KEYWORDS:
+;			MAPP............. THE NAME OF A STANDARD MAP (E.G. 'NEC','EC','GEQ')
+;			PX............... THE X SIZE IN PIXELS OF THE MAP
+;			PY............... THE Y SIZE IN PIXELS OF THE MAP
+;			DIR.............. THE DIRECTORY OF THE MAP TO BE READ
+;			OCEAN............ RETURNS A BINARY MASK WITH 1'S FOR OCEAN (LAND,COAST,LAKE,LAKESIDE ARE 0'S)
+;			LAND............. RETURNS A BINARY MASK WITH 1'S FOR LAND (LAND INCLUDES COAST,LAND,LAKESIDE,LAKE)
+;			COASTLINE........ RETURNS A BINARY MASK WITH 1'S FOR THE THIN COAST (DEFAULT "FIXED" COASTLINE) 
+;			COAST_THICK...... RETURNS A BINARY MASK WITH 1'S FOR THE THICK COAST
+;			LAKE............. RETURNS A BINARY MASK WITH 1'S FOR THE LAKE (INCLUDES LAKE AND LAKESIDE)
+;			LAKESIDE......... RETURNS A BINARY MASK WITH 1'S FOR THE LAKESIDE (PERIMITERS OF LAKES)
+;			SMALL_LAKE....... RETURNS A BINARY MASK WITH 1'S FOR THE SMALL LAKES
+;			SMALL_LAKESIDE... RETURNS A BINARY MASK WITH 1'S FOR THE SMALL LAKESIDE
+;			
+;
+; OPTIONAL OUTPUTS:
+;		STRUCT:    A STRUCTURE IS RETURNED WITH SUBSCRIPTS FOR COASTLINE,LAND,LAKESIDE AND LAK
+;		FILENAME:  THE NAME OF THE LANDMASK FILE [OUTPUT]
+;
+; 	HISTORY:
+;   JAN 28, 2006	WRITTEN BY:  J.O'REILLY, NOAA
+;   NOV  5, 2010 - KJWH: Added codes to the output structure 
+;   MAR 25, 2014 - KJWH: Changed the default DIR to !S.LANDMASKS
+;   DEC 14, 2015 - JEOR: Added IF FILE_TEST(LANDMASK_FILE) EQ 0 THEN BEGIN [To read the srtm30plus topo landmask]
+;   MAR 19, 2015 - JEOR: Added "-IDL" suffix to landmask file [to reflect new landmask file names] LANDMASK_FILE= _DIR+'MASK_LAND-'+MAP+'-PXY_'+STRTRIM(NUM2STR(_PX),2)+'_'+STRTRIM(NUM2STR(_PY),2)+'-IDL.PNG'
+;   MAR 20, 2016 - JEOR: Added output keyword FILE
+;   MAR 22, 2016 - KJWH: Updated formatting and simplified the code
+;                        Changed FILE keyword to FILENAME to make it more descriptive
+;                        Moved FILENAME=LANDMASK_FILE higher up in the program so that it will be initialized before the RETURN, xxxx
+;                        Removed ERROR keyword
+;                        Changed IF FILE_TEST(LANDMASK_FILE) EQ 1 to IF EXISTS(LANDMASK_FILE) THEN LANDMASK = READALL(LANDMASK_FILE) ELSE RETURN,'LANDMASK FILE NOT FOUND: ' + LANDMASK_FILE 
+;                        Changed KEYWORD_SET() to KEY()
+;                        Removed LANDMASK_FILE as an input because it is rarely used
+;                        Now MAPP is the primary input
+;   MAR 24, 2016 - KJWH: Changed LAKE_CODE to 3 and LAKESIDE_CODE to 4
+;                        Added SMALL_LAKE_CODE (5) and SMALL_LAKESIDE_CODE (6)
+;   MAR 28, 2016 - KJWH: Added COAST_THICK_CODE (2) and shifted the subsequent codes down one number    
+;                        Removed '-IDL' from the landmask name
+;                        Removed the TOPO file option (if the original landmask was not found)    
+;   JUN 15, 2017 - KJWH: Changed keyword COAST to COASTLINE to avoid the AMBIGUOUS KEYWORD ABBREIVATION error                                  
+;   DEC 05, 2017 - KJWH: Added IF IS_L3B(MAPP) THEN LANDMASK_FILE= _DIR+'MASK_LAND-'+MAPP+'-PXY_'+ROUNDS(PX)+'_'+ROUNDS(PY)+'.SAV' because L3B landmasks must be .SAV files
+;   MAY 30, 2019 - KJWH: Added steps to find the OUT_OF_AREA regions (for maps such as ROBINSON and MOLLWEIDE) and added the information to the output structure
+;                        Added keyword OUT_OF_AREA
+;   MAR 08, 2021 - KJWH: Added MAP_NAME to the output structure                     
+;-
+;****************************
+  ROUTINE_NAME='READ_LANDMASK'
+;****************************
+
+;	===> DEFAULT DIRECTORY FOR LANDMASK PNG 
+	IF NONE(DIR)  THEN _DIR = !S.LANDMASKS ELSE _DIR= DIR
+  IF NONE(MAPP) THEN RETURN, 'ERROR: Map name must be provided' ELSE MAPP = STRUPCASE(MAPP)
+
+;	===> CODES IN THE LANDMASK
+  OCEAN_CODE			    =	0
+  COAST_CODE 			    = 1
+  COAST_THICK_CODE    = 2
+  LAND_CODE  			    = 3
+  LAKE_CODE 			    = 4
+  LAKESIDE_CODE       = 5
+  SMALL_LAKE_CODE     = 6
+  SMALL_LAKESIDE_CODE = 7
+  OUT_OF_AREA_CODE    = 8
+
+  M=MAPS_SIZE(MAPP)
+  IF NONE(PX) THEN PX=M.PX
+  IF NONE(PY) THEN PY=M.PY
+		
+  LANDMASK_FILE= _DIR+'MASK_LAND-'+MAPP+'-PXY_'+ROUNDS(PX)+'_'+ROUNDS(PY)+'.PNG'
+  IF IS_L3B(MAPP) THEN LANDMASK_FILE= _DIR+'MASK_LAND-'+MAPP+'-PXY_'+ROUNDS(PX)+'_'+ROUNDS(PY)+'.SAV'
+  
+	FILENAME = LANDMASK_FILE ;[OUTPUT]
+	IF EXISTS(LANDMASK_FILE) THEN LANDMASK = READALL(LANDMASK_FILE) ELSE RETURN,'LANDMASK FILE NOT FOUND: ' + LANDMASK_FILE 
+	
+	
+;	*****************
+;	*** M A S K S ***
+;	*****************
+	IF KEY(OCEAN) OR KEY(LAND) OR KEY(COASTLINE) OR KEY(COAST_THICK) OR KEY(LAKE) OR KEY(LAKESIDE) OR KEY(SMALL_LAKE) OR KEY(SMALL_LAKESIDE) OR KEY(OUT_OF_AREA) THEN BEGIN
+		 	IF KEY(OCEAN)			     THEN RETURN, LANDMASK EQ OCEAN_CODE
+			IF KEY(COASTLINE)      THEN RETURN, LANDMASK EQ COAST_CODE
+			IF KEY(COAST_THICK)    THEN RETURN, LANDMASK EQ COAST_THICK_CODE
+			IF KEY(LAND) 		     	 THEN RETURN, LANDMASK GE LAND_CODE
+		  IF KEY(LAKE)           THEN RETURN, LANDMASK EQ LAKE_CODE
+		  IF KEY(LAKESIDE)       THEN RETURN, LANDMASK EQ LAKESIDE_CODE
+		  IF KEY(SMALL_LAKE)     THEN RETURN, LANDMASK EQ SMALL_LAKE_CODE
+		  IF KEY(SMALL_LAKESIDE) THEN RETURN, LANDMASK EQ SMALL_LAKESIDE_CODE
+		  IF KEY(OUT_OF_AREA)    THEN RETURN, LANDMASK EQ OUT_OF_ARA_CODE
+	ENDIF
+
+	IF KEY(STRUCT) THEN BEGIN
+;		===> FILL STRUCTURE WITH SUBSCRIPTS AND COUNTS FOR VARIOUS STANDARD FEATURES
+	 	OK_OCEAN		      = WHERE(LANDMASK EQ OCEAN_CODE,													        			COUNT_OCEAN)          ; Ocean only
+	  OK_COAST     		  = WHERE(LANDMASK EQ COAST_CODE,									        							COUNT_COAST)          ; Coast only
+	  OK_COAST_THICK    = WHERE(LANDMASK EQ COAST_THICK_CODE,                                 COUNT_COAST_THICK)    ; Thick coastline
+		OK_LAND			      = WHERE(LANDMASK GE COAST_CODE AND LANDMASK LT OUT_OF_AREA_CODE,      COUNT_LAND)           ; Includes the land, coast and all lakes
+		OK_LAKE           = WHERE(LANDMASK EQ LAKESIDE_CODE OR LANDMASK EQ LAKE_CODE,           COUNT_LAKE)           ; Includes large lakes and lakeside
+		OK_LAKESIDE     	= WHERE(LANDMASK EQ LAKESIDE_CODE,														        COUNT_LAKESIDE)       ; Large lakesides only
+		OK_SMALL_LAKE     = WHERE(LANDMASK GE LAKE_CODE OR LANDMASK LE SMALL_LAKESIDE_CODE,     COUNT_SMALL_LAKE)     ; Includes all lakes and lakesides 
+		OK_SMALL_LAKESIDE = WHERE(LANDMASK EQ LAKESIDE_CODE OR LANDMASK EQ SMALL_LAKESIDE_CODE, COUNT_SMALL_LAKESIDE) ; Includes all lakesides
+		OK_OUT_OF_AREA    = WHERE(LANDMASK EQ OUT_OF_AREA_CODE,                                 COUNT_OUT_OF_AREA)    ; Areas outside of the actual mapped area
+
+		RETURN,CREATE_STRUCT(	'MAP_NAME', MAPP, 'LANDMASK', LANDMASK,                                                                                                     $
+		                      'OCEAN',		       OK_OCEAN,		     'COUNT_OCEAN',		       COUNT_OCEAN,         'OCEAN_CODE',          OCEAN_CODE,      $
+													'COAST',		       OK_COAST,		     'COUNT_COAST',		       COUNT_COAST,         'COAST_CODE',          COAST_CODE,      $
+													'COAST_THICK',     OK_COAST_THICK,   'COUNT_COAST_THICK',    COUNT_COAST_THICK,   'COAST_THICK_CODE',    COAST_THICK_CODE,$
+													'LAND',		         OK_LAND,		       'COUNT_LAND', 		       COUNT_LAND,          'LAND_CODE',           LAND_CODE,       $
+													'LAKE',			       OK_LAKE,		       'COUNT_LAKE',		       COUNT_LAKE,          'LAKE_CODE',           LAKE_CODE,       $
+													'LAKESIDE',        OK_LAKESIDE,      'COUNT_LAKESIDE',       COUNT_LAKESIDE,      'LAKESIDE_CODE',       LAKESIDE_CODE,   $
+													'SMALL_LAKE',      OK_SMALL_LAKE,    'COUNT_SMALL_LAKE',     COUNT_SMALL_LAKE,    'SMALL_LAKE_CODE',     SMALL_LAKE_CODE, $
+													'SMALL_LAKESIDE',  OK_SMALL_LAKESIDE,'COUNT_SMALL_LAKESIDE', COUNT_SMALL_LAKESIDE,'SMALL_LAKESIDE_CODE', SMALL_LAKESIDE_CODE,$
+													'OUT_OF_AREA',     OK_OUT_OF_AREA,   'COUNT_OUT_OF_AREA',    COUNT_OUT_OF_AREA,   'OUT_OF_AREA_CODE',    OUT_OF_AREA_CODE)
+
+	ENDIF
+
+;	===> IF NO KEYWORDS ASKED FOR THEN JUST RETURN THE ENTIRE ORIGINAL LAND MASK 
+	RETURN, LANDMASK
+
+END; #####################  END OF ROUTINE ################################

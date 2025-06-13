@@ -1,0 +1,859 @@
+; $ID:	L2_MAIN.PRO,	2020-07-08-15,	USER-KJWH	$
+;+
+;
+PRO L2_MAIN
+
+  ROUTINE_NAME='L2_MAIN'
+  PRINT, 'Running: '+ROUTINE_NAME
+    
+  DO_L2_MAP                   = 'Y'
+  DO_L2_2SAVE                 =0
+  DO_OC_ADD_PRODS             =1
+  DO_OC_MERGE                 =0
+ 
+  DO_PHYTO_COMMUNITY          =0
+  DO_PHYTO_SIZES              =0 
+     
+  DO_STATS                    =0
+  DO_ANOMS                    =0
+  
+  L2_YEAR      = ''
+  L2_STAT_YEAR = ''
+  
+  L2_DATE_RANGE  = ['19970101','21001231']
+  L2_STATS_RANGE = ['19970101','21001231'] 
+  IF L2_YEAR      NE '' THEN L2_DATE_RANGE  = [L2_YEAR      + '0101', L2_YEAR      + '1231235959']
+  IF L2_STAT_YEAR NE '' THEN L2_STATS_RANGE = [L2_STAT_YEAR + '0101', L2_STAT_YEAR + '1231235959']
+       
+  IF STRLEN(L2_DATE_RANGE[0]) EQ 8 THEN L2_DATE_RANGE[0] = L2_DATE_RANGE[0]+'000000'
+  IF STRLEN(L2_DATE_RANGE[1]) EQ 8 THEN L2_DATE_RANGE[1] = L2_DATE_RANGE[1]+'235959'  
+
+  SL = PATH_SEP()
+
+;***************************
+  IF KEY(DO_L2_MAP) THEN BEGIN
+;***************************
+    , 'DO_L2_MAP'
+    SWITCHES,DO_L2_MAP,STOPP=STOPP,OVERWRITE=OVERWRITE,VERBOSE=VERBOSE, REVERSE_FILES=REVERSE_FILES, REVERSE_DATASETS=REVERSE_DATASETS
+    IF STOPP THEN STOP
+   
+    DATASETS = []
+    DO_OC_SEAWIFS_MLAC = 0 & IF DO_OC_SEAWIFS_MLAC EQ 1 THEN DATASETS = [DATASETS,'OC-SE-1KM']
+    DO_OC_MODIS_LAC    = 1 & IF DO_OC_MODIS_LAC    EQ 1 THEN DATASETS = [DATASETS,'OC-AQ-1KM']
+    DO_OC_CZCS_MLAC    = 0 & IF DO_OC_CZCS_MLAC    EQ 1 THEN DATASETS = [DATASETS,'OC-CZ-1KM']
+    DO_SST_MODIS_LAC   = 0 & IF DO_SST_MODIS_LAC   EQ 1 THEN DATASETS = [DATASETS,'SST-MOD-1KM']
+    
+    IF KEY(REVERSE_DATASETS) THEN DATASETS = REVERSE(DATASETS)
+    IF N_ELEMENTS(L2_DATE_RANGE) EQ 2 THEN DATERANGE = L2_DATE_RANGE ELSE DATERANGE=['19970101','20201231']
+    
+    DP = DATE_PARSE(DATERANGE)
+    AYEARS = YEAR_RANGE(MIN(DP.YEAR),MAX(DP.YEAR),/STRING)
+
+    FOR N=0,N_ELEMENTS(DATASETS)-1 DO BEGIN
+      DATASET = DATASETS(N)
+      IF DATASET EQ 'OC-SE-1KM'   THEN BEGIN DIR = 'L2' & MAPS=['NEC'] & ENDIF
+      IF DATASET EQ 'OC-AQ-1KM'   THEN BEGIN DIR = 'L2' & MAPS=['NEC'] & ENDIF
+      IF DATASET EQ 'OC-CZ-1KM'   THEN BEGIN DIR = 'L2' & MAPS=['NEC'] & ENDIF
+      IF DATASET EQ 'SST-MOD-1KM' THEN BEGIN DIR = 'L2' & MAPS=['NEC'] & ENDIF
+       
+      FILES = FILE_SEARCH(!S.DATASETS + DATASET + SL  + DIR + SL + 'S_*.hdf*')
+     
+      L2_MAP,FILES,DIR_OUT=DIR_OUT,MAP_OUT=MAPS,PX_OUT=PX_OUT,PY_OUT=PY_OUT,REVERSE_FILES=REVERSE_FILES,DATE_RANGE=DATERANGE,KEEP_HDF=KEEP_HDF,OVERWRITE=OVERWRITE,_EXTRA=_EXTRA
+      
+    ENDFOR
+  ENDIF
+
+
+
+
+
+STOP
+STOP
+STOP
+
+; *******************************************************************************************************************************************
+  IF RENAME_L2s GE 1 THEN BEGIN
+; *******************************************************************************************************************************************
+    PRINT, 'Running: RENAME_L2s' 
+    
+    DISK_IN =!S.SEADAS
+    DISK_OUT=!S.DATASETS
+    SL = GET_PATH()
+    
+    DIR_IN = '/seadas/seadas/rcox/L1ATestNew/L2_2015/'
+    IF !S.COMPUTER EQ 'NECLWHKHYDEMAC.LOCAL' THEN DIR_IN = '/Volumes' + DIR_IN
+    
+    ZIP_HDF = 0
+    SKIP_UPDATE = 0
+    REVERSE_FILES = 0
+    IF KEYWORD_SET(L2_REVERSE_FILES) THEN REVERSE_FILES = 1 
+    
+    IF N_ELEMENTS(L2_DATE_RANGE) EQ 2 THEN DATERANGE = L2_DATE_RANGE ELSE DATERANGE=['19970101','20201231']
+    DP = DATE_PARSE(DATERANGE)
+   
+    DATASETS = []
+    OVERWRITE = RENAME_L2s GT 1
+    DO_OC_SEAWIFS_MLAC = 0 & IF DO_OC_SEAWIFS_MLAC  GE 1 THEN BEGIN & DATASETS = [DATASETS,'OC-SEAWIFS-MLAC'] & OVERWRITE = DO_OC_SEAWIFS_MLAC GE 2 & ENDIF
+    DO_OC_MODIS_LAC    = 1 & IF DO_OC_MODIS_LAC     GE 1 THEN BEGIN & DATASETS = [DATASETS,'OC-MODIS-LAC']    & OVERWRITE = DO_OC_MODIS_LAC GE 2 & ENDIF
+            
+    FOR NTH = 0L, N_ELEMENTS(DATASETS)-1 DO BEGIN      
+      FILES = FILE_SEARCH(DIR_IN + 'A' + '*.L2_LAC_SUB_OC*')  
+      FP = PARSE_IT(FILES)          
+      DIR_OUT =  DISK_OUT + DATASETS[NTH] + SL + 'L2' + SL & DIR_TEST, DIR_OUT   
+            
+      FOR _FILE = 0L,N_ELEMENTS(FILES)-1 DO BEGIN
+        AFILE = FILES(_FILE)        
+        FN = FP(_FILE)
+        PERIOD = 'S_' + SATDATE_2DATE(FN.FIRST_NAME) 
+        SATDATE = FN.FIRST_NAME
+  
+        METHOD = 'R2013' 
+        LEVEL  = 'L2'      
+        
+        NAME = STRSPLIT(FN.NAME_EXT,'._-',/EXTRACT,/PRESERVE_NULL)
+        SATDATE = NAME[0]        
+        CASE STRMID(FN.NAME,0,1) OF 
+          'S': BEGIN & SENSOR='SEAWIFS' & SATELLITE='OV2'  & METHOD='R2010' & COVERAGE = 'MLAC' & END
+          'A': BEGIN & SENSOR='MODIS'   & SATELLITE='AQUA' & METHOD='R2013' & COVERAGE = 'LAC'  & END 
+          'C': BEGIN & SENSOR='CZCS'    & SATELLITE='N17'  & METHOD='R2012' & COVERAGE = 'LAC'  & END
+        ENDCASE  
+        
+        FILE_LABEL = PERIOD + '-' + SENSOR + '-' + SATELLITE + '-' + COVERAGE + '-' + METHOD           
+        L2_FILE    = DIR_OUT + FILE_LABEL + '-L2.hdf'    
+        L2_BZIP    = L2_FILE + '.bz2'
+        OFILES     = [L2_FILE,L2_BZIP]
+        FT = FILE_TEST([OFILES])
+        IF TOTAL(FT) EQ 0 THEN BEGIN
+          PRINT, 'Copying and renaming ' + AFILE + ' to ' + FILE_LABEL + '-L2.hdf (' + NUM2STR(_FILE+1) + ' out of ' + NUM2STR(N_ELEMENTS(FILES)) + ')'  
+          IF FN.EXT EQ 'bz2' THEN FILE_COPY,AFILE,L2_BZIP ELSE FILE_COPY,AFILE,L2_FILE
+          CONTINUE
+        ENDIF
+        IF TOTAL(FT) GE 2 THEN STOP
+        IF TOTAL(FT) EQ 1 THEN OFILE = OFILES[WHERE(FT EQ 1)]
+        IF GET_MTIME(AFILE) LT GET_MTIME(OFILE) AND OVERWRITE EQ 0 THEN CONTINUE
+        FILE_DELETE, OFILE, /VERBOSE
+        PRINT, 'Copying and renaming ' + AFILE + ' to ' + FILE_LABEL + '-L2.hdf (' + NUM2STR(_FILE+1) + ' out of ' + NUM2STR(N_ELEMENTS(FILES)) + ')'  
+        IF FN.EXT EQ 'bz2' THEN FILE_COPY,AFILE,L2_BZIP ELSE FILE_COPY,AFILE,L2_FILE
+      ENDFOR  
+    ENDFOR 
+  ENDIF ; RENAME_L2s
+
+ 
+; *******************************************************************************************************************************************
+  IF DO_OC_L2_HDF_ADD_PRODS GE 1 THEN BEGIN
+; *******************************************************************************************************************************************
+    PRINT, 'Running: DO_OC_L2_HDF_ADD_PRODS' 
+    
+    DISK_IN =!S.DATASETS
+    DISK_OUT=!S.DATASETS
+    SL = DELIMITER(/SLASH)
+
+    ZIP_HDF = 0
+    SKIP_UPDATE = 0
+    REVERSE_FILES = 0
+    IF KEYWORD_SET(L2_REVERSE_FILES) THEN REVERSE_FILES = 1 
+    
+    IF N_ELEMENTS(L2_DATE_RANGE) EQ 2 THEN DATERANGE = L2_DATE_RANGE ELSE DATERANGE=['19970101','20201231']
+    DP = DATE_PARSE(DATERANGE)
+   
+    DATASETS = []
+    OVERWRITE = DO_OC_L2_HDF_ADD_PRODS GT 1
+    DO_OC_SEAWIFS_MLAC = 0 & IF DO_OC_SEAWIFS_MLAC  GE 1 THEN BEGIN & DATASETS = [DATASETS,'OC-SEAWIFS-MLAC'] & OVERWRITE = DO_OC_SEAWIFS_MLAC GE 2 & ENDIF
+    DO_OC_MODIS_LAC    = 1 & IF DO_OC_MODIS_LAC     GE 1 THEN BEGIN & DATASETS = [DATASETS,'OC-MODIS-LAC']    & OVERWRITE = DO_OC_MODIS_LAC GE 2 & ENDIF
+        
+    PRODUCTS = [ 'CHLOR_A-PAN',       $  ; List of available products to add to the HDF (note, if new algorithms are added, must add the name to the CURRENT_PRODS list
+                 'PIGMENTS_ALLO-PAN', $
+                 'PIGMENTS_CARO-PAN', $
+                 'PIGMENTS_CHLA-PAN', $
+                 'PIGMENTS_CHLB-PAN', $
+                 'PIGMENTS_CHLC-PAN', $
+                 'PIGMENTS_DIA-PAN',  $
+                 'PIGMENTS_FUCO-PAN', $
+                 'PIGMENTS_LUT-PAN',  $
+                 'PIGMENTS_NEO-PAN',  $                   
+                 'PIGMENTS_PERID-PAN',$
+                 'PIGMENTS_VIOLA-PAN'];,$
+                ; 'POC-STRAMSKI',      $
+                ;'PIGMENTS_ZEA-PAN',  $  ; Unable to add the ZEA pigment to the HDF because the algorithm requires SST data inputs
+                ; 'A_CDOM_443_MAN_MLR',$  ; Need to update the code to account for all of the new MANNINO A_CDOM algorithms                 
+                ; 'A_CDOM_412_MAN_MLR',$
+                ; 'POC-MANNINO',       $
+                ; 'DOC_NMAB_412',      $
+                ; 'DOC_SMAB_412'];,       $
+                ; 'DOC-MANNINO_WINTER',$
+                ; 'DOC-MANNINO_SUMMER',$
+                ; 'DOC-MANNINO_GOM',   $
+                ; 'DOC-MANNINO_SMAB',  $
+                ; 'DOC-MANNINO_NYB']
+    FOR NTH = 0L, N_ELEMENTS(DATASETS)-1 DO BEGIN      
+      AYEARS = YEAR_RANGE(MIN(DP.YEAR),MAX(DP.YEAR),/STRING)  
+      FILES = FILE_SEARCH(DISK_IN + DATASETS[NTH] + SL + 'L2' + SL +  'S_' + [AYEARS] +'*.hdf')
+      FILES = DATE_SELECT(FILES, L2_DATE_RANGE[0], L2_DATE_RANGE[1], SUBS=SUBS, ERROR=ERROR)
+      IF FILES EQ [] THEN CONTINUE
+      IF KEYWORD_SET(REVERSE_FILES) THEN FILES = REVERSE(FILES)    
+      UPDATE_DATE = 20130812000000      
+      DIR_OUT =  DISK_OUT + DATASETS[NTH] + SL + 'L2A' + SL & DIR_TEST,DIR_OUT  
+      PRINT, 'Running: SD_HDF_ADDPRODS on ' + NUM2STR(N_ELEMENTS(FILES)) + ' files'        
+      IF FILES[0] NE '' THEN SD_HDF_ADDPRODS, FILES, PRODUCTS, DATE_RANGE=DATERANGE,DIR_OUT=DIR_OUT, ZIP_HDF=ZIP_HDF, UPDATE_DATE=UPDATE_DATE, SKIP_UPDATE=SKIP_UPDATE, /QUIET, OVERWRITE=OVERWRITE, ERROR=error,SUSPECT_FILES=suspect_files                       
+    ENDFOR    
+  ENDIF ; DO_OC_L2_HDF_ADD_PRODS  
+  
+  
+; *******************************************************************************************************************************************
+  IF DO_PROD_CHECK GE 1 THEN BEGIN
+; *******************************************************************************************************************************************
+    PRINT, 'Running: DO_PROD_CHECK'
+    OVERWRITE = DO_PROD_CHECK EQ 2
+        
+    SL = DELIMITER(/PATH)
+    DISK=!S.DATASETS 
+    DATASETS = []       
+    
+    VERBOSE = 1    
+    REVERSE_MAPS  = 0
+    IF KEYWORD_SET(L2_REVERSE_FILES) THEN REVERSE_FILES = 1 
+    
+    DO_OC_SEAWIFS_MLAC= 0 & IF DO_OC_SEAWIFS_MLAC EQ 1 THEN DATASETS = [DATASETS,'OC-SEAWIFS-MLAC'] 
+    DO_OC_MODIS_LAC   = 1 & IF DO_OC_MODIS_LAC    EQ 1 THEN DATASETS = [DATASETS,'OC-MODIS-LAC'   ]    
+    DO_OC_SEA_AQU_LAC = 0 & IF DO_OC_SEA_AQU_LAC  EQ 1 THEN DATASETS = [DATASETS,'OC-SEA_AQU-LAC'   ]    
+    
+    IF KEYWORD_SET(L2_REVERSE_MAPS) THEN REVERSE_MAPS = 1 
+    IF N_ELEMENTS(L2_DATE_RANGE) EQ 2 THEN DATERANGE = L2_DATE_RANGE ELSE DATERANGE=['19970101','20201231']
+    DATE_START = DATERANGE[0]
+    DATE_END   = DATERANGE[1]
+        
+    PHYTOS = ['CHLA','CHLB','CHLC','CARO','ALLO','FUCO','PERID','NEO','VIOLA','DIA','ZEA','LUT','BROWN_PERCENTAGE','BROWN_ALGAE','DIATOM','DIATOM_PERCENTAGE','DINOFLAGELLATE_A','DINOFLAGELLATE_B','DINOFLAGELLATE','DINOFLAGELLATE_PERCENTAGE','CHLOROPHYTE',$
+              'CRYPTOPHYTE','CRYPTOPHYTE_PERCENTAGE','CYANOBACTERIA','GREEN_ALGAE','GREEN_PERCENTAGE','HAPTOPHYTE_A','HAPTOPHYTE_B','PRASINOPHYTE_A','PRASINOPHYTE_B','PROCHLOROPHYTE',$
+              'MICRO','MICRO_PERCENTAGE','NANO','NANO_PERCENTAGE','PICO','PICO_PERCENTAGE','NANOPICO','NANOPICO_PERCENTAGE']
+    PHYTOS = PHYTOS + '-PAN'
+    
+    PROD = ['RRS_547','RRS_667']; ['CHLOR_A-OC'] ;+ '-PAN'    ;'MICRO','MICRO_PERCENTAGE','NANO','NANO_PERCENTAGE','PICO','PICO_PERCENTAGE','NANO_PICO','NANO_PICO_PERCENTAGE','NANO_PICO-PAN';'CHLOR_A-PAN','CHLOR_A-OC3M','PAR','A_CDOM_443-MAN_MLR'];,'PAR',,'CHLOR_A-OC3M','POC-STRAMSKI','MICRO-PAN','NANO-PAN','PICO-PAN']
+    DIR  = 'SAVE'
+    TARGET = ''
+    PERIOD = 'S'
+    
+    FOR N=0,N_ELEMENTS(DATASETS)-1 DO BEGIN
+      DATASET = DATASETS(N) 
+      SUITES = []
+      PRODS  = []
+      MAPS   = []
+      
+      IF DATASET EQ 'OC-SEAWIFS-MLAC' THEN MAPS = ['NEC'] 
+      IF DATASET EQ 'OC-MODIS-LAC'    THEN MAPS = ['NEC']       
+      IF DATASET EQ 'OC-SEA_AQU-LAC'  THEN MAPS = ['NAFO']           
+      IF REVERSE_MAPS EQ 1 THEN MAPS = REVERSE(MAPS)
+      FOR M=0, N_ELEMENTS(MAPS)-1 DO BEGIN      
+        MAP = MAPS(M)                               
+        SAVEDIR = DISK + DATASET + SL + MAP + SL + DIR + SL
+        FOR P=0, N_ELEMENTS(PROD)-1 DO BEGIN
+          FILES = FILE_SEARCH(SAVEDIR + PROD(P) + SL + PERIOD + '_*'+PROD(P)+'*'+TARGET+'.SAVE')
+          FILES = DATE_SELECT(FILES,DATE_START,DATE_END)
+          IF FILES EQ [] THEN CONTINUE
+          IF KEY(REVERSE_FILES) THEN FILES=REVERSE(FILES)
+          FOR F=0, N_ELEMENTS(FILES)-1 DO BEGIN
+            PRINT, 'Reading : ',FILES(F)
+            DATA=STRUCT_SD_READ(FILES(F),prod=PROD,COUNT=count_good,SUBS=OK_GOOD,STRUCT=STRUCT,ERROR=error,ERR_MSG=err_msg)
+            IF ERROR NE '' THEN BEGIN
+              PRINT,'ERROR GETTING DATA FROM FILE, DELETING... ',FILES(F)
+              FILE_DELETE, FILES(F) 
+            ENDIF 
+            GONE, DATA
+          ENDFOR
+        ENDFOR    
+      ENDFOR
+    ENDFOR   
+  ENDIF ; DO_PROD_CHECK
+  
+
+
+
+
+; *******************************************************************************************************************************************
+  IF DO_L2_2SAVE GE 1 THEN BEGIN
+; *******************************************************************************************************************************************
+    PRINT, 'Running: DO_L2_2SAVE step'
+    OVERWRITE = DO_L2_2SAVE EQ 2
+        
+    SL = DELIMITER(/PATH)
+    DISK=!S.DATASETS
+    DATASETS = []    
+    REVERSE_FILES = 0
+    RUN_AGAIN_NUM = 0
+    
+    IF KEYWORD_SET(L2_REVERSE_DATASETS) THEN REVERSE_DATASETS = 1
+    IF KEYWORD_SET(L2_REVERSE_FILES) THEN REVERSE_FILES = 1
+    DO_OC_SEAWIFS_MLAC = 0 & IF DO_OC_SEAWIFS_MLAC EQ 1 THEN DATASETS = [DATASETS,'OC-SEAWIFS-MLAC'] 
+    DO_OC_MODIS_LAC    = 1 & IF DO_OC_MODIS_LAC    EQ 1 THEN DATASETS = [DATASETS,'OC-MODIS-LAC']
+    DO_OC_CZCS_MLAC    = 0 & IF DO_OC_CZCS_MLAC    EQ 1 THEN DATASETS = [DATASETS,'OC-CZCS-MLAC']
+    DO_SST_MODIS_LAC   = 0 & IF DO_SST_MODIS_LAC   EQ 1 THEN DATASETS = [DATASETS,'SST-MODIS-LAC']
+    IF KEYWORD_SET(REVERSE_DATASETS) THEN DATASETS = REVERSE(DATASETS)
+    IF N_ELEMENTS(L2_DATE_RANGE) EQ 2 THEN DATERANGE = L2_DATE_RANGE ELSE DATERANGE=['19970101','20201231']
+    DP = DATE_PARSE(DATERANGE)
+    AYEARS = YEAR_RANGE(MIN(DP.YEAR),MAX(DP.YEAR),/STRING)              
+    
+    FOR N=0,N_ELEMENTS(DATASETS)-1 DO BEGIN
+      DATASET = DATASETS(N)
+      SUITES = []
+      PRODS  = []
+      IF DATASET EQ 'OC-SEAWIFS-MLAC' THEN BEGIN DIR = 'L2A' & MAPS=['NEC'] & SUITES=['SEAWIFS_MINIMUM']    & ENDIF
+      IF DATASET EQ 'OC-MODIS-LAC'    THEN BEGIN DIR = 'L2A' & MAPS=['NEC'] & SUITES=['MODIS_MINIMUM']      & ENDIF      
+;IF DATASET EQ 'OC-SEAWIFS-MLAC' THEN BEGIN DIR = 'L2A' & MAPS=['NEC','EC','NEAN_NS','NAFO','DEL_BAY'] & SUITES=['PAR']    & ENDIF
+;IF DATASET EQ 'OC-MODIS-LAC'    THEN BEGIN DIR = 'L2A' & MAPS=['NEC','EC','NEAN_NS','NAFO','DEL_BAY'] & SUITES=['PAR']      & ENDIF      
+      IF DATASET EQ 'OC-CZCS-MLAC'    THEN BEGIN DIR = 'L2'  & MAPS=['NEC','EC'] & SUITES=['CZCS_FULL']      & ENDIF
+      IF DATASET EQ 'SST-MODIS-LAC'   THEN BEGIN DIR = 'L2'  & MAPS=['NEC','NAFO'] & PRODS='SST'               & ENDIF                              
+      FOR S=0,N_ELEMENTS(SUITES)-1L DO BEGIN
+        VPRODS = VALID_SUITES(SUITES(S),/PRODUCTS)         
+        CASE SUITES(S) OF
+          'HDF_ADD_ONS'     : PRODS = [PRODS,'CHLOR_A_PAN','PIGMENTS_ALLO_PAN','PIGMENTS_CARO_PAN','PIGMENTS_CHLA_PAN','PIGMENTS_CHLB_PAN','PIGMENTS_CHLC_PAN','PIGMENTS_DIA_PAN','PIGMENTS_FUCO_PAN','PIGMENTS_LUT_PAN','PIGMENTS_NEO_PAN',$
+                                             'PIGMENTS_PERID_PAN','PIGMENTS_VIOLA_PAN'];,'A_CDOM_355_MANNINO','POC_STRAMSKI','POC_MANNINO','DOC_MANNINO','DOC_MANNINO_WINTER','DOC_MANNINO_SUMMER','DOC_MANNINO_GOM','DOC_MANNINO_SMAB','DOC_MANNINO_NYB']                                          
+          'ACDOM'           : PRODS = [PRODS,'ADG_412_GSM','A_CDOM_355_MANNINO']
+          'CHLOR'           : PRODS = [PRODS,'CHLOR_A','CHLOR_A_PAN']
+          'PAR'             : PRODS = [PRODS,'PAR']
+          'SEAWIFS_STD'     : PRODS = [PRODS,'CHLOR_A','PAR']
+          'SEAWIFS_MINIMUM' : PRODS = [PRODS,VPRODS.SUITE_PRODS]  
+          'SEAWIFS_FULL'    : PRODS = [PRODS,VPRODS.SUITE_PRODS]
+          'MODIS_STD'       : PRODS = [PRODS,'CHLOR_A','PAR']
+          'MODIS_MINIMUM'   : PRODS = [PRODS,VPRODS.SUITE_PRODS] 
+          'MODIS_FULL'      : PRODS = [PRODS,VPRODS.SUITE_PRODS]
+          'CZCS_FULL'       : PRODS = [PRODS,VPRODS.SUITE_PRODS]
+          'ACDOM_INPUT_SEA' : PRODS = [PRODS,'RRS_412','RRS_443','RRS_555','RRS_670','A_412_QAA','A_443_QAA']            
+          'ACDOM_INPUT_MOD' : PRODS = [PRODS,'RRS_412','RRS_443','RRS_547','RRS_667','A_412_QAA','A_443_QAA']
+          ELSE: PRODS=PRODS
+        ENDCASE
+      ENDFOR  
+      RUN_AGAIN = 0
+      REPEAT_L2_2SAVE:
+            
+      FILES = FILE_SEARCH(DISK + DATASET + SL  + DIR + SL + 'S_' + [AYEARS]+'*.hdf*')  
+      BFILES = FILES     
+      IF PRODS[0] EQ [] OR FILES[0] EQ [] THEN CONTINUE        
+      DIR_OUT = DISK + DATASET + SL
+
+      L2_2SAVE,FILES=FILES,PRODS=PRODS,DIR_OUT=DIR_OUT,NO_EXCLUDE=NO_EXCLUDE,N_EXCLUDE=N_EXCLUDE,DIR_EXCLUDE=DIR_EXCLUDE,$
+                  MAP_OUT=MAPS,PX_OUT=PX_OUT,PY_OUT=PY_OUT,FLAG_BITS=FLAG_BITS,METHOD=METHOD,REVERSE_FILES=REVERSE_FILES,$
+                  DATE_RANGE=DATERANGE,/KEEP_HDF,OVERWRITE=OVERWRITE,_EXTRA=_EXTRA   
+
+      AFILES = FILE_SEARCH(DISK + DATASET + SL  + DIR + SL + 'S_' + [AYEARS]+'*.hdf')  
+      IF N_ELEMENTS(AFILES) GT N_ELEMENTS(BFILES) THEN GOTO, REPEAT_L2_2SAVE 
+      RUN_AGAIN = RUN_AGAIN + 1
+      IF RUN_AGAIN LT RUN_AGAIN_NUM THEN GOTO, REPEAT_L2_2SAVE                                
+    
+    ENDFOR   
+                
+  ENDIF ; DO_L2_2SAVE
+  
+; *******************************************************************************************************************************************
+  IF DO_OC_ADD_PRODS GE 1 THEN BEGIN
+; *******************************************************************************************************************************************
+    PRINT, 'Running: DO_OC_ADD_PRODS'
+    DISK=!S.DATASETS
+    SL = DELIMITER(/SLASH)
+    
+    REVERSE_FILES = 0 & REVERSE_MAPS = 0 & REVERSE_DATASETS = 0
+    IF KEYWORD_SET(L2_REVERSE_FILES) THEN REVERSE_FILES = 1     
+    IF KEYWORD_SET(L2_REVERSE_MAPS) THEN REVERSE_MAPS = 1 
+    IF KEYWORD_SET(L2_REVERSE_DATASETS) THEN REVERSE_DATASETS = 1
+    IF N_ELEMENTS(L2_DATE_RANGE) EQ 2 THEN DATERANGE = L2_DATE_RANGE ELSE DATERANGE=['19970101','20201231']
+
+    PIGMENTS   = ['CHLA','CHLB','CHLC','CARO','ALLO','FUCO','PERID','NEO','VIOLA','DIA','ZEA','LUT']
+    DOC_PRODS  = ['DOC_NMAB_412','DOC_SMAB_412']
+    CDOM_PRODS = ['A_CDOM_412-MAN_MLR',        'A_CDOM_443-MAN_MLR'];,$
+;                 'A_CDOM_412-MAN_QAA412',     'A_CDOM_443-MAN_QAA412',$
+;                 'A_CDOM_412-MAN_QAA443',     'A_CDOM_443-MAN_QAA443',$
+;                 'A_CDOM_412-MAN_EX670',      'A_CDOM_412-MAN_EX555',$
+;                 'S_SLOPE_275_295-MAN_MLR',   'S_SLOPE_300_600-MAN_MLR',$                  
+;                 'S_SLOPE_275_295-MAN_QAA443','S_SLOPE_300_600-MAN_QAA443']     
+    
+;   Select datasets        
+    DATASETS = []
+    OVERWRITE = DO_OC_ADD_PRODS GT 1
+    DO_OC_SEAWIFS_MLAC = 0 & IF DO_OC_SEAWIFS_MLAC  GE 1 THEN BEGIN & DATASETS = [DATASETS,'OC-SEAWIFS-MLAC'] & ENDIF
+    DO_OC_MODIS_LAC    = 1 & IF DO_OC_MODIS_LAC     GE 1 THEN BEGIN & DATASETS = [DATASETS,'OC-MODIS-LAC']    & ENDIF
+    
+;   Select products
+    DO_POC              = 0
+    DO_CHL              = 0
+    DO_PIGMENTS         = 1
+    DO_ZEA_ONLY         = 0
+    DO_ACDOM            = 0
+    DO_DOC              = 0
+    DO_PRODS     =      [ DO_POC,      DO_CHL,    DO_PIGMENTS, DO_ZEA_ONLY, DO_ACDOM,  DO_DOC]
+    RUN_PROD     =      [   'POC',       'CHL',     'PIGMENTS',  'ZEA',       'ACDOM',   'DOC']
+    PRODUCTS     = LIST(['POC'],     ['CHLOR_A'], PIGMENTS,  ['ZEA'],       CDOM_PRODS,DOC_PRODS)
+    ALGORITHMS   = LIST(['STRAMSKI'],['PAN'],   ['PAN'],     ['PAN'],       [''],      'MAN_MLR')          
+    
+    IF KEYWORD_SET(REVERSE_DATASETS) THEN DATASETS = REVERSE(DATASETS)
+    FOR DTH=0, N_ELEMENTS(DATASETS)-1 DO BEGIN
+      DATASET = DATASETS(DTH)
+      
+      IF DATASET EQ 'OC-SEAWIFS-MLAC' THEN BEGIN & MAPS = ['NEC','NAFO'] & SST1='SST-AVHRR-4' & SST_ALG1 = '' & SST2= 'SST-MODIS-4' & SST_ALG2 = '-N_11UM' & SENSOR = 'SEAWIFS' & ENDIF
+      IF DATASET EQ 'OC-MODIS-LAC'    THEN BEGIN & MAPS = ['NEC','NAFO'] & SST1='SST-AVHRR-4' & SST_ALG1 = '' & SST2= 'SST-MODIS-4' & SST_ALG2 = '-N_11UM' & SENSOR = 'MODIS' & ENDIF      
+      IF KEYWORD_SET(REVERSE_MAPS) THEN MAPS = REVERSE(MAPS)
+      FOR NTH=0, N_ELEMENTS(MAPS)-1 DO BEGIN
+        DIR_IN   = DISK + DATASETS(DTH) + SL + MAPS[NTH] + SL + 'SAVE' + SL
+        DIR_OUT  = DISK + DATASETS(DTH) + SL + MAPS[NTH] + SL + 'SAVE' + SL
+        DIR_SST1 = DISK + SST1          + SL + MAPS[NTH] + SL + 'SAVE' + SL + 'SST' + SST_ALG1 + SL ; SHOULD USE TS_IMAGES IF AVAILABLE
+        DIR_SST2 = DISK + SST2          + SL + MAPS[NTH] + SL + 'SAVE' + SL + 'SST' + SST_ALG2 + SL ; SHOULD USE TS_IMAGES IF AVAILABLE
+          
+        FOR PTH = 0L, N_ELEMENTS(PRODUCTS)-1 DO BEGIN
+          IF DO_PRODS(PTH) EQ 0 THEN CONTINUE
+          OVERWRITE = DO_PRODS(PTH) GE 2
+          PRODS   = PRODUCTS(PTH)
+          ALGS    = ALGORITHMS(PTH)
+                     
+          CASE RUN_PROD(PTH) OF
+            'POC'      :POC_SAVE_MAKE,     DIR_IN=DIR_IN,DIR_OUT=DIR_OUT,DATE_RANGE=DATERANGE,      POC_ALGS=ALGS,PERIOD_CODE=PERIOD_CODE,MAP_OUT=MAP_OUT,OVERWRITE=OVERWRITE
+            'CHL'      :CHLOR_A_SAVE_MAKE, DIR_IN=DIR_IN,DIR_OUT=DIR_OUT,DATE_RANGE=DATERANGE,      CHL_ALGS=ALGS,PERIOD_CODE=PERIOD_CODE,MAP_OUT=MAP_OUT,OVERWRITE=OVERWRITE
+            'PIGMENTS' :PIGMENTS_SAVE_MAKE,DIR_IN=DIR_IN,DIR_OUT=DIR_OUT,DATE_RANGE=DATERANGE,          ALGS=ALGS,PERIOD_CODE=PERIOD_CODE,MAP_OUT=MAP_OUT,OVERWRITE=OVERWRITE,DIR_SST1=DIR_SST1,DIR_SST2=DIR_SST2,REVERSE_FILES=REVERSE_FILES,SENSOR=SENSOR
+            'ZEA'      :PIGMENTS_SAVE_MAKE,DIR_IN=DIR_IN,DIR_OUT=DIR_OUT,DATE_RANGE=DATERANGE,/ZEA_ONLY,ALGS=ALGS,PERIOD_CODE=PERIOD_CODE,MAP_OUT=MAP_OUT,OVERWRITE=OVERWRITE,DIR_SST1=DIR_SST1,DIR_SST2=DIR_SST2,REVERSE_FILES=REVERSE_FILES,SENSOR=SENSOR
+            'ACDOM'    :ACDOM_SAVE_MAKE,   DIR_IN=DIR_IN,DIR_OUT=DIR_OUT,DATE_RANGE=DATERANGE,PRODUCTS=PRODS,     PERIOD_CODE=PERIOD_CODE,MAP_OUT=MAP_OUT,OVERWRITE=OVERWRITE,REVERSE_FILES=REVERSE_FILES     
+            'DOC'      :DOC_SAVE_MAKE,     DIR_IN=DIR_IN,DIR_OUT=DIR_OUT,DATE_RANGE=DATERANGE,PRODUCTS=PRODS,     PERIOD_CODE=PERIOD_CODE,MAP_OUT=MAP_OUT,OVERWRITE=OVERWRITE,REVERSE_FILES=REVERSE_FILES,CDOM_ALG=ALGS,INPUT_RRS='412'
+          END 
+        ENDFOR 
+      ENDFOR     
+    ENDFOR  
+  ENDIF  ; DO_OC_ADD_PRODS
+  
+  
+; *******************************************************************************************************************************************
+  IF DO_OC_MERGE GE 1 THEN BEGIN
+; *******************************************************************************************************************************************
+    PRINT, 'Running: DO_OC_MERGE'
+    OVERWRITE = DO_OC_MERGE EQ 2    
+    MAP_OUTS  = ['NEC','EC','NAFO']
+    DO_MAP    = [1,     0,    1]
+    
+    DISK=!S.DATASETS    
+    SL = DELIMITER(/SLASH)
+    
+    PRODS         = ['CHLOR_A-PAN','CHLOR_A-OC','PAR','A_CDOM_412-MAN_MLR','A_CDOM_443-MAN_MLR']
+    DIRS_OUT      = DISK+['OC-SEA_AQU-LAC','OC-SAM-LAC','OC-AQU_MER-LAC']+SL         
+    SENSORS_OUT   =      ['SEA_AQU',       'SAM',       'AQU_MER']      
+    DO_MERGE      =      [ 1,               0,           0]
+    PERIOD_CODE   = 'D'
+    CASE PERIOD_CODE OF
+      'S': SAVE_DIR = 'SAVE'
+      'D': SAVE_DIR = 'STATS'
+    ENDCASE
+    
+    IF N_ELEMENTS(L2_DATE_RANGE) EQ 2 THEN DATERANGE = L2_DATE_RANGE ELSE DATERANGE=['19970101','20201231']    
+    IF KEYWORD_SET(L2_REVERSE_MAPS) THEN BEGIN
+      MAP_OUTS = REVERSE(MAP_OUTS)
+      DO_MAP   = REVERSE(DO_MAP)
+    ENDIF  
+    
+    FOR MTH = 0, N_ELEMENTS(MAP_OUTS)-1 DO BEGIN
+      IF DO_MAP(MTH) EQ 0 THEN CONTINUE
+      MAP_OUT       = MAP_OUTS(MTH)      
+      FOR NTH=0, N_ELEMENTS(DIRS_OUT)-1 DO BEGIN
+        IF DO_MERGE[NTH] EQ 0 THEN CONTINUE
+        DIR_OUT       = DIRS_OUT[NTH]
+        DIR_SEAWIFS   = DISK+'OC-SEAWIFS-MLAC'+SL+MAP_OUT+SL+SAVE_DIR+SL
+        DIR_MODIS     = DISK+'OC-MODIS-LAC'   +SL+MAP_OUT+SL+SAVE_DIR+SL    
+        COVERAGE      = 'LAC'    
+        SEA_AQU_MERGE,DIR_SEAWIFS=DIR_SEAWIFS,DIR_MODIS=DIR_MODIS,DIR_MERIS=DIR_MERIS,DIR_OUT=DIR_OUT,SENSOR_OUT=SENSORS_OUT[NTH],COVERAGE=COVERAGE,MAP_OUT=MAP_OUT,PRODS=PRODS,PERIOD_CODE=PERIOD_CODE,DATE_RANGE=DATERANGE,OVERWRITE=OVERWRITE
+      ENDFOR
+    ENDFOR    
+  ENDIF ;IF DO_OC_MERGE GE 1 THEN BEGIN
+  
+     
+; *******************************************************************************************************************************************
+  IF DO_PHYTO_COMMUNITY GE 1 THEN BEGIN
+; *******************************************************************************************************************************************
+    PRINT, 'Running: PHYTO_COMMUNITY_SAVE_MAKE'    
+    OVERWRITE = DO_PHYTO_COMMUNITY EQ 2
+        
+    SL = DELIMITER(/PATH)
+    DISK=!S.DATASETS 
+    DATASETS = []     
+    
+    VERBOSE = 0
+    REVERSE_FILES = 0
+    REVERSE_MAPS  = 0
+    REVERSE_DATASETS  = 0
+    IF KEYWORD_SET(L2_REVERSE_FILES) THEN REVERSE_FILES = 1    
+    IF KEYWORD_SET(L2_REVERSE_MAPS) THEN REVERSE_MAPS = 1
+    IF N_ELEMENTS(L2_DATE_RANGE) EQ 2 THEN DATERANGE = L2_DATE_RANGE ELSE DATERANGE=['19970101','20201231']    
+    IF KEYWORD_SET(L2_REVERSE_DATASETS) THEN REVERSE_DATASETS = 1
+        
+    DO_OC_SEAWIFS_MLAC = 0 & IF DO_OC_SEAWIFS_MLAC EQ 1 THEN DATASETS = [DATASETS,'OC-SEAWIFS-MLAC'] 
+    DO_OC_MODIS_LAC    = 1 & IF DO_OC_MODIS_LAC    EQ 1 THEN DATASETS = [DATASETS,'OC-MODIS-LAC'   ]    
+
+    IF KEYWORD_SET(REVERSE_DATASETS) THEN DATASETS = REVERSE(DATASETS)
+    FOR N=0,N_ELEMENTS(DATASETS)-1 DO BEGIN
+      DATASET = DATASETS(N)
+      SUITES = []
+      PRODS  = []
+      MAPS   = []
+      
+      IF DATASET EQ 'OC-SEAWIFS-MLAC' THEN MAPS = ['NEC','NAFO'] 
+      IF DATASET EQ 'OC-MODIS-LAC'    THEN MAPS = ['NEC','NAFO']  
+    
+      IF REVERSE_MAPS EQ 1 THEN MAPS = REVERSE(MAPS)
+      FOR M=0, N_ELEMENTS(MAPS)-1 DO BEGIN      
+        MAP = MAPS(M)                               
+        SAVEDIR = DISK + DATASET + SL + MAP + SL + 'SAVE'  + SL
+        PRINT, 'Running PHYTO_COMMUNITY_SAVE_MAKE for ' + DATASET + ' (' + STRJOIN(DATERANGE,'-') + ')'
+        PHYTO_COMMUNITY_SAVE_MAKE,DIR_IN=SAVEDIR,DIR_OUT=SAVEDIR,REVERSE_FILES=REVERSE_FILES,DATE_RANGE=DATERANGE,ALGS='PAN',PERIOD_CODE='S',MAP_OUT=MAP,VERBOSE=VERBOSE,OVERWRITE=OVERWRITE
+      ENDFOR
+    ENDFOR                  
+  ENDIF ; DO_PHYTO_COMMUNITY
+    
+; *******************************************************************************************************************************************
+  IF DO_STATS GE 1 THEN BEGIN
+; *******************************************************************************************************************************************
+    PRINT, 'Running: STATS step'
+    OVERWRITE = DO_STATS EQ 2 
+      
+    DISK=!S.DATASETS
+    SL = DELIMITER(/SLASH)
+    
+    IF N_ELEMENTS(L2_STATS_RANGE) EQ 2 THEN DATERANGE = STRJOIN(L2_STATS_RANGE,'_') ELSE DATERANGE=['19970101_20201231']
+    
+    FULL_OC_PRODS = ['CHLOR_A*','PAR','A_CDOM_*','CHLA*','MICRO*','NANO*','PICO*','DIATOM*','GREEN*','BROWN*','CRYPTO*','CYANO*','DINOFLAGELLATE-PAN','DINOFLAGELLATE_PER*-PAN','TCHL_A*'] 
+    MIN_OC_PRODS  = ['FUCO-PAN','DIATOM*-PAN','MICRO*-PAN','NANO*-PAN','PICO*-PAN','NANOPICO*-PAN','CHLOR_A-PAN','CHLOR_A-OC*','A_CDOM_443-MAN_MLR','PAR']
+    FULL_ACDOM_PRODS = ['A_CDOM_4*MAN_*','S_SLOPE*MAN_*']
+    FULL_DOC_PRODS = ['DOC_NMAB_412-MAN_MLR','DOC_SMAB_412-MAN_MLR']
+    REVERSE_PRODS = 0
+    IF KEYWORD_SET(L2_REVERSE_PRODS) THEN REVERSE_PRODS = 1
+    REVERSE_MAPS  = 0
+    IF KEYWORD_SET(L2_REVERSE_MAPS) THEN REVERSE_MAPS = 1
+    REVERSE_DATASETS  = 0
+    IF KEYWORD_SET(L2_REVERSE_DATASETS) THEN REVERSE_DATASETS = 1
+        
+    SKIP_CNUM = 1
+        
+    DATASETS = []           
+    DO_OC_SEAWIFS_MLAC = 0 & IF DO_OC_SEAWIFS_MLAC GE 1 THEN DATASETS = [DATASETS,'OC-SEAWIFS-MLAC']
+    DO_OC_MODIS_LAC    = 1 & IF DO_OC_MODIS_LAC    GE 1 THEN DATASETS = [DATASETS,'OC-MODIS-LAC']    
+    DO_OC_SEA_AQU_LAC  = 1 & IF DO_OC_SEA_AQU_LAC  GE 1 THEN DATASETS = [DATASETS,'OC-SEA_AQU-LAC']
+       
+    IF KEYWORD_SET(REVERSE_DATASETS) THEN DATASETS = REVERSE(DATASETS)
+    FOR N=0,N_ELEMENTS(DATASETS)-1 DO BEGIN
+      DATASET = DATASETS(N)
+      CASE DATASET OF
+        'OC-SEAWIFS-MLAC':  BEGIN & MAPS = ['NEC','NAFO','NEC','NAFO'] & DIR_PRODS=['MIN_OC_PRODS'] & PERIODS = ['DAILY','DAILY','MIN','MIN'] & DR = [DATERANGE,DATERANGE,DATERANGE,DATERANGE] & END
+        'OC-MODIS-LAC':     BEGIN & MAPS = ['NEC','NEC','NEC','NEC'] & DIR_PRODS=['MIN_OC_PRODS'] & PERIODS = ['DAILY','DAILY','MIN','MIN'] & DR = [DATERANGE,DATERANGE,DATERANGE,DATERANGE] & END
+        'OC-SEA_AQU-LAC':   BEGIN & MAPS = ['NEC','NAFO']              & DIR_PRODS=['MIN_OC_PRODS'] & PERIODS = ['MIN','MIN']                 & DR = [DATERANGE,DATERANGE,DATERANGE,DATERANGE,DATERANGE] & END
+      ENDCASE       
+
+      IF REVERSE_MAPS EQ 1 THEN MAPS = REVERSE(MAPS)
+      FOR M=0, N_ELEMENTS(MAPS)-1 DO BEGIN
+        AMAP = MAPS(M)        
+        APERIODS = PERIODS(M)
+        DATE_RANGE = STRSPLIT(DR(M),'_',/EXTRACT) 
+        IF STRLEN(DATE_RANGE[0]) EQ 8 THEN DATE_RANGE[0] = DATE_RANGE[0]+'000000'
+        IF STRLEN(DATE_RANGE[1]) EQ 8 THEN DATE_RANGE[1] = DATE_RANGE[1]+'235959'
+                        
+        ; DEFUALT PERIODS FOR STATS
+        
+        CASE APERIODS OF 
+        'DAILY': BEGIN  
+          PERIOD_CODES_IN  = ['S']
+          PERIOD_CODES_OUT = ['D']
+        END  
+        
+        'WEEKLY': BEGIN
+          PERIOD_CODES_IN  = ['S','W']
+          PERIOD_CODES_OUT = ['W','WEEK']
+        END
+        
+        'MONTHLY': BEGIN
+          PERIOD_CODES_IN  = ['S','M']
+          PERIOD_CODES_OUT = ['M','MONTH']
+        END
+     
+        'ALL': BEGIN 
+          PERIOD_CODES_IN  = ['S','D', 'D', 'S','S','M','S','D',  'W',   'M',    'A',     'MONTH',  'Y',   'D',    'S', 'D', 'M', 'M', 'Y', 'S']
+          PERIOD_CODES_OUT = ['D','D3','D8','W','M','A','Y','DOY','WEEK','MONTH','ANNUAL','MANNUAL','YEAR','STUDY','SS','DD','MM','M3','YY','ALL']      
+        END
+        
+        'MIN': BEGIN
+          PERIOD_CODES_IN  = ['S','M','M',    'A',     'MONTH'  ]
+          PERIOD_CODES_OUT = ['M','A','MONTH','ANNUAL','MANNUAL']
+        END
+        
+        'MIN_TEMP': BEGIN
+          PERIOD_CODES_IN  = ['S','S','M']
+          PERIOD_CODES_OUT = ['D','M','A']
+        END 
+         
+        'TEMP': BEGIN
+          PERIOD_CODES_IN  = ['S','S','S','M','M',    'A']
+          PERIOD_CODES_OUT = ['D','M','W','A','MONTH','ANNUAL']
+        END   
+        
+        'STUDY': BEGIN
+          PERIOD_CODES_IN  = ['D']
+          PERIOD_CODES_OUT = ['STUDY']
+        END 
+        ELSE: BEGIN
+          PERIOD_CODES_IN  = ['S','S', 'D',  'S','W',   'S','M','S','M',    'A',     'MONTH',   'Y' ]
+          PERIOD_CODES_OUT = ['D','D3','DOY','W','WEEK','M','A','Y','MONTH','ANNUAL','MANNUAL','YEAR']
+        END  
+        ENDCASE               
+
+        DPRODS = []
+        IF DIR_PRODS[0] NE 'ALL' AND DIR_PRODS[0] NE 'FULL_OC_PRODS' AND DIR_PRODS[0] NE 'FULL_ACDOM_PRODS' AND DIR_PRODS[0] NE 'FULL_DOC_PRODS' AND DIR_PRODS[0] NE 'MIN_OC_PRODS' $
+                                             THEN FOR DP = 0L, N_ELEMENTS(DIR_PRODS)-1 DO DPRODS = [DPRODS,FILE_SEARCH(DISK + DATASET + SL + AMAP + SL + 'SAVE' + SL + DIR_PRODS(DP) + '*',/TEST_DIRECTORY,/MARK_DIRECTORY)] ELSE BEGIN
+          IF DIR_PRODS EQ 'ALL'              THEN DPRODS = FILE_SEARCH(DISK + DATASET + SL + AMAP + SL + 'SAVE' + SL + '*',/TEST_DIRECTORY,/MARK_DIRECTORY)
+          IF DIR_PRODS EQ 'FULL_OC_PRODS'    THEN DPRODS = FILE_SEARCH(DISK + DATASET + SL + AMAP + SL + 'SAVE' + SL + FULL_OC_PRODS,/TEST_DIRECTORY,/MARK_DIRECTORY)
+          IF DIR_PRODS EQ 'MIN_OC_PRODS'     THEN DPRODS = FILE_SEARCH(DISK + DATASET + SL + AMAP + SL + 'SAVE' + SL + MIN_OC_PRODS,/TEST_DIRECTORY,/MARK_DIRECTORY)
+          IF DIR_PRODS EQ 'FULL_ACDOM_PRODS' THEN DPRODS = FILE_SEARCH(DISK + DATASET + SL + AMAP + SL + 'SAVE' + SL + FULL_ACDOM_PRODS,/TEST_DIRECTORY,/MARK_DIRECTORY)
+          IF DIR_PRODS EQ 'FULL_DOC_PRODS'   THEN DPRODS = FILE_SEARCH(DISK + DATASET + SL + AMAP + SL + 'SAVE' + SL + FULL_DOC_PRODS,/TEST_DIRECTORY,/MARK_DIRECTORY)
+        ENDELSE   
+
+        FP_DIR = FILE_PARSE(DPRODS)
+        PRODS = FP_DIR.SUB
+        PRODS = PRODS[SORT(PRODS)]
+        PRODS = PRODS[UNIQ(PRODS)]
+        IF REVERSE_PRODS EQ 1 THEN PRODS = REVERSE(PRODS)                        
+        FOR P=0,N_ELEMENTS(PRODS)-1L DO BEGIN
+          PROD = PRODS(P)
+          APROD = VALIDS('PRODS',PROD,/OLD) & IF APROD EQ '' THEN CONTINUE
+          AALG  = VALIDS('ALGS',PROD)
+          DIR_SAVE  = DISK + DATASET + SL + AMAP + SL + 'SAVE'      + SL + PROD + SL          
+          DIR_STATS = DISK + DATASET + SL + AMAP + SL + 'STATS'     + SL + PROD + SL & DIR_TEST,DIR_STATS
+          DIR_OLD   = DISK + DATASET + SL + AMAP + SL + 'OLD_STATS' + SL + PROD + SL & DIR_TEST,DIR_OLD
+                    
+          FOR S = 0, N_ELEMENTS(PERIOD_CODES_IN)-1 DO BEGIN
+            FILES = []
+            PERIOD_CODE_IN  = PERIOD_CODES_IN(S)
+            PERIOD_CODE_OUT = PERIOD_CODES_OUT(S)
+            CASE PERIOD_CODE_OUT OF
+              'D' : STAT_TYPES = ['MEAN','NUM']
+              'D3': STAT_TYPES = ['MEAN','CNUM']
+              'D8': STAT_TYPES = ['MEAN','CNUM']
+              'W' : STAT_TYPES = ['MEAN','CNUM']
+              'M3': STAT_TYPES = ['MEAN','CNUM']            
+              ELSE: STAT_TYPES = ['MEAN'] ; 'STD','CV','MIN','MAX','CNUM'
+            ENDCASE          
+            IF PERIOD_CODE_IN EQ 'S' OR PERIOD_CODE_IN EQ 'D' THEN BEGIN
+              FILES = FILE_SEARCH(DIR_SAVE+PERIOD_CODE_IN+'_*'+AMAP+'*'+PROD+'*.SAVE')
+              IF FILES[0] EQ '' AND PERIOD_CODE_OUT NE 'D'  AND PERIOD_CODE_OUT NE 'SS' THEN BEGIN
+                PERIOD_CODE_IN = 'D'
+                FILES = FILE_SEARCH(DIR_SAVE+PERIOD_CODE_IN+'_*'+AMAP+'*'+PRODS(P)+'*.SAVE')      
+                IF FILES[0] EQ '' THEN FILES = FILE_SEARCH(DIR_STATS+PERIOD_CODE_IN+'_*'+AMAP+'*'+PROD+'*MEAN.SAVE')
+              ENDIF   
+            ENDIF ELSE FILES = FILE_SEARCH(DIR_STATS+PERIOD_CODE_IN+'_*'+AMAP+'*'+PROD+'*MEAN.SAVE')          
+            IF FILES[0] EQ '' THEN CONTINUE
+IF PERIOD_CODE_IN EQ 'MONTH' THEN BEGIN ; REMOVE FILES WITH THE OLD MONTH PERIOD CODE
+li, files
+FP = PARSE_IT(FILES)
+OK = WHERE(FP.PERIOD EQ '',COUNT,COMPLEMENT=COMPLEMENT)
+
+IF COUNT GE 1 THEN FILE_MOVE, FILES[OK],DIR_OLD,/OVERWRITE,/VERBOSE
+FILES = FILES(COMPLEMENT)
+ENDIF   
+FP = PARSE_IT(FILES,/ALL)
+OK = WHERE(FP.COVERAGE EQ '',COUNT,COMPLEMENT=COMPLEMENT,NCOMPLEMENT=NCOMPLEMENT)
+IF COUNT GE 1 THEN FILE_DELETE, FILES[OK],/VERBOSE
+IF NCOMPLEMENT EQ 0 THEN CONTINUE ELSE FILES = FILES(COMPLEMENT)            
+            
+            PRINT, 'Running ' + PERIOD_CODE_OUT + ' stats for ' + DATASET + SL + AMAP + ' (' + PROD + ')' 
+            SD_STATS_ALL,FILES,PROD=APROD,STAT_TYPES=STAT_TYPES,PERIOD_CODE_IN=PERIOD_CODE_IN,PERIOD_CODE_OUT=PERIOD_CODE_OUT,DATE_RANGE=DATE_RANGE,DIR_STATS=DIR_STATS,SKIP_CNUM=SKIP_CNUM,OVERWRITE=OVERWRITE
+            GONE, FILES          
+          ENDFOR
+          STATS_CLEANUP,DIR_STATS=DIR_STATS,DIR_OUT=DIR_OLD,/MOVE_FILES,DATE_RANGE=DATE_RANGE
+        ENDFOR  
+      ENDFOR
+    ENDFOR    
+  ENDIF ; DO_STATS
+  
+; *******************************************************************************************************************************************
+  IF DO_ANOMS GE 1 THEN BEGIN
+; *******************************************************************************************************************************************
+    PRINT, 'Running: DO_ANOMS step'
+    OVERWRITE = DO_ANOMS EQ 2 
+        
+    DISK=!S.DATASETS
+    SL = DELIMITER(/SLASH)
+    
+    DATERANGE=['19970101-20201231']  
+    DATASETS = []
+            
+    DO_OC_SEAWIFS_MLAC = 1 & IF DO_OC_SEAWIFS_MLAC GE 1 THEN DATASETS = [DATASETS,'OC-SEAWIFS-MLAC']    
+    DO_OC_MODIS_LAC    = 1 & IF DO_OC_MODIS_LAC    GE 1 THEN DATASETS = [DATASETS,'OC-MODIS-LAC']
+    DO_OC_SEA_AQU_LAC  = 0 & IF DO_OC_SEA_AQU_LAC  GE 1 THEN DATASETS = [DATASETS,'OC-SEA_AQU-LAC']
+        
+    DO_SST_AVHRR       = 1 & IF DO_SST_AVHRR       GE 1 THEN DATASETS = [DATASETS,'SST-AVHRR-4']
+    DO_SST_MODIS_4     = 0 & IF DO_SST_MODIS_4     GE 1 THEN DATASETS = [DATASETS,'SST-MODIS-4']                     
+    DO_SST_PAT_4       = 0 & IF DO_SST_PAT_4       GE 1 THEN DATASETS = [DATASETS,'SST-PAT-4']
+    
+    DO_PP_MODIS_PAT_LAC          = 0 & IF DO_PP_MODIS_PAT_LAC          GE 1 THEN DATASETS = [DATASETS,'PP-MODIS-PAT-LAC']
+    DO_PP_MODIS_AVHRR_LAC        = 0 & IF DO_PP_MODIS_AVHRR_LAC        GE 1 THEN DATASETS = [DATASETS,'PP-MODIS-AVHRR-LAC']
+    DO_PP_SEAWIRS_PAT_MLAC       = 0 & IF DO_PP_SEAWIRS_PAT_MLAC       GE 1 THEN DATASETS = [DATASETS,'PP-SEAWIFS-PAT-MLAC']
+    DO_PP_SEAWIFS_AVHRR_MLAC     = 0 & IF DO_PP_SEAWIFS_AVHRR_MLAC     GE 1 THEN DATASETS = [DATASETS,'PP-SEAWIFS-AVHRR-MLAC']
+        
+    DO_PP_MODIS_PAN_PAT_LAC      = 0 & IF DO_PP_MODIS_PAN_PAT_LAC      GE 1 THEN DATASETS = [DATASETS,'PP-MODIS_PAN-PAT-LAC']
+    DO_PP_MODIS_PAN_AVHRR_LAC    = 0 & IF DO_PP_MODIS_PAN_AVHRR_LAC    GE 1 THEN DATASETS = [DATASETS,'PP-MODIS_PAN-AVHRR-LAC']
+    DO_PP_SEAWIRS_PAN_PAT_MLAC   = 0 & IF DO_PP_SEAWIRS_PAN_PAT_MLAC   GE 1 THEN DATASETS = [DATASETS,'PP-SEAWIFS_PAN-PAT-MLAC']
+    DO_PP_SEAWIFS_PAN_AVHRR_MLAC = 0 & IF DO_PP_SEAWIFS_PAN_AVHRR_MLAC GE 1 THEN DATASETS = [DATASETS,'PP-SEAWIFS_PAN-AVHRR-MLAC']
+
+    RATIO_PRODS = ['CHLOR_A','PPD','CHLOR_A-EUPHOTIC','POC','A_CDOM_443','A_CDOM_355','MICRO','NANO','PICO','NANOPICO']    
+    RATIO_CODES_TOP = ['M',     'A',      'Y',    'M', 'M','M',     'Y',    'Y','A',      'MONTH', 'ANNUAL','D']
+    RATIO_CODES_BOT = ['ANNUAL','ANNUAL', 'YEAR', 'A', 'Y','MONTH', 'YEAR', 'A','ANNUAL', 'ANNUAL','MANNUAL','DOY']    
+  
+    FOR N=0,N_ELEMENTS(DATASETS)-1 DO BEGIN 
+      DATASET = DATASETS(N)
+      PRINT, 'Running anomalies for ' + DATASET
+      CASE DATASET OF
+        'OC-SEAWIFS-MLAC': BEGIN & PRODS=['CHLOR_A-OC4', 'CHLOR_A-PAN'] & OMAPS = ['NEC'] & DR = DATERANGE & END 
+        'OC-MODIS-LAC':    BEGIN & PRODS=['CHLOR_A-OC3M','CHLOR_A-PAN'] & OMAPS = ['NEC'] & DR = DATERANGE & END
+        'OC-SEA_AQU-LAC':  BEGIN & PRODS=['CHLOR_A-PAN', 'CHLOR_A-OC']  & OMAPS = ['NEC'] & DR = DATERANGE & END          
+        
+        'SST-AVHRR-4':     BEGIN & PRODS=['SST']        & OMAPS = ['NEC'] & DR = [DATERANGE] & END        
+        'SST-MODIS-4':     BEGIN & PRODS=['SST-N_11UM'] & OMAPS = ['NEC'] & DR = [DATERANGE] & END
+        'SST-PAT-4':       BEGIN & PRODS=['SST-N_11UM'] & OMAPS = ['NEC'] & DR = [DATERANGE] & END
+                
+        'PP-SEAWIFS-AVHRR-MLAC':     BEGIN & PRODS=['PPD-OPAL','PPD-VGPM2'] & OMAPS = ['NEC'] & DR = DATERANGE & END
+        'PP-SEAWIFS_PAN-AVHRR-MLAC': BEGIN & PRODS=['PPD-OPAL','PPD-VGPM2'] & OMAPS = ['NEC'] & DR = DATERANGE & END
+        
+        'PP-SA_PAN-PAT-LAC':   BEGIN & PRODS=['PPD-VGPM2'] & OMAPS = ['NEC'] & DR = DATERANGE & END
+        'PP-SA_PAN-AVHRR-LAC': BEGIN & PRODS=['PPD-VGPM2'] & OMAPS = ['NEC'] & DR = DATERANGE & END
+      ENDCASE  
+
+      FOR M=0,N_ELEMENTS(OMAPS)-1 DO BEGIN
+        AMAP = OMAPS(M)
+        FOR D=0,N_ELEMENTS(DR)-1 DO BEGIN
+          DATE_RANGE = STRSPLIT(DR(D),'-',/EXTRACT) 
+          YS = DATE_2YEAR(DATE_RANGE[0])
+          YE = DATE_2YEAR(DATE_RANGE[1])
+          FOR P=0,N_ELEMENTS(PRODS)-1L DO BEGIN
+            PROD = PRODS(P)
+            APROD = VALIDS('PRODS',PROD)
+            AALG  = VALIDS('ALGS',PROD)
+            IF WHERE(APROD EQ RATIO_PRODS) GE 0 THEN ANOM = 'RATIO' ELSE ANOM = 'DIF'            
+            DIR_SAVE  = DISK + DATASET + SL + AMAP + SL + 'SAVE'  + SL + PROD + SL
+            DIR_STATS = DISK + DATASET + SL + AMAP + SL + 'STATS' + SL + PROD + SL
+            DIR_ANOMS = DISK + DATASET + SL + AMAP + SL + 'ANOMS' + SL + PROD + SL     & DIR_TEST,DIR_ANOMS
+            DIR_OLD   = DISK + DATASET + SL + AMAP + SL + 'OLD_ANOMS' + SL + PROD + SL & DIR_TEST,DIR_OLD
+            
+            FOR R=0,N_ELEMENTS(RATIO_CODES_TOP)-1 DO BEGIN
+              RATIO_CODE_TOP = RATIO_CODES_TOP(R)
+              RATIO_CODE_BOT = RATIO_CODES_BOT(R)
+              
+              IF RATIO_CODE_TOP EQ 'S' THEN BEGIN
+                TOP_FILES = FILE_SEARCH(DIR_SAVE+RATIO_CODE_TOP+'_*'+PROD+'*.SAVE')
+                IF TOP_FILES[0] EQ '' AND RATIO_CODE_BOT NE 'D'  AND RATIO_CODE_TOP NE 'SS' THEN BEGIN
+                  RATIO_CODE_TOP = 'D'
+                  TOP_FILES = FILE_SEARCH(DIR_SAVE+RATIO_CODE_TOP+'_*'+PROD+'*.SAVE')              
+                ENDIF   
+              ENDIF ELSE TOP_FILES = FILE_SEARCH(DIR_STATS+RATIO_CODE_TOP+'_*'+PROD+'*MEAN.SAVE')                
+              FP = PARSE_IT(TOP_FILES)
+              TOP_FILES = TOP_FILES[WHERE(FP.YEAR_START GE YS AND FP.YEAR_END LE YE)]
+              FP = FP[WHERE(FP.YEAR_START GE YS AND FP.YEAR_END LE YE)]
+              
+              CASE RATIO_CODE_BOT OF 
+                'DOY': BEGIN                          
+                  SET = WHERE_SETS(DATE_2IDOY(PERIOD_2DATE(FP.PERIOD)))
+                  FOR S=0L, N_ELEMENTS(SET)-1 DO BEGIN
+                    TF = TOP_FILES(WHERE_SETS_SUBS(SET(S)))
+                    BF = FILE_SEARCH(DIR_STATS + RATIO_CODE_BOT + '_*' + SET(S).VALUE + '_*' + SET(S).VALUE + '*' + PROD + '*MEAN.SAVE')
+                    IF BF[0] EQ '' THEN CONTINUE 
+                    FOR B=0, N_ELEMENTS(BF)-1 DO FOR F=0,N_ELEMENTS(TF)-1 DO RESULT = MAKE_ANOM_SAVES(DIR_OUT=DIR_ANOMS,FILEA=TF(F),FILEB=BF(B),ANOM=ANOM,OVERWRITE=OVERWRITE)
+                  ENDFOR  
+                END
+                'A': BEGIN                          
+                  SET = WHERE_SETS(DATE_2YEAR(PERIOD_2DATE(FP.PERIOD)))
+                  FOR S=0L, N_ELEMENTS(SET)-1 DO BEGIN
+                    TF = TOP_FILES(WHERE_SETS_SUBS(SET(S)))
+                    BF = FILE_SEARCH(DIR_STATS + RATIO_CODE_BOT + '_' + SET(S).VALUE + '*' + PROD + '*MEAN.SAVE')
+                    IF BF EQ '' THEN CONTINUE 
+                    FOR F=0,N_ELEMENTS(TF)-1 DO RESULT = MAKE_ANOM_SAVES(DIR_OUT=DIR_ANOMS,FILEA=TF(F),FILEB=BF,ANOM=ANOM,OVERWRITE=OVERWRITE)
+                  ENDFOR                    
+                END
+                'Y': BEGIN                          
+                  SET = WHERE_SETS(DATE_2YEAR(PERIOD_2DATE(FP.PERIOD)))
+                  FOR S=0L, N_ELEMENTS(SET)-1 DO BEGIN
+                    TF = TOP_FILES(WHERE_SETS_SUBS(SET(S)))
+                    BF = FILE_SEARCH(DIR_STATS + RATIO_CODE_BOT + '_' + SET(S).VALUE + '*' + PROD + '*MEAN.SAVE')
+                    IF BF EQ '' THEN CONTINUE 
+                    FOR F=0,N_ELEMENTS(TF)-1 DO RESULT = MAKE_ANOM_SAVES(DIR_OUT=DIR_ANOMS,FILEA=TF(F),FILEB=BF,ANOM=ANOM,OVERWRITE=OVERWRITE)
+                  ENDFOR  
+                END  
+                'MONTH': BEGIN
+                  SET  = WHERE_SETS(DATE_2MONTH(PERIOD_2DATE(FP.PERIOD)))
+                  YMIN = MIN(DATE_2YEAR(PERIOD_2DATE(FP.PERIOD)))
+                  YMAX = MAX(DATE_2YEAR(PERIOD_2DATE(FP.PERIOD)))
+                  FOR S=0L, N_ELEMENTS(SET)-1 DO BEGIN
+                    TF = TOP_FILES(WHERE_SETS_SUBS(SET(S)))
+                    BOT_FILE = FILE_SEARCH(DIR_STATS + RATIO_CODE_BOT + '_' + YMIN+SET(S).VALUE + '_' +YMAX+SET(S).VALUE +'*' + PROD + '*MEAN.SAVE')                    
+IF BOT_FILE EQ '' THEN BOT_FILE = FILE_SEARCH(DIR_STATS + RATIO_CODE_BOT+'_'+NUM2STR(YMIN+1)+SET(S).VALUE+'*_'        +YMAX   +SET(S).VALUE+'*'+PROD+'*MEAN.SAVE')
+IF BOT_FILE EQ '' THEN BOT_FILE = FILE_SEARCH(DIR_STATS + RATIO_CODE_BOT+'_'        +YMIN   +SET(S).VALUE+'*_'+NUM2STR(YMAX-1)+SET(S).VALUE+'*'+PROD+'*MEAN.SAVE')
+IF BOT_FILE EQ '' THEN BOT_FILE = FILE_SEARCH(DIR_STATS + RATIO_CODE_BOT+'_'+NUM2STR(YMIN+1)+SET(S).VALUE+'*_'+NUM2STR(YMAX-1)+SET(S).VALUE+'*'+PROD+'*MEAN.SAVE')
+                    IF BOT_FILE NE '' THEN FOR F=0,N_ELEMENTS(TF)-1 DO RESULT = MAKE_ANOM_SAVES(DIR_OUT=DIR_ANOMS,FILEA=TF(F),FILEB=BOT_FILE,ANOM=ANOM,OVERWRITE=OVERWRITE)
+                  ENDFOR  
+                END
+                'YEAR': BEGIN
+                  YMIN = MIN(DATE_2YEAR(PERIOD_2DATE(FP.PERIOD)))
+                  YMAX = MAX(DATE_2YEAR(PERIOD_2DATE(FP.PERIOD)))
+                  BOT_FILE = FILE_SEARCH(DIR_STATS + RATIO_CODE_BOT+'_'+YMIN+'*_'+YMAX+'*'+PROD+'*MEAN.SAVE')
+                  IF BOT_FILE NE '' THEN FOR F=0,N_ELEMENTS(TOP_FILES)-1 DO RESULT = MAKE_ANOM_SAVES(DIR_OUT=DIR_ANOMS,FILEA=TOP_FILES(F),FILEB=BOT_FILE,ANOM=ANOM,OVERWRITE=OVERWRITE)
+                END
+                'ANNUAL': BEGIN
+                  YMIN = MIN(DATE_2YEAR(PERIOD_2DATE(FP.PERIOD)))
+                  YMAX = MAX(DATE_2YEAR(PERIOD_2DATE(FP.PERIOD)))
+                  BOT_FILE = FILE_SEARCH(DIR_STATS + RATIO_CODE_BOT+'_'+YMIN+'*_'+YMAX+'*'+PROD+'*MEAN.SAVE')
+IF BOT_FILE EQ '' THEN BOT_FILE = FILE_SEARCH(DIR_STATS + RATIO_CODE_BOT+'_'+NUM2STR(YMIN+1)+'*_'        +YMAX   +'*'+PROD+'*MEAN.SAVE')
+IF BOT_FILE EQ '' THEN BOT_FILE = FILE_SEARCH(DIR_STATS + RATIO_CODE_BOT+'_'        +YMIN   +'*_'+NUM2STR(YMAX-1)+'*'+PROD+'*MEAN.SAVE')
+IF BOT_FILE EQ '' THEN BOT_FILE = FILE_SEARCH(DIR_STATS + RATIO_CODE_BOT+'_'+NUM2STR(YMIN+1)+'*_'+NUM2STR(YMAX-1)+'*'+PROD+'*MEAN.SAVE')
+                  IF BOT_FILE NE '' THEN FOR F=0,N_ELEMENTS(TOP_FILES)-1 DO RESULT = MAKE_ANOM_SAVES(DIR_OUT=DIR_ANOMS,FILEA=TOP_FILES(F),FILEB=BOT_FILE,ANOM=ANOM,OVERWRITE=OVERWRITE)              
+                END
+                'MANNUAL': BEGIN
+                  YMIN = MIN(DATE_2YEAR(PERIOD_2DATE(FP.PERIOD)))
+                  YMAX = MAX(DATE_2YEAR(PERIOD_2DATE(FP.PERIOD)))
+                  BOT_FILE = FILE_SEARCH(DIR_STATS + RATIO_CODE_BOT+'_'+YMIN+'*_'+YMAX+'*'+PROD+'*MEAN.SAVE')
+                  IF BOT_FILE NE '' THEN FOR F=0,N_ELEMENTS(TOP_FILES)-1 DO RESULT = MAKE_ANOM_SAVES(DIR_OUT=DIR_ANOMS,FILEA=TOP_FILES(F),FILEB=BOT_FILE,ANOM=ANOM,OVERWRITE=OVERWRITE)              
+                END
+              ENDCASE                        
+            ENDFOR
+            ANOMS_CLEANUP,DIR_ANOMS=DIR_ANOMS,DIR_OUT=DIR_OLD,/MOVE_FILES,DATE_RANGE=DATE_RANGE
+          ENDFOR
+        ENDFOR
+      ENDFOR
+    ENDFOR ;       
+  ENDIF ; DO_ANOMS
+  
+;; *******************************************************************************************************************************************
+;  IF DO_PHYTO_SIZES GE 1 THEN BEGIN ; Not necessary since sinces are now calculated during the PHYTO_COMMUNITY_SAVE_MAKE step
+;; *******************************************************************************************************************************************
+;    PRINT, 'Running: DO_PHYTO_SIZES'
+;    OVERWRITE = DO_PHYTO_SIZES EQ 2
+;        
+;    SL = DELIMITER(/PATH)
+;    DISK=!S.DATASETS 
+;    DATASETS = []     
+;    
+;    VERBOSE = 0
+;    REVERSE_FILES = 0
+;    IF KEYWORD_SET(L2_REVERSE_FILES) THEN REVERSE_FILES = 1
+;    REVERSE_MAPS  = 0
+;    IF KEYWORD_SET(L2_REVERSE_MAPS) THEN REVERSE_MAPS = 1
+;    IF N_ELEMENTS(L2_DATE_RANGE) EQ 2 THEN DATERANGE = L2_DATE_RANGE ELSE DATERANGE=['19970101','20201231']
+;        
+;    DO_OC_SEAWIFS_MLAC= 0 & IF DO_OC_SEAWIFS_MLAC EQ 1 THEN DATASETS = [DATASETS,'OC-SEAWIFS-MLAC'] 
+;    DO_OC_MODIS_LAC   = 0 & IF DO_OC_MODIS_LAC    EQ 1 THEN DATASETS = [DATASETS,'OC-MODIS-LAC'   ]
+;        
+;    FOR N=0,N_ELEMENTS(DATASETS)-1 DO BEGIN
+;      DATASET = DATASETS(N)
+;      SUITES = []
+;      PRODS  = []
+;      MAPS   = []
+;      
+;      IF DATASET EQ 'OC-SEAWIFS-MLAC' THEN MAPS = ['NEC'];,'NEC'] 
+;      IF DATASET EQ 'OC-MODIS-LAC'    THEN MAPS = ['NEC'];,'EC']       
+;    
+;      IF REVERSE_MAPS EQ 1 THEN MAPS = REVERSE(MAPS)
+;      FOR M=0, N_ELEMENTS(MAPS)-1 DO BEGIN      
+;        MAP = MAPS(M)                               
+;        SAVEDIR = DISK + DATASET + SL + MAP + SL + 'SAVE'  + SL
+;        PRINT, 'Running PHYTO_COMMUNITY_SAVE_MAKE'        
+;        PHYTO_SIZES_SAVE_MAKE,DIR_IN=SAVEDIR,DIR_OUT=SAVEDIR,REVERSE=REVERSE_FILES,DATE_RANGE=DATERANGE,PERIOD_CODE='S',MAP=MAP,VERBOSE=VERBOSE,OVERWRITE=OVERWRITE
+;      ENDFOR
+;    ENDFOR   
+;                
+;  ENDIF ; DO_PHYTO_SIZES
+
+  PRINT,'END OF ANALYSES_BATCH_OTHER.PRO'
+END; #####################  End of Routine ################################

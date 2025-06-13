@@ -1,0 +1,48 @@
+; $ID:	STRUCT_NEST_2ARR.PRO,	2020-06-30-17,	USER-KJWH	$
+;#############################################################################################################
+	FUNCTION STRUCT_NEST_2ARR,STRUCT
+	
+;  PRO STRUCT_NEST_2ARR
+;+
+; NAME:
+;		STRUCT_NEST_2ARR
+;
+; PURPOSE: THIS FUNCTION CONVERTS A NESTED STRUCTURE INTO A STRUCTURE ARRAY
+;
+; CATEGORY:
+;		STRUCTURE
+;		 
+;
+; CALLING SEQUENCE:RESULT = STRUCT_NEST_2ARR(STRUCT)
+;
+; INPUTS:
+;		STRUCT A NESTED STRUCTURE
+; OPTIONAL INPUTS:
+;		NONE:	
+;		
+; KEYWORD PARAMETERS:
+;   NONE
+
+; OUTPUTS: A STRUCTURE ARRAY
+;		
+;; EXAMPLES:
+;
+;  S =READ_PRODS() & A = STRUCT_NEST_2ARR(S)
+;  S = STRUCT_IT(INDGEN(9),NAME = 'I') & HELP,STRUCT_NEST_2ARR(S)
+;	NOTES:
+;	
+; MODIFICATION HISTORY:
+;			WRITTEN NOV 4,2013 J.O'REILLY
+;#################################################################################
+;-
+;*********************************
+ROUTINE_NAME  = 'STRUCT_NEST_2ARR'
+;*********************************
+;FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+FOR NTH = 0,N_TAGS(STRUCT)-1 DO BEGIN
+  IF NTH EQ 0 THEN ARR = STRUCT.(NTH)  ELSE ARR = [ARR,STRUCT.(NTH)] 
+ENDFOR;FOR NTH = 0,N_tags(STRUCT)-1 DO BEGIN
+;FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+RETURN,ARR
+DONE:          
+	END; #####################  END OF ROUTINE ################################

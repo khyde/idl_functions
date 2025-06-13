@@ -1,0 +1,54 @@
+; $ID:	DATE_NOW.PRO,	2018-11-19-17,	USER-KJWH	$
+;################################################################################
+	FUNCTION DATE_NOW, GMT=GMT, DATE_ONLY=DATE_ONLY, YEAR=YEAR, MTIME=MTIME, JD=JD
+;+
+; NAME:
+;		DATE_NOW
+;
+; PURPOSE:;
+;		THIS FUNCTION RETURNS THE CURRENT DATE-TIME AS A FORMATTED STRING (YYYYMMDDHHMMSS)
+;
+; CATEGORY:
+;		DATE
+;
+; CALLING SEQUENCE:
+;		RESULT = DATE_NOW()
+;
+; INPUTS:
+;		NONE
+;
+; KEYWORD PARAMETERS:
+;		GMT:	RETURNS GMT DATE-TIME INSTEAD OF THE DATE DETERMINED FROM YOUR COMPUTER'S SYSTIME
+;		(ACTUALLY THE UNIVERSAL TIME COORDINATED (UTC) IS RETURNED AS DEFINED BY IDL'S HELP ON SYSTIME:
+;		"UTC TIME IS DEFINED AS GREENWICH MEAN TIME UPDATED WITH LEAP SECONDS."
+;
+; OUTPUTS:
+;		A STRING (DATE: YYYYMMDDHHMMSS)
+;
+; RESTRICTIONS:
+;		THIS ROUTINE ASSUMES THAT YOUR COMPUTER CLOCK IS SET CORRECTLY
+;
+; EXAMPLE:
+;		RESULT = DATE_NOW() & PRINT, RESULT
+;		RESULT = DATE_NOW(/GMT) & PRINT, RESULT
+;
+; MODIFICATION HISTORY:
+;			WRITTEN Jan 02,2001 BY J.O'REILLY
+;     May 29, 2012 - JOR: FORMATTING
+;     Feb 18, 2016 - KJWH: Added DATE_ONLY keyword to return just the YYYYMMDD
+;     FEB 01, 2018 - KJWH: Added YEAR keyword to return just the YYYY
+;     NOV 19, 2018 - KJWH: Added JD keyword to return the date as JD
+;                          Changed JD parameter name to JDD to avoid confusion with the JD keyword
+;     MAR 10, 2022 - KJWH: Added MTIME keyword to return the "mtime" (seconds since 1970)                     
+;################################################################################
+;-
+;	*********************************
+	ROUTINE_NAME = 'DATE_NOW'
+; *********************************
+
+  IF NOT KEYWORD_SET(GMT) THEN JDD=SYSTIME(/JULIAN) ELSE JDD=SYSTIME(/JULIAN,/UTC)
+  IF KEYWORD_SET(YEAR) THEN RETURN, STRMID(JD_2DATE(JDD),0,4)
+  IF KEYWORD_SET(DATE_ONLY) THEN RETURN, STRMID(JD_2DATE(JDD),0,8)
+	IF KEYWORD_SET(MTIME) THEN RETURN, JD_2SECONDS1970(JDD)
+	IF KEYWORD_SET(JD) THEN RETURN, JDD ELSE RETURN,JD_2DATE(JDD)
+END; #####################  END OF ROUTINE ################################

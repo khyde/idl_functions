@@ -1,0 +1,72 @@
+; $ID:	PLOT_EVENT.PRO,	2020-07-08-15,	USER-KJWH	$
+
+ PRO PLOT_EVENT,DATA,   LABEL=label , POS=pos, YAXIS=yaxis, _EXTRA=_extra
+;+
+; NAME:
+;       PLOT_EVENT
+;
+; PURPOSE:
+;       PLOT AN EVENT ALONG THE XAXIS
+;
+; CATEGORY:
+;
+;
+; CALLING SEQUENCE:
+;       PLOT_EVENT,EVENTS
+;
+; INPUTS:
+;       X DATA
+;
+; KEYWORD PARAMETERS:
+;
+; OUTPUTS:
+;
+; SIDE EFFECTS:
+;       None.
+;
+;
+; MODIFICATION HISTORY:
+;       Written by:  J.E.O'Reilly, September 7,1999
+;       June 2, 2003 td replace strtrim(string with strtrim if format not specific
+;-
+
+
+
+  IF NOT KEYWORD_SET(YAXIS) THEN BEGIN
+
+    YPOS = !Y.CRANGE
+    IF !Y.TYPE EQ 1 THEN YPOS = 10^YPOS
+
+    IF N_ELEMENTS(LABEL) EQ N_ELEMENTS(DATA) THEN BEGIN
+      IF N_ELEMENTS(POS) EQ 1 THEN BEGIN
+        IF KEYWORD_SET(_EXTRA) THEN BEGIN
+          NAMES = TAG_NAMES(_EXTRA)
+          OK = WHERE(NAMES EQ 'DATA',COUNT)
+          IF COUNT EQ 1 THEN YPOS[1] = POS  ELSE YPOS[1] = YPOS[1]*POS
+         ENDIF
+       ENDIF
+      xyouts,data,/data,YPOS[1],STRTRIM(LABEL,2),ALIGN=0.5,_EXTRA=_extra
+    ENDIF ELSE BEGIN
+      FOR nth = 0,N_ELEMENTS(DATA)-1L DO BEGIN
+        PLOTS, [DATA[NTH],DATA[NTH]],[YPOS[0],YPOS[1]],_EXTRA=_extra
+      ENDFOR
+    ENDELSE
+
+  ENDIF ELSE BEGIN
+    XPOS = !X.CRANGE
+    IF !X.TYPE EQ 1 THEN XPOS = 10^XPOS
+
+    IF N_ELEMENTS(LABEL) EQ N_ELEMENTS(DATA) THEN BEGIN
+      IF N_ELEMENTS(POS) EQ 1 THEN BEGIN
+        XPOS[1] = XPOS[1]*POS
+      ENDIF
+      xyouts,data,/data,XPOS[1],STRTRIM(LABEL,2),ALIGN=0.5,_EXTRA=_extra
+    ENDIF ELSE BEGIN
+      FOR nth = 0,N_ELEMENTS(DATA)-1L DO BEGIN
+        PLOTS,[XPOS[0],XPOS[1]] ,[DATA[NTH],DATA[NTH]],_EXTRA=_extra
+      ENDFOR
+     ENDELSE
+  ENDELSE
+
+
+  END ; OF PROGRAM

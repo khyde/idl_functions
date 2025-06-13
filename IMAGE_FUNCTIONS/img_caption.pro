@@ -1,0 +1,99 @@
+; $ID:	IMG_CAPTION.PRO,	2020-07-01-12,	USER-KJWH	$
+;#############################################################################################################
+	PRO IMG_CAPTION,FILE,CAPTION=CAPTION,X=X,Y=Y,FONT_SIZE=FONT_SIZE,ALIGNMENT=ALIGNMENT,$
+	                DIR_OUT=DIR_OUT,OVERWRITE=OVERWRITE,MARGIN=MARGIN
+;+
+; NAME:
+;		IMG_CAPTION
+;
+; PURPOSE: ADD CAPTION TO AN IMAGE USING THE NG IMAGE FUNCTION
+;
+; CATEGORY:	IMG;	
+;
+; CALLING SEQUENCE: IMG_CAPTION,FILE,DIR_OUT=DIR_OUT
+;
+; INPUTS: FILE:  FULLNAMES OF FILE WITH THE NAME OF A PROD BEING PART OF THE NAME
+;		
+; OPTIONAL INPUTS:
+;		NONE:	
+;		
+; KEYWORD PARAMETERS:
+; DIR_OUT - OUTPUT DIRECTORY
+; OVERWRITE - OVERWRITE IF OUTPUT FILE EXISTS
+; MARGIN - SEE IMAGE FUNCTION
+; CAPTION - THE TEXT CAPTION TO ADD TO THE IMAGE
+; X - XPOSITION FOR CAPTION IN NORMAL UNITS
+; Y - Y POSITION OF CAPTION IN NORMAL UNITS
+;	ALIGNMENT - SEE TEXT FUNCTION	
+
+; OUTPUTS: AN IMAGE DISPLAY AND A PNG IMAGE OF THE DATA IN THE FILE
+;		
+;; EXAMPLES:
+;   PAL_SW3,R,G,B & WRITE_PNG,!S.IDL_TEMP + 'JUNK.PNG',DIST([800,800]),R,G,B 
+;   IMG_CAPTION,!S.IDL_TEMP +'JUNK.PNG',/OVERWRITE
+
+; MODIFICATION HISTORY:
+;			JUN 12,2014 WRITTEN BY J.O'REILLY
+;     JUL 3,2014,JOR REFINEMENTS,ADDED X,Y CONSERVE COLORS IN INPUT FILE
+;     IF ANY(RED) AND ANY(GREEN) AND ANY(BLUE) THEN RGB_TABLE= TRANSPOSE([[RED],[GREEN],[BLUE]])
+
+
+;#################################################################################
+;-
+;****************************
+ROUTINE_NAME  = 'IMG_CAPTION'
+;****************************
+
+;#######  CONSTANTS AND DEFAULTS    #############
+PAL='PAL_SW3'  & RGB_TABLE = RGBS([0,255],PAL=PAL)
+FONT_HELVETICA
+RES = 600
+BACKGROUND_COLOR = RGBS(255)
+BORDER = 0 ; SEE SAVE METHOD
+BIT_DEPTH= 0 ;SEE SAVE METHOD[TRUE COLOR]
+RESOLUTION = 1200
+!X.OMARGIN = [0,0]
+!Y.OMARGIN = [0,0]
+IF NONE(CAPTION) THEN CAPTION = "J.O'REILLY"
+IF NONE(FONT_SIZE) THEN FONT_SIZE=10
+IF NONE(ALIGNMENT) THEN ALIGNMENT = 1
+
+IF NONE(X) THEN X = 0.85
+IF NONE(Y) THEN Y = 0.05
+
+;|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+;##############   PARSE THE FILE NAME   ######################
+IF NONE(FILE)    THEN FILE = DIALOG_PICKFILE(FILTER = ['*.PNG','*.JPG','*.BMP'])
+IF NONE(DIR_OUT) THEN DIR_OUT = !S.IDL_TEMP
+FN = FILE_PARSE(FILE)
+NAME = FN.NAME
+PNGFILE = DIR_OUT + NAME  +'.PNG'
+;||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+;################# OVERWRITE ?  #########################
+IF FILE_MAKE(IN=FILE,OUT=PNGFILE,OVERWRITE=OVERWRITE,QUIET=QUIET) EQ 0 THEN GOTO, DONE; >>>>>>>>>>>>>>
+;||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+;###########>  READ THE PNG FILE   ###############
+BYT = READ_IMAGE(FILE,RED,GREEN,BLUE)
+;===> USE COLORS IN THE IMAGE FILE 
+IF ANY(RED) AND ANY(GREEN) AND ANY(BLUE) THEN RGB_TABLE= TRANSPOSE([[RED],[GREEN],[BLUE]])
+;||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+;#####################  IMAGE    ######################################
+I = IMAGE(BYT,RGB_TABLE=RGB_TABLE,BACKGROUND_COLOR= BACKGROUND_COLOR,$          
+          LAYOUT = LAYOUT,/CURRENT,MARGIN=MARGIN)
+;||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+;ADD CAPTION
+T = TEXT(X,Y,CAPTION,/NORMAL,FONT_SIZE = FONT_SIZE,ALIGNMENT= ALIGNMENT)
+
+;###############  WRITE THE PNGFILE   ###############>
+I.SAVE, PNGFILE,RESOLUTION=RESOLUTION,WIDTH = WIDTH,HEIGHT = HEIGHT ,BORDER =BORDER,BIT_DEPTH = BIT_DEPTH
+PFILE,PNGFILE
+I.CLOSE
+;|||||||||||||||||||||||||||||||||||||||||||||||||||||
+DONE:
+
+END; #####################  END OF ROUTINE ################################
