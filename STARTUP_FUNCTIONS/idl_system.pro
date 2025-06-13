@@ -160,9 +160,9 @@ PRO IDL_SYSTEM, TEST=TEST
         'FC04347D5C0F': PATH = '/Satdata_Primary/nadata/'
         'ED00753D5F52': PATH = '/Satdata_Primary/nadata/'
         'FD91437AA6DB':PATH = '/Satdata_Primary/nadata/'
-        '92A61AB41D2A':PATH = '/mnt/EDAB_Archive/nadata/'
+        '92A61AB41D2A': BEGIN & PATH = '/mnt/EDAB_Archive/nadata/' & SPATH = '/mnt/EDAB_Datasets/' & END
         'NEFSCSATDATA.NMFS.LOCAL': PATH = '/Satdata_Primary/nadata/'
-        'NECMAC04363461.LOCAL': PATH = '/Users/kimberly.hyde/Documents/nadata/'
+        'NECMAC04363461.LOCAL': BEGIN & PATH = '/Users/kimberly.hyde/Documents/nadata/' & SPATH = '/Users/kimberly.hyde/Documents/nadata/DATASETS_SOURCE/' & END
         ELSE: MESSAGE, 'ERROR: ' + COMPUTER + ' not found.  Must enter directory path information to IDL_SYSTEM.pro'
       END
       PID = GET_IDLPID()
@@ -175,6 +175,7 @@ PRO IDL_SYSTEM, TEST=TEST
       PID = ''
     END
   ENDCASE
+  IF SPATH EQ [] THEN SPATH = PATH
   IF FILE_TEST(PATH,/DIR) EQ 0 THEN MESSAGE, 'ERROR: ' + PATH + ' does not exist.  Check location of the PATH and rerun.'
 
 ; ===> Fill in the computer information to the structure
@@ -184,7 +185,7 @@ PRO IDL_SYSTEM, TEST=TEST
   
 ; ===> Add the basic directory information to the structure
   S = CREATE_STRUCT(S,'ARCHIVE', SL + 'Satdata_Archive' + SL + 'nadata_ARCHIVE' + SL + 'DATASETS_ARCHIVE' + SL, $
-                      'DATASETS_SOURCE','/mnt/EDAB_Datasets/')
+                      'DATASETS_SOURCE',SPATH)
   MAINDIRS = ['PROJECTS','DATASETS','SCRIPTS','LOGS']
   FOR M=0, N_ELEMENTS(MAINDIRS)-1 DO S = CREATE_STRUCT(S,MAINDIRS[M],PATH + MAINDIRS[M] + SL)
 
