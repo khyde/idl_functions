@@ -256,6 +256,7 @@ DR = []
             IF FILE_TEST(DIR_DAT,/DIR) EQ 0 THEN MESSAGE, 'ERROR: VERSION directory does not exists.'
             IF CVD GT 1 THEN MESSAGE, 'ERROR: More than one VERSION directory exists'
           ENDIF 
+          NDIR_DAT = REPLACE(DIR_DAT,!S.DATASETS,!S.DATASETS_SOURCE)
           
           IF PROD_VERSION NE '' THEN PVER = PROD_VERSION + SL ELSE PVER = ''
 
@@ -273,7 +274,7 @@ DR = []
           DIR_STACKED_TEMP   = DIR_DAT + AMAP + SL + 'STACKED_TEMP'    + SL + PVER + APROD + SL
           DIR_STACKED_STATS  = DIR_DAT + AMAP + SL + 'STACKED_STATS'   + SL + PVER + APROD + SL
           DIR_STACKED_ANOMS  = DIR_DAT + AMAP + SL + 'STACKED_ANOMS'   + SL + PVER + APROD + SL
-          DIR_NC             = REPLACE(DIR_DAT,'DATASETS','DATASETS_SOURCE') + NCMAP + SL + LEVEL + SL + PVER + APROD + SL & DIR_NC = REPLACE(DIR_NC,SL+SL,SL)
+          DIR_NC             = REPLACE(NDIR_DAT,'DATASETS','DATASETS_SOURCE') + NCMAP + SL + LEVEL + SL + PVER + APROD + SL & DIR_NC = REPLACE(DIR_NC,SL+SL,SL)
 
           FOR R=0, N_ELEMENTS(PERIOD)-1 DO BEGIN
             PER = PERIOD[R]

@@ -83,8 +83,8 @@
   
   ; ===> Find any directories in the IDL_FUNCTIONS
   IF KEYWORD_SET(GET_FUNCTIONS) THEN BEGIN
-    DIRS = GET_DIRS(!S.IDL_FUNCTIONS)
-    FUNCTION_DIRS = !S.IDL_FUNCTIONS + DIRS
+    DIRS = GET_DIRS(!S.FUNCTIONS)
+    FUNCTION_DIRS = !S.FUNCTIONS + DIRS
   ENDIF ELSE FUNCTION_DIRS = []
   
   ; ===> Find any directories in the IDL_TEST

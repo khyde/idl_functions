@@ -91,7 +91,7 @@
   SL = PATH_SEP()
   
   DIR_TEST, !S.LOGS + ROUTINE_NAME + SL
-  BACK = !S.IDL_BACKUP
+ ; BACK = !S.IDL_BACKUP
   
 		
 ; ===> Find all files with the OLD text string
@@ -111,7 +111,7 @@
 	 IF WHERE(STRPOS(TXT[OK],';') GE 0,/NULL) NE [] THEN LOOP_TXT = 1 ELSE LOOP_TXT = 0 ; Must loop through the text if ';' are found to isolate the active text
 	 
 	 NEW_FILE = FN.DIR + FN.NAME_EXT   
-	 IF ~KEYWORD_SET(TEST) THEN FILE_COPY, AFILE, BACK, /ALLOW_SAME, /OVERWRITE, VERBOSE=VERBOSE
+	; IF ~KEYWORD_SET(TEST) THEN FILE_COPY, AFILE, BACK, /ALLOW_SAME, /OVERWRITE, VERBOSE=VERBOSE
    IF N_ELEMENTS(EDITED_FILES) EQ 0 THEN EDITED_FILES = AFILE $
                                     ELSE EDITED_FILES =[EDITED_FILES, AFILE]
                                     

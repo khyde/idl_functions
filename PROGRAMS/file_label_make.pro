@@ -18,8 +18,8 @@ FUNCTION FILE_LABEL_MAKE,TXT,LST=LST
 ;******************************
 ;===> DEFAULTS
   LABEL_ORDER=['SENSOR','SATELLITE','SAT_EXTRA','METHOD','SUITE',$
-             'COVERAGE','MAP','PROD','ALG','STAT','MATH','EDIT','DAYNIGHT','EXT']
-  IF NONE(LST) THEN LST=['SENSOR','VERSION','SATELLITE','SAT_EXTRA','METHOD','MAP','PROD','ALG','DAYNIGHT']
+             'COVERAGE','MAP','MAP_SUBSET','PXY','PROD','ALG','STAT','MATH','EDIT','DAYNIGHT','EXT']
+  IF NONE(LST) THEN LST=['SENSOR','VERSION','SATELLITE','SAT_EXTRA','METHOD','MAP','MAP_SUBSET','PXY','PROD','ALG','DAYNIGHT']
   DELIM = '-'
   FLABEL = []
 ;|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||

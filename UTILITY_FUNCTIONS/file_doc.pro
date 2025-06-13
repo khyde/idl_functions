@@ -102,8 +102,8 @@ PRO FILE_DOC, FILENAMES, DIR_BACKUP=DIR_BACKUP, VERBOSE=VERBOSE
   TAB=STRING(BYTE(9))
   USR = !S.INITIALS                                                                  ; Get the user's initials
   IF USR  EQ 'JEOR' THEN BACKUPTAG = USR + '_' + !S.COMPUTER ELSE BACKUPTAG = USR    ; Get the computer name (for JOER) for documentation of the backup file
-  DIR_IDL_BACKUP = !S.IDL_BACKUP                                                     ; If DIR_BACKUP not provided, use the default !S.BACKUP directory
-  DIR_TEST,DIR_IDL_BACKUP                                                            ; Make a backup directory if it does not already exist                                                          
+;  DIR_IDL_BACKUP = !S.IDL_BACKUP                                                     ; If DIR_BACKUP not provided, use the default !S.BACKUP directory
+;  DIR_TEST,DIR_IDL_BACKUP                                                            ; Make a backup directory if it does not already exist                                                          
     
   IF N_ELEMENTS(FILENAMES) EQ 0 THEN MESSAGE, 'ERROR: Must provide at least one input file name'
   NAMES  = (FILE_PARSE(FILENAMES)).NAME                                              ; Get the NAMES from the files then add path and extension during FILE_SEARCH
@@ -129,9 +129,9 @@ PRO FILE_DOC, FILENAMES, DIR_BACKUP=DIR_BACKUP, VERBOSE=VERBOSE
       TXT=[ID,TXT]                                                                        ; Add the new ID tag at the top of the program
     ENDIF ELSE TXT=[ID,TXT]		
   
-    BACKUP_FILE = DIR_IDL_BACKUP + STRUPCASE(FN.NAME + '-'+ BACKUPTAG +'-' + DATE_FORMAT(DATE_NOW(),/HOUR) + '.PRO')         ; Create a new name for the back up file
-    IF KEY(VERBOSE) THEN PFILE,BACKUP_FILE,/W
-    WRITE_TXT,BACKUP_FILE,TXT                                                             ; Write the back-up file
+ ;   BACKUP_FILE = DIR_IDL_BACKUP + STRUPCASE(FN.NAME + '-'+ BACKUPTAG +'-' + DATE_FORMAT(DATE_NOW(),/HOUR) + '.PRO')         ; Create a new name for the back up file
+ ;   IF KEY(VERBOSE) THEN PFILE,BACKUP_FILE,/W
+ ;   WRITE_TXT,BACKUP_FILE,TXT                                                             ; Write the back-up file
   		
   	DOC_PRO = FN.DIR + STRLOWCASE(FN.NAME_EXT)                                            ; File name in the PROGRAMS directory
     DOC_TEMP = !S.IDL_TEMP+STRLOWCASE(FN.NAME_EXT)                                        ; File name in the TEMP directory                   

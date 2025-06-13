@@ -63,7 +63,7 @@ IF N_ELEMENTS(DONE_BACKUP) EQ 0 THEN DONE_BACKUP = 0
 _OVERWRITE = KEYWORD_SET(OVERWRITE) EQ 1
 ;===> DATE TO ADD TO THE NEW MAP RECORD
 DATE = STRTRIM(DATE_NOW(),2)
-MPMAIN = !S.IDL_MAINFILES + 'MAPS_MAIN.csv'
+MPMAIN = !S.MAINFILES + 'MAPS_MAIN.csv'
 ;################################################################
 ;#########  ALLOW FILE COPY TO BACKUP MAIN   ##################
 ;#########  ONLY ONCE DURING AN IDL SESSION    ##################
