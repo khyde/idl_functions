@@ -126,7 +126,7 @@ PRO IDL_SYSTEM, TEST=TEST
     IF ~KEYWORD_SET(OVERWRITE) THEN GOTO, DONE              ; If it exists and OVERWRITE is not set, then skip
     MESSAGE, 'Need to determine how to overwrite an existing system variable'   ; Null out the !S variable to recreate
   ENDIF
-
+ 
 ; ===> Initialize the struction with user information based on the USERNAME    
   SPAWN, 'whoami', USERNAME                                 ; Get the user name information
   RESET_USERNAME:
@@ -162,7 +162,10 @@ PRO IDL_SYSTEM, TEST=TEST
         'FD91437AA6DB':PATH = '/Satdata_Primary/nadata/'
         '92A61AB41D2A': BEGIN & PATH = '/mnt/EDAB_Archive/nadata/' & SPATH = '/mnt/EDAB_Datasets/' & END
         'NEFSCSATDATA.NMFS.LOCAL': PATH = '/Satdata_Primary/nadata/'
-        'NECMAC04363461.LOCAL': BEGIN & PATH = '/Users/kimberly.hyde/Documents/nadata/' & SPATH = '/Users/kimberly.hyde/Documents/nadata/DATASETS_SOURCE/' & END
+        'NECMAC04363461.LOCAL': BEGIN 
+            IF FILE_TEST('/Volumes/EDAB_Archive/nadata/',/DIR) THEN PATH  = '/Volumes/EDAB_Archive/nadata/' ELSE PATH  = '/Users/kimberly.hyde/Documents/nadata/' 
+            IF FILE_TEST('/Volumes/EDAB_Datasets/',/DIR)       THEN SPATH = '/Volumes/EDAB_Datasets/'       ELSE SPATH = '/Users/kimberly.hyde/Documents/nadata/DATASETS_SOURCE/'
+          END
         ELSE: MESSAGE, 'ERROR: ' + COMPUTER + ' not found.  Must enter directory path information to IDL_SYSTEM.pro'
       END
       PID = GET_IDLPID()
@@ -217,7 +220,7 @@ PRO IDL_SYSTEM, TEST=TEST
   S = CREATE_STRUCT(S,'IDL',PATH + 'IDL' + SL)
  ; S = CREATE_STRUCT(S,'PROGRAMS',S.IDL + 'PROGRAMS' + SL) ; 2020-06-03 Will need to include the main programs directory until the transition to the new "project" based organization is complete
   SUBDIR = S.IDL
-  IDLDIRS = GET_DIRS(SUBDIR, SEARCH_STRING='*')
+  IDLDIRS = GET_DIRS(SUBDIR);, SEARCH_STRING='*')
   IGNORE_DIRS = ['idl-coyote']
   FOR F=0, N_ELEMENTS(IDLDIRS)-1 DO BEGIN
     IF IDLDIRS[F] EQ 'Default' THEN CONTINUE
