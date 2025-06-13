@@ -126,7 +126,7 @@
         YR = UYEARS[Y]
         DPS = DTPS[WHERE(DTPS.YEAR EQ YR)]
         
-        DIR = !S.GLOBCOLOUR_SOURCE + 'V0' + SL + 'SOURCE' + SL + PLABEL +SL & DIR_TEST, DIR
+        DIR = !S.DATASETS_SOURCE + 'GLOBCOLOUR/' + 'V0' + SL + 'SOURCE' + SL + PLABEL +SL & DIR_TEST, DIR
         CD, DIR
         FB = FILE_SEARCH(DIR + SL + 'L3b*' + YR + '*' + METH + '*' + APROD + '*_DAY_00.nc',COUNT=CB) 
         PLUN, LUN, 'Found ' + NUM2STR(CB) + ' LOCAL files for ' + YR
@@ -153,7 +153,7 @@
     ENDFOR ; PRODS
   ENDFOR ; METHODS  
 
-  CD, !S.PROGRAMS
+  CD, !S.FUNCTIONS
 
 
 END ; ***************** End of DWLD_GLOBCOLOUR_CHL *****************
