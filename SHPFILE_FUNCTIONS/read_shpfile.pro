@@ -375,14 +375,15 @@ FUNCTION READ_SHPFILE, SUBAREA,  MAPP=MAPP, ATT_TAG=ATT_TAG, $
           PRJ = STR_BREAK(PRJ,'",')
           OK = WHERE_STRING(PRJ,'PROJCS["',COUNT) & IF COUNT NE 1 THEN MESSAGE, 'ERROR: Projection not found (or more than one found)'
           PROJ = STRUPCASE(STR_BREAK(REPLACE(PRJ[OK],'PROJCS["',''),'_'))
-          IF WHERE(PROJ EQ 'UTM',/NULL) EQ [] THEN MESSAGE, 'ERROR: UTM not found in the projection name.'
-          OK = WHERE(PROJ EQ 'ZONE',/NULL) & IF OK EQ [] THEN MESSAGE, 'ERROR: UTM zone not found.'
-          ZONE = PROJ[OK+1]
+  ;        IF WHERE(PROJ EQ 'UTM',/NULL) EQ [] THEN MESSAGE, 'ERROR: UTM not found in the projection name.'
+          OK = WHERE(PROJ EQ 'ZONE',/NULL) ; & IF OK EQ [] THEN MESSAGE, 'ERROR: UTM zone not found.'
+          IF OK NE [] THEN ZONE = PROJ[OK+1] ELSE ZONE = []
           
           OK = WHERE_STRING(PRJ,'DATUM["',COUNT) & IF COUNT NE 1 THEN MESSAGE, 'ERROR: Datum not found (or more than one found)'
           DATUM = REPLACE(PRJ[OK],'DATUM["','')
           CASE DATUM OF
             'D_North_American_1983': DATUM='NAD83'
+            'D_WGS_1984': DATUM='WGS84'
             ; Will need to update with other DATUM information as needed'
           ENDCASE
           
@@ -447,9 +448,9 @@ FUNCTION READ_SHPFILE, SUBAREA,  MAPP=MAPP, ATT_TAG=ATT_TAG, $
           PRJ = STR_BREAK(PRJ,'",')
           OK = WHERE_STRING(PRJ,'PROJCS["',COUNT) & IF COUNT NE 1 THEN MESSAGE, 'ERROR: Projection not found (or more than one found)'
           PROJ = STRUPCASE(STR_BREAK(REPLACE(PRJ[OK],'PROJCS["',''),'_'))
-          IF WHERE(PROJ EQ 'UTM',/NULL) EQ [] THEN MESSAGE, 'ERROR: UTM not found in the projection name.'
-          OK = WHERE(PROJ EQ 'ZONE',/NULL) & IF OK EQ [] THEN MESSAGE, 'ERROR: UTM zone not found.'
-          ZONE = PROJ[OK+1]
+       ;   IF WHERE(PROJ EQ 'UTM',/NULL) EQ [] THEN MESSAGE, 'ERROR: UTM not found in the projection name.'
+          OK = WHERE(PROJ EQ 'ZONE',/NULL) ;& IF OK EQ [] THEN MESSAGE, 'ERROR: UTM zone not found.'
+          IF OK NE [] THEN ZONE = PROJ[OK+1] ELSE ZONE = []
 
           OK = WHERE_STRING(PRJ,'DATUM["',COUNT) & IF COUNT NE 1 THEN MESSAGE, 'ERROR: Datum not found (or more than one found)'
           DATUM = REPLACE(PRJ[OK],'DATUM["','')
