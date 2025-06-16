@@ -1,5 +1,5 @@
 ; $ID:	DWLD_GLOBCOLOUR.PRO,	2023-09-21-13,	USER-KJWH	$
-  PRO DWLD_GLOBCOLOUR, YEARS=YEARS, DATERANGE=DATERANGE, PRODS=PRODS, METHODS=METHODS, VERSION=VERSION, LOGLUN=LOGLUN, LIMIT=LIMIT, RECENT=RECENT, RYEARS=RYEARS, CHECK_FILES=CHECK_FILES
+  PRO DWLD_GLOBCOLOUR, YEARS=YEARS, DATERANGE=DATERANGE, PRODS=PRODS, METHODS=METHODS, GETMAPPED=GETMAPPED, VERSION=VERSION, LOGLUN=LOGLUN, LIMIT=LIMIT, RECENT=RECENT, RYEARS=RYEARS, CHECK_FILES=CHECK_FILES
 
 ;+
 ; NAME:
@@ -126,9 +126,14 @@
         YR = UYEARS[Y]
         DPS = DTPS[WHERE(DTPS.YEAR EQ YR)]
         
-        DIR = !S.GLOBCOLOUR_SOURCE + 'V0' + SL + 'SOURCE' + SL + PLABEL +SL & DIR_TEST, DIR
+        DIR = !S.GLOBCOLOUR_SOURCE + 'V4.2.1' + SL + 'SOURCE' + SL + PLABEL +SL 
+        IF KEYWORD_SET(GETMAPPED) THEN DIR = REPLACE(DIR,'SOURCE','SOURCE_MAPPED')
+        DIR_TEST, DIR
         CD, DIR
-        FB = FILE_SEARCH(DIR + SL + 'L3b*' + YR + '*' + METH + '*' + APROD + '*_DAY_00.nc',COUNT=CB) 
+        
+        IF KEYWORD_SET(GETMAPPED) THEN L3 = 'L3m' ELSE L3 = 'L3b'
+        
+        FB = FILE_SEARCH(DIR + SL + L3 + YR + '*' + METH + '*' + APROD + '*_DAY_00.nc',COUNT=CB) 
         PLUN, LUN, 'Found ' + NUM2STR(CB) + ' LOCAL files for ' + YR
   
 ;        IF YR EQ '1997' THEN DS = '0904' ELSE DS = '0101'
@@ -138,14 +143,14 @@
 ;        PLUN, LUN, 'Downloading files from REMOTE SERVER for ' + METH + '_' + APROD + ' and YEAR ' + YR + '...'
         FOR D=0, N_ELEMENTS(DPS)-1 DO BEGIN
           IF HAS(!S.COMPUTER,'NECLNAMAC') THEN WCMD = '/usr/local/bin/wget' ELSE WCMD = 'wget'
-          FILE = 'L3b*GLOB_4_' + METH + '*_' + APROD + '_DAY_00.nc '
+          FILE = L3 + '*GLOB_4_' + METH + '*_' + APROD + '_DAY_00.nc '
           FTP = SFTP + DPS[D].YEAR + SL + DPS[D].MONTH + SL + DPS[D].DAY + SL
           CMD = WCMD + ' --progress=bar:force -c -N ' + LIMIT + FTP + FILE + ' -a ' + LOGFILE
           PLUN, LUN, CMD
           SPAWN, CMD, LOG, ERR
         ENDFOR
   
-        FA = FILE_SEARCH(DIR + SL + 'L3b*' + YR + '*',COUNT=CA) & FP = FILE_PARSE(FA)
+        FA = FILE_SEARCH(DIR + SL + L3 + '*' + YR + '*',COUNT=CA) & FP = FILE_PARSE(FA)
         IF CA GT CB THEN PLUN, LUN, NUM2STR(CA-CB) + ' files downloaded for ' + YR
         IF CA EQ CB THEN PLUN, LUN, 'No new files downloaded for ' + YR
         PLUN, LUN, ERR
