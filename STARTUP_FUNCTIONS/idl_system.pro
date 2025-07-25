@@ -141,6 +141,7 @@ PRO IDL_SYSTEM, TEST=TEST
       'ADDRESS','28 Tarzwell Dr, Narragansett, RI 02882') 
     'nmfs\haley.synan': BEGIN & USERNAME = 'hsynan' & GOTO, RESET_USERNAME & END
     'nefsc': BEGIN & USERNAME = 'khyde' & GOTO, RESET_USERNAME & END
+    'testuser': BEGIN & USERNAME = 'khyde' & GOTO, RESET_USERNAME & END
     ELSE: MESSAGE, 'ERROR: ' + USERNAME + ' not found.  Must enter information to IDL_SYSTEM.pro'
   ENDCASE
 
@@ -166,6 +167,11 @@ PRO IDL_SYSTEM, TEST=TEST
             IF FILE_TEST('/Volumes/EDAB_Archive/nadata/',/DIR) THEN PATH  = '/Volumes/EDAB_Archive/nadata/' ELSE PATH  = '/Users/kimberly.hyde/Documents/nadata/' 
             IF FILE_TEST('/Volumes/EDAB_Datasets/',/DIR)       THEN SPATH = '/Volumes/EDAB_Datasets/'       ELSE SPATH = '/Users/kimberly.hyde/Documents/nadata/DATASETS_SOURCE/'
           END
+         'GUIHYDE': BEGIN
+           IF FILE_TEST('/mnt/EDAB_Archive/nadata/',/DIR) THEN PATH  = '/mnt/EDAB_Archive/nadata/' ELSE PATH  = '/Satdata_Primary/nadata/'
+           IF FILE_TEST('/mnt/EDAB_Datasets/',/DIR)       THEN SPATH = '/mnt/EDAB_Datasets/'       ELSE SPATH = '/Satdata_Primary/nadata/'
+         END
+          
         ELSE: MESSAGE, 'ERROR: ' + COMPUTER + ' not found.  Must enter directory path information to IDL_SYSTEM.pro'
       END
       PID = GET_IDLPID()

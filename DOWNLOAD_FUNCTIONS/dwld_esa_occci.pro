@@ -108,8 +108,8 @@
     IF KEY(RYEARS) THEN YRS = REVERSE(YRS)
     FOR N=0, N_ELEMENTS(YRS)-1 DO BEGIN
       YR = YRS[N]
-      DIR = !S.OCCCI_SOURCE + DIRVER + SL +'SOURCE' + SL + DR +SL 
-      IF KEYWORD_SET(GETMAPPED) THEN DIR = REPLACE(DIR,'SOURCE','SOURCE_MAPPED')
+      DIR = !S.OCCCI_SOURCE + DIRVER + SL +'SOURCE_DATA' + SL + 'BINNED_4KM_DAILY' + SL + DR +SL 
+      IF KEYWORD_SET(GETMAPPED) THEN DIR = REPLACE(DIR,'BINNED_4KM_DAILY','MAPPED_4KM_DAILY')
       DIR_TEST, DIR
       
       CD, DIR
@@ -122,7 +122,7 @@
       CMD = 'curl -l -u oc-cci-data:ELaiWai8ae ' + FTP + 'ESACCI*' + VERSION + '.nc'                                                                         ; Use CURL to get a list of directories on the remote server
       SPAWN, CMD, DOYLIST, ERR
       OK = WHERE(STRPOS(DOYLIST,'fv'+VERSION) GT 0, COUNT,/NULL)
-      IF DOYLIST[0] EQ '' OR OK EQ [] THEN CONTINUE
+ ;     IF DOYLIST[0] EQ '' OR OK EQ [] THEN CONTINUE
       DOYLIST = DOYLIST[OK]
       PLUN, LUN,  'Found ' + ROUNDS(N_ELEMENTS(DOYLIST)) + ' files on REMOTE SERVER. ' + ROUNDS(N_ELEMENTS(DOYLIST)-CB) + ' files remaining to download...'
 

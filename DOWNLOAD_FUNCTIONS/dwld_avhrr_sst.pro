@@ -86,14 +86,14 @@
 
   IF IDLTYPE(VERSION) NE 'STRING' THEN MESSAGE, 'ERROR: Version input must be a string'
   IF HAS(VERSION,'VERSION_')      THEN VERSION = REPLACE(VERSION,'VERSION_','')
-  DIRVER = 'VERSION_'+VERSION
+  DIRVER = 'V'+VERSION
 
   CASE VERSION OF
     '5.3': SFTP = 'https://www.ncei.noaa.gov/data/oceans/pathfinder/Version5.3/L3C/';'ftp://ftp.nodc.noaa.gov/pub/data.nodc/pathfinder/Version5.3/L3C/'  ; https://www.ncei.noaa.gov/data/oceans/pathfinder/Version5.3/L3C/
   ENDCASE
 
-  DIR = !S.AVHRR + 'L3/'
-  NDIR = DIR + 'NC/SST/'
+  DIR = !S.AVHRR_SOURCE + DIRVER + SL + 'SOURCE_DATA' + SL
+  NDIR = DIR + 'MAPPED_4KM_DAILY/SST/'
   CD, NDIR
 
   FOR N=0, N_ELEMENTS(YRS)-1 DO BEGIN
@@ -113,7 +113,7 @@
       IF SPOS GT 0 AND EPOS GT 0 THEN DOYLIST = [DOYLIST,STRMID(FILELIST[F],SPOS,EPOS-SPOS+3)]
     ENDFOR
     DOYLIST = REPLACE(DOYLIST,['href="','">'+YR],['',''])
-    FILE_DELETE, 'doylist.txt'
+ ;   FILE_DELETE, 'doylist.txt'
      
     OK = WHERE(STRPOS(DOYLIST,DAYNIGHT) GT 0, COUNT,/NULL)
     IF DOYLIST[0] EQ '' OR OK EQ [] THEN CONTINUE

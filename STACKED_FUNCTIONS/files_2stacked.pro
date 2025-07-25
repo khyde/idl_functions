@@ -119,7 +119,7 @@ PRO FILES_2STACKED, FILES, PRODS=PRODS, STAT_TYPES=STAT_TYPES, D3_FILES=D3_FILES
   IF PERIOD_CODE EQ OUTPERIOD AND OUTPERIOD NE 'DD' THEN BY_YEAR = 0 ELSE BY_YEAR = []                                                                ; Set the BY_YEAR keyword to 0 if the input and output period codes are the same
   PERIOD_SET = D3HASH_PERIOD_SETS(FILES, OUTPERIOD=OUTPERIOD, BY_YEAR=BY_YEAR)                                                  ; Get the "sets" of input files for each output file based on the period
   IF STRPOS(FP[0].L2SUB,'STACKED') GE 0 THEN STACKED_INFILE = 1 ELSE STACKED_INFILE = 0                                         ; Determine if the input files are "stacked" files
-  IF STRPOS(FP[0].L2SUB,'SOURCE')  GE 0 THEN NC_INFILE = 1      ELSE NC_INFILE = 0                                              ; Determine if the input files are netcdf files
+  IF STRPOS(FP[0].DIR,'SOURCE')  GE 0 THEN NC_INFILE = 1      ELSE NC_INFILE = 0                                              ; Determine if the input files are netcdf files
   STACKED_NC = 0 ; Used for specific input files such as the OCCCI Monthly files
 
   ; ===> Check the MAP and PRODUCT information based on the the input files
@@ -208,8 +208,16 @@ PRO FILES_2STACKED, FILES, PRODS=PRODS, STAT_TYPES=STAT_TYPES, D3_FILES=D3_FILES
      _FILE_LABEL = REPLACE(_FILE_LABEL, AMAP, MAP_PXY)                                                                            ; Add PXY_(PX)_(PY) to the file label
   
     ; ===> Set up the output directory
-    IF N_ELEMENTS(DIR_OUT) NE 1 THEN DIROUT = REPLACE(FP[0].DIR,[!S.DATASETS_SOURCE,'/SAVE','/NC','/STATS','/ANOMS',FP[0].SUB],[!S.DATASETS,REPLICATE('/STACKED_SAVE/'+PROD_LABEL,5)])  $        ; Set up the output directory
+    IF N_ELEMENTS(DIR_OUT) NE 1 THEN DIROUT = REPLACE(FP[0].DIR,[!S.DATASETS_SOURCE],[!S.DATASETS])  $        ; Set up the output directory
                                 ELSE DIROUT = DIR_OUT
+    SRCPOS = STRPOS(DIROUT,'SOURCE')
+    IF SRCPOS GE 0 THEN BEGIN
+      SRCSTR = STRMID(DIROUT,SRCPOS)
+      DIROUT = REPLACE(DIROUT,SRCSTR,AMAP+SL+'STACKED_SAVE/'+PROD_LABEL+SL)
+    ENDIF
+    
+    DIROUT = REPLACE(DIROUT,['/SAVE','/NC','/STATS','/ANOMS'],[REPLICATE('/STACKED_SAVE/'+PROD_LABEL+SL,4)]) 
+    
     DIROUT = REPLACE(DIROUT,[SL+['SOURCE','SOURCE_MONTHLY','SOURCE_1KM',FP[0].MAP]+SL],[REPLICATE(SL+AMAP+SL,4)])                                                                                     ; Change the map in the output directory
     IF SI NE [] THEN DIROUT = REPLACE(DIROUT,SI.COVERAGE,AMAP)                                                                                     ; Change the map/coverage in the output directory
     DIROUT = REPLACE(DIROUT,'//','/')
@@ -238,7 +246,7 @@ PRO FILES_2STACKED, FILES, PRODS=PRODS, STAT_TYPES=STAT_TYPES, D3_FILES=D3_FILES
       ; ===> Create or read the D3HASH file
       IF ~FILE_TEST(D3_FILE) THEN D3HASH = D3HASH_MAKE(D3_FILE, INPUT_FILES=FILES, BINS=MOBINS, PRODS=PRODS, MAIN_PROD=MAINPROD,$                    ; Make the HASH file
                                                        PX=BX, PY=BY, STAT_TYPES=STAT_TYPES, ANOM_TYPES=ANOM_TYPES, DO_STATS=DO_STATS, DO_ANOMS=DO_ANOMS) $                       ; or  
-      ELSE D3HASH = IDL_RESTORE(D3_FILE)    ; Read the D3HASH file if it already exists and extract the D3 dabase                 ; Read the existing HASH file
+                             ELSE D3HASH = IDL_RESTORE(D3_FILE)    ; Read the D3HASH file if it already exists and extract the D3 dabase                 ; Read the existing HASH file
   
       ; ===> Extract variables from the HASH obj
       D3_KEYS = D3HASH.KEYS() & D3_KEYS = D3_KEYS.TOARRAY()                                                                       ; Get the D3HASH key names and convert the LIST to an array
