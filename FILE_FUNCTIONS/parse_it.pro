@@ -127,10 +127,11 @@ FUNCTION PARSE_IT, FILES, ALL=ALL
   COMPILE_OPT IDL2
   
   STRUCT= FILE_PARSE(FILES)
+  STRUCT.NAME = REPLACE(STRUCT.NAME,'.','-')
   
 ;	====> Get the period information from the file name
   NAME = STRUCT.NAME
-  NAME = REPLACE(NAME,'.','-')
+  
   S_PER = PERIOD_2STRUCT(STRUPCASE(NAME))
   PER = S_PER.PERIOD
  
