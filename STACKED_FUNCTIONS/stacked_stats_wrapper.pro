@@ -160,7 +160,7 @@
               FILES = GET_FILES(DATASET,PRODS=SPROD,DIR_DATA=DIR_IN, MAPS=MP,PERIODS=INPUT_PER, FILE_TYPE='STACKED', DATERANGE=DATERANGE,VERSION=VERSION,COUNT=COUNT) 
               FP = PARSE_IT(FILES)
               DP = PERIOD_2STRUCT(FP.PERIOD)
-              IF APER EQ 'A' THEN FILES = FILES[WHERE(DP.YEAR_END LT DATE_NOW(/YEAR))]  ; Remove current year from the climatological calculations
+           ;   IF APER EQ 'A' THEN FILES = FILES[WHERE(DP.YEAR_END LT DATE_NOW(/YEAR))]  ; Remove current year from the climatological calculations
               IF APER EQ 'ANNUAL' THEN IF N_ELEMENTS(FILES) GT 1 THEN MESSAGE,'ERROR: There should only be 1 in AA file for the ANNUAL period'
             ;  IF KEYWORD_SET(CSTR.CLIMATOLOGY) AND APER NE 'ANNUAL' THEN FILES = FILES[WHERE(DP.YEAR_START GE CLIM_YEAR_START AND DP.YEAR_END LE CLIM_YEAR_END,/NULL)]
               IF FILES EQ [] THEN MESSAGE, 'ERROR: Unable to find files...' 

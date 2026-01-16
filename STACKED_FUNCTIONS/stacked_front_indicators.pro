@@ -290,7 +290,7 @@
         ; ===> Create or read the HASH obj
         IF FRTHASH EQ [] THEN BEGIN
           IF ~FILE_TEST(SAVEFILE) THEN FRTHASH = D3HASH_MAKE(SAVEFILE, INPUT_FILES=INFILES, BINS=GBINS, PRODS=OPRODS, PX=PX, PY=PY, ADD_INFO='GRADMAG_INFO',INFO_CONTENT=GINFO) $
-                                  ELSE SAVEFILE = IDL_RESTORE(SAVEFILE)    ; Read the D3HASH file if it already exists and extract the D3 dabase
+                                  ELSE FRTHASH = IDL_RESTORE(SAVEFILE)    ; Read the D3HASH file if it already exists and extract the D3 dabase
         ENDIF
         IF IDLTYPE(FRTHASH) NE 'OBJREF' THEN MESSAGE, 'ERROR: Unable to properly create or read the HASH obj'                                                ; Read the existing D3 file
         FDB = FRTHASH['FILE_DB'].TOSTRUCT()

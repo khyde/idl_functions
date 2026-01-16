@@ -77,7 +77,7 @@
   IF N_ELEMENTS(LOGLUN)  NE 1 THEN LUN = [] ELSE LUN = LOGLUN
   IF N_ELEMENTS(VERSION) EQ 0 THEN VERSION = CURRENT_VERSION
   IF N_ELEMENTS(PRODS)   EQ 0 THEN PRODS = ['chlor_a','rrs','iop','kd'] ELSE PRODS = STRLOWCASE(PRODS) ;
-  IF N_ELEMENTS(YEARS)   EQ 0 THEN YRS = YEAR_RANGE('1997',DP.YEAR,/STRING) ELSE YRS = STRING(YEARS)
+  IF N_ELEMENTS(YEARS)   EQ 0 THEN YRS = YEAR_RANGE('1997',DP.YEAR,/STRING) ELSE YRS = STRTRIM(STRING(YEARS),2)
   IF KEYWORD_SET(RECENT) THEN YRS = NUM2STR([DP.YEAR-1,DP.YEAR])
   IF KEYWORD_SET(LIMIT)  THEN LIMIT = '--limit-rate=500k' ELSE LIMIT = ' '
 
@@ -108,13 +108,13 @@
     IF KEY(RYEARS) THEN YRS = REVERSE(YRS)
     FOR N=0, N_ELEMENTS(YRS)-1 DO BEGIN
       YR = YRS[N]
-      DIR = !S.OCCCI_SOURCE + DIRVER + SL +'SOURCE_DATA' + SL + 'BINNED_4KM_DAILY' + SL + DR +SL 
+      DIR = !S.OCCCI_SOURCE + DIRVER + SL +'SOURCE' + SL + 'BINNED_4KM_DAILY' + SL + DR +SL 
       IF KEYWORD_SET(GETMAPPED) THEN DIR = REPLACE(DIR,'BINNED_4KM_DAILY','MAPPED_4KM_DAILY')
       DIR_TEST, DIR
       
       CD, DIR
       FB = FILE_SEARCH(DIR + SL + 'E*-' + YR + '*',COUNT=CB)
-      PLUN, LUN, 'Found ' + NUM2STR(CB) + ' LOCAL files for ' + YR
+      PLUN, LUN, 'Found ' + NUM2STR(CB) + ' LOCAL ' + DR + ' files for ' + YR
       
       FTP = SFTP + APROD + SL + YR + SL
 
@@ -124,18 +124,18 @@
       OK = WHERE(STRPOS(DOYLIST,'fv'+VERSION) GT 0, COUNT,/NULL)
  ;     IF DOYLIST[0] EQ '' OR OK EQ [] THEN CONTINUE
       DOYLIST = DOYLIST[OK]
-      PLUN, LUN,  'Found ' + ROUNDS(N_ELEMENTS(DOYLIST)) + ' files on REMOTE SERVER. ' + ROUNDS(N_ELEMENTS(DOYLIST)-CB) + ' files remaining to download...'
+      PLUN, LUN,  'Found ' + ROUNDS(N_ELEMENTS(DOYLIST)) + ' ' + DR + ' files on REMOTE SERVER. ' + ROUNDS(N_ELEMENTS(DOYLIST)-CB) + ' files remaining to download...'
 
       CMD = 'wget --progress=bar:force -c -N ' + LIMIT + FTP + 'ESACCI*-fv'+VERSION+'.nc --user=oc-cci-data --password=ELaiWai8ae -a ' + LOGFILE
       IF ~KEYWORD_SET(CHECK_FILES) THEN SPAWN, CMD, LOG, ERR
       FA = FILE_SEARCH(DIR + SL + 'E*' + YR + '*',COUNT=CA) & FP = FILE_PARSE(FA)
       IF CA GT CB THEN PLUN, LUN, NUM2STR(CA-CB) + ' files downloaded for ' + YR
-      IF CA EQ CB THEN PLUN, LUN, 'No new files downloaded for ' + YR
+      IF CA EQ CB THEN PLUN, LUN, 'No new ' + DR + ' files downloaded for ' + YR
       OK = WHERE_MATCH(DOYLIST,FP.NAME_EXT,COUNT,VALID=VALID,NCOMPLEMENT=NCOMP,COMPLEMENT=COMP,NINVALID=NINVALID,INVALID=INVALID)
       IF NCOMP NE 0 THEN BEGIN
-        PLUN, LUN, NUM2STR(NCOMP) + ' files remaining to be downloaded'
+        PLUN, LUN, NUM2STR(NCOMP) + ' ' + DR + ' files remaining to be downloaded'
         LI, DOYLIST[COMP]
-      ENDIF ELSE PLUN, LUN, '0 files remaining to download for ' + YR
+      ENDIF ELSE PLUN, LUN, '0 ' + DR + ' files remaining to download for ' + YR
       PLUN, LUN, ERR
     ENDFOR
   ENDFOR

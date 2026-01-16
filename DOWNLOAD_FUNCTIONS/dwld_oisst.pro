@@ -96,7 +96,7 @@
   IF KEYWORD_SET(RECENT)    THEN YRS = NUM2STR([DP.YEAR-1,DP.YEAR])
   IF N_ELEMENTS(DATERANGE) EQ 0 THEN DTR = GET_DATERANGE(MIN(YRS),MAX(YRS)) ELSE DTRS = GET_DATERANGE(DATERANGE)
 
-  DIR = !S.OISST + VER + SL + 'SOURCE' + SL
+  DIR = !S.OISST_SOURCE + VER + SL + 'SOURCE' + SL
   DOWNLOAD_FILE = DIR + 'DOWNLOAD_LIST.txt
   
   IF DTR[0] LT SENDATES[0] THEN DTR[0] = SENDATES[0]                                      ; If default start date (19810101), then change to the sensor start date
@@ -107,7 +107,7 @@
 
   FOR N=0, N_ELEMENTS(PRODS)-1 DO BEGIN
     APROD = PRODS[N]
-    NCDIR = DIR + 'NC' + SL + APROD + SL & DIR_TEST, NCDIR
+    NCDIR = DIR + APROD + SL & DIR_TEST, NCDIR
     
     YRS   = YEAR_RANGE(DPS.YEAR,DPE.YEAR,/STRING)                               ; Create list of YEARS within the daterange
     CASE APROD OF
@@ -119,7 +119,7 @@
 
   ; ===> Create a list of file names and urls based on the year and day of year
     FB = FILE_SEARCH(NCDIR + PAT + '*.nc',COUNT=CB)
-    PLUN, LUN, 'Found ' + NUM2STR(CB) + ' LOCAL files for ' ,0
+    PLUN, LUN, 'Found ' + NUM2STR(CB) + ' LOCAL files for ' + APROD,0
     SNAMES = PAT + YRS + '.nc'
    
     PLUN, LUN, 'Creating the download list:'

@@ -100,7 +100,7 @@
   
           ; ===> Clean up files before starting (in case this step doesn't get to run at the end
           FILES = GET_FILES(DATASET,PRODS=OPROD,FILE_TYPE='STACKED_ANOMS',VERSION=VERSION,MAPS=MP,COUNT=COUNT,CLIMATOLOGY=CLIM_RANGE) & FP = FILE_PARSE(FILES)
-          ;IF COUNT GT 1 THEN STACKED_ANOMS_CLEANUP, FP[0].DIR,MOVE_FILES=0
+;          IF COUNT GT 1 THEN STACKED_ANOMS_CLEANUP, FP[0].DIR,MOVE_FILES=0
           STACKED_STATS_CLEANUP, DATASET, PRODS=OPROD, MAPS=MP,MOVE_FILES=0 ; Double check that the STAT directories don't include any "OLD" files
 
           FOR R=0, N_ELEMENTS(PERIODS)-1 DO BEGIN

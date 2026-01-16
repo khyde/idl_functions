@@ -156,6 +156,13 @@ FUNCTION PROJECT_VERSION_DEFAULT, PROJECT, VERSION=VERSION, DIR_PROJECT=DIR_PROJ
       NC_PRODS = ['CHLOR_A','PPD','PSC']
       NC_PERIODS = ['M','M3']
       CASE VERSION OF
+        'V2026': BEGIN
+          YEAR = '2025'
+          ;SERIES = 'LONG'
+          EXTRACT_PRODS = ['CHLOR_A','PPD','PSC_'+['MICRO','NANO','PICO','FMICRO','FNANO','FPICO']] ; Removing SST to reduce the total size
+          PSUBAREAS = ['GOM','GB','MAB'] ; Project specific subareas (excluding SS to reduce the total file size)
+          ;EVENTS = ['2024_UPWELLING','2024_SST_ANOMALY']
+        END
         'V2025': BEGIN
           YEAR = '2024'
           EXTRACT_PRODS = ['CHLOR_A','PPD','PSC_'+['MICRO','NANO','PICO','FMICRO','FNANO','FPICO']] ; Removing SST to reduce the total size

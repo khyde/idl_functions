@@ -246,9 +246,9 @@
 
     FIRST_DATE = []                                                                                                               ; Create a NULL variable for the first date
     FOR Z=0, OPZ-1 DO BEGIN                                                                                                       ; Loop by day of the output database
-      ZDATE = PERIOD_2DATE(ODB[Z].PERIOD,/SHORT)                                                                                                   ; Get the day
+      ZDATE = PERIOD_2DATE(ODB[Z].PERIOD,/SHORT)                                                                                  ; Get the day
       IF ZDATE EQ MISSINGS('') AND FIRST_DATE EQ [] THEN CONTINUE                                                                 ; Check that the day is not missing (if there is no data for that day, DATE_RANGE will be blank)
-      IF FIRST_DATE EQ [] AND ODB[Z].DATE_RANGE NE '' THEN FIRST_DATE = ZDATE                                                                                 ; Establish the FIRST_DATE of the time series
+      IF FIRST_DATE EQ [] AND ODB[Z].DATE_RANGE NE '' THEN FIRST_DATE = ZDATE                                                     ; Establish the FIRST_DATE of the time series
       SEQ = WHERE(ADB.DATE_RANGE EQ ZDATE)                                                                                        ; Find the matching date in the input DB
       ODATE = STRMID(ODATES[Z],0,8)
       IF ODATE NE ZDATE AND ZDATE NE ''  THEN MESSAGE, 'ERROR: Double check the dates'

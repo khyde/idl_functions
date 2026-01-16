@@ -127,11 +127,13 @@
         VAR = 'var='
         VARPROD = '?'
         CASE STRUPCASE(PRODS[V]) OF
-          'CHLOR_A': BEGIN & OPROD='CHLOR_A-CCI' & VARPROD = VARPROD + VAR + 'chlor_a' & END
-          'RRS': BEGIN & OPROD = 'RRS' &  VARPROD = '?' + STRJOIN('var=Rrs_' + WAVELENGTHS, '&')  & END
-          'ATOT': BEGIN & OPROD = 'ATOT-QAA' & VARPROD = '?' + STRJOIN('var=atot_' + WAVELENGTHS, '&') & END
-          'BBP': BEGIN & OPROD = 'BBP-QAA' &  VARPROD = '?' + STRJOIN('var=bbp_' + WAVELENGTHS, '&')  & END
+          'CHLOR_A': BEGIN & DR='CHL' & OPROD='CHLOR_A-CCI' & VARPROD = VARPROD + VAR + 'chlor_a' & END
+          'RRS': BEGIN & DR = 'RRS' & OPROD = 'RRS' &  VARPROD = '?' + STRJOIN('var=Rrs_' + WAVELENGTHS, '&')  & END
+          'KD': BEGIN & DR = 'KD490' & OPROD = 'KD490' & VARPROD = '?' & END
+          'ATOT': BEGIN & DR = 'ATOT' & OPROD = 'ATOT-QAA' & VARPROD = '?' + STRJOIN('var=atot_' + WAVELENGTHS, '&') & END
+          'BBP': BEGIN & DR = 'BBP' & OPROD = 'BBP-QAA' &  VARPROD = '?' + STRJOIN('var=bbp_' + WAVELENGTHS, '&')  & END
           'IOP': BEGIN
+            DR = 'IO'
             OPROD = 'IOP-QAA'
             IPRODS = ['adg','aph','atot','bbp']
             VARPROD = '?'
@@ -140,9 +142,9 @@
         ENDCASE  
         IF STRMID(VARPROD,0,1,/REVERSE_OFFSET) EQ '&' THEN VARPROD = STRMID(VARPROD,0,STRLEN(VARPROD)-1)
         
-        DIROUT = !S.OCCCI + 'V'+VERSION + SL + SUBDIR + SL + 'NC' + SL + OPROD + SL & DIR_TEST, DIROUT
+        DIROUT = !S.OCCCI_SOURCE + 'V'+VERSION + SL +'SOURCE' + SL + 'BINNED_1KM_DAILY' + SL + DR + SL & DIR_TEST, DIROUT
         LOGDIR = !S.LOGS + 'IDL_BATCH_DOWNLOADS' + SL + DATASET + SL & DIR_TEST, LOGDIR
-        
+                
         ; ===> Create and open the log file
         LOGFILE = LOGDIR + 'BATCH_DOWNLOADS-OCCCI-' + ARES + '-' + OPROD + '-' + DATE_NOW(/DATE_ONLY) + '.log'
         OPENW,LUN,LOGFILE,/APPEND,/GET_LUN,width=180

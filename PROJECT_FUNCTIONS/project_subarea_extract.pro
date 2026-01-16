@@ -136,6 +136,7 @@
             FOR C=0, N_ELEMENTS(PCS)-1 DO BEGIN
               TPER = PCS[C].VALUE
               IF KEYWORD_SET((PERIODS_READ(TPER)).CLIMATOLOGY) THEN CONTINUE
+              IF ~HAS(PSTR,'TEMP_DATASET') THEN CONTINUE
               PSUBS = PERSTR[WHERE_SETS_SUBS(PCS[C])]
               
               IF MAX(PSUBS.JD_END) GE MAX(DTRSTR.JD) THEN CONTINUE ; If the max period matches the max daterange, then continue because you don't need the temp file

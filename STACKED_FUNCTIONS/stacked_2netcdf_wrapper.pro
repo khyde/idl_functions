@@ -101,7 +101,7 @@
           
           CASE FP.L2SUB OF
             'STACKED_SAVE': NPRODS=VPROD
-            'STACKED_STATS':NPRODS=VPROD + '_' + STATPRODS
+            'STACKED_STATS':NPRODS=[VPROD,VPROD + '_' + STATPRODS]
             'STACKED_ANOMS':BEGIN
               CASE VPROD OF
                 'CHLOR_A': NPRODS=VPROD + '_RATIO'
