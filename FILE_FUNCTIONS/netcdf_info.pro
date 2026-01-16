@@ -371,6 +371,7 @@
         'PIC': FP[SUBS].ALG = 'BALCH'
         'PAR': FP[SUBS].ALG = 'FROUIN'
         'RRS': FP[SUBS].ALG = ''
+        'BTE': FP[SUBS].ALG = '' ; BTEMP
         'SST': BEGIN
           FF = FP[SUBS]
           BI = WHERE_SETS(FF.SENSOR)

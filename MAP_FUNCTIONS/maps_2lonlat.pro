@@ -113,6 +113,7 @@
       'AVHRR':     BEGIN & PX=8640  & PY=4320  & END
       'OISST':     BEGIN & PX=1440  & PY=720   & END
       'NOAA5KM':   BEGIN & PX=7200  & PY=3600  & END
+      'GLORYS':    BEGIN & PX=4320  & PY=2041  & END
       ELSE: RETURN, 'ERROR: ' + MP + ' is not a valid map for MAPS_2LONLAT'
     ENDCASE
     

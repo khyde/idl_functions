@@ -120,6 +120,7 @@ PRO FILES_2STACKED, FILES, PRODS=PRODS, STAT_TYPES=STAT_TYPES, D3_FILES=D3_FILES
   PERIOD_SET = D3HASH_PERIOD_SETS(FILES, OUTPERIOD=OUTPERIOD, BY_YEAR=BY_YEAR)                                                  ; Get the "sets" of input files for each output file based on the period
   IF STRPOS(FP[0].L2SUB,'STACKED') GE 0 THEN STACKED_INFILE = 1 ELSE STACKED_INFILE = 0                                         ; Determine if the input files are "stacked" files
   IF STRPOS(FP[0].DIR,'SOURCE')  GE 0 THEN NC_INFILE = 1      ELSE NC_INFILE = 0                                              ; Determine if the input files are netcdf files
+  IF STRPOS(FP[0].DIR,'cmems_mod_glo_phy_my_0.083deg_P1D-m') GE 0 THEN NC_INFILE = 1
   STACKED_NC = 0 ; Used for specific input files such as the OCCCI Monthly files
 
   ; ===> Check the MAP and PRODUCT information based on the the input files
@@ -219,6 +220,8 @@ PRO FILES_2STACKED, FILES, PRODS=PRODS, STAT_TYPES=STAT_TYPES, D3_FILES=D3_FILES
     DIROUT = REPLACE(DIROUT,['/SAVE','/NC','/STATS','/ANOMS'],[REPLICATE('/STACKED_SAVE/'+PROD_LABEL+SL,4)]) 
     
     DIROUT = REPLACE(DIROUT,[SL+['SOURCE','SOURCE_MONTHLY','SOURCE_1KM',FP[0].MAP]+SL],[REPLICATE(SL+AMAP+SL,4)])                                                                                     ; Change the map in the output directory
+    DIROUT = REPLACE(DIROUT,[SL+'cmems_mod_glo_phy_my_0.083deg_P1D-m/glorys_bottomT/bottomT'],[SL+AMAP+SL+'STACKED_SAVE'+SL+PROD_LABEL+SL])                                                                                     ; Change the map in the output directory
+
     IF SI NE [] THEN DIROUT = REPLACE(DIROUT,SI.COVERAGE,AMAP)                                                                                     ; Change the map/coverage in the output directory
     DIROUT = REPLACE(DIROUT,'//','/')
     IF KEYWORD_SET(DOY) THEN DIROUT = REPLACE(DIROUT,'STACKED_SAVE','STACKED_TEMP')                                             ; If DOY files, then save in the TEMP directory
@@ -463,6 +466,24 @@ PRO FILES_2STACKED, FILES, PRODS=PRODS, STAT_TYPES=STAT_TYPES, D3_FILES=D3_FILES
                 STDIMG = MAPS_MUR_2BIN(STD_IMAGE, AMAP, MAP_SUBSET=L3BSUBMAP,BINS_OUT=BINS, INIT=INIT)
               END
               
+              'GLORYS': BEGIN
+                PFILE, FILE, /R, _POFTXT=OUTTXT, LOGLUN=LUN
+                D = READ_NC(FILE,PROD=[NPRODS,NPRODS,'LATITUDE','LONGITUDE','TIME'],/GLOBAL)
+                DTAGS = TAG_NAMES(D.SD)
+                LATS = D.SD.LATITUDE.IMAGE & PY = N_ELEMENTS(LATS)
+                LONS = D.SD.LONGITUDE.IMAGE & PX = N_ELEMENTS(LONS)
+                                
+                FA.MAP = AMAP
+                ; Convert the SST image from Kelvin to Celcius
+                BTEMP = D.SD.BOTTOMT.IMAGE
+                OK = WHERE(ABS(BTEMP) EQ ABS(D.SD.BOTTOMT._FILLVALUE),COUNTM)
+                BTEMP = BTEMP * D.SD.BOTTOMT.SCALE_FACTOR + D.SD.BOTTOMT.ADD_OFFSET
+                BTEMP[OK] = MISSINGS(BTEMP)
+                
+                BTIMG = MAPS_LONLAT_GRID(BTEMP, MAP_OUT=AMAP, LON=LONS, LAT=LATS, STRUCT=LONLAT_STRUCT, INIT=INIT, DO_MASK=DO_MASK)
+                                
+              END
+              
               'ACSPO': BEGIN
                 PFILE, FILE, /R, _POFTXT=OUTTXT, LOGLUN=LUN
                 D = READ_NC(FILE,PROD=[NPRODS],/GLOBAL)
@@ -528,6 +549,7 @@ PRO FILES_2STACKED, FILES, PRODS=PRODS, STAT_TYPES=STAT_TYPES, D3_FILES=D3_FILES
                 END
                 'AVHRR': IMG = SST_IMG  
                 'CORAL': IMG = SST_IMG
+                'GLORYS': IMG = BTIMG
                 'ACSPO': BEGIN
                   CASE NPRODS[R] OF
                     'SEA_SURFACE_TEMPERATURE': IMG = SST_IMG

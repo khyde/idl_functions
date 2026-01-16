@@ -210,6 +210,7 @@ FUNCTION SENSOR_INFO, FILES, PROD=PROD, GET_PRODS=GET_PRODS
     IF HAS(SATNAME,'SEAWIFS')           THEN SENSOR = 'SEAWIFS'
     IF HAS(SATNAME,'AVHRR')             THEN SENSOR = 'AVHRR'
     IF HAS(SATNAME,'MUR')               THEN SENSOR = 'MUR'
+    IF HAS(SATNAME,'GLORYS')            THEN SENSOR = 'GLORYS'
     IF HAS(SATNAME,'ACSPO')             THEN SENSOR = 'ACSPO'
     IF HAS(SATNAME,'ACSPONRT')          THEN SENSOR = 'ACSPONRT'
     IF HAS(SATNAME,'G1SST')             THEN SENSOR = 'G1SST'
@@ -289,7 +290,7 @@ FUNCTION SENSOR_INFO, FILES, PROD=PROD, GET_PRODS=GET_PRODS
     ENDIF
 
     PROD_LABEL = ''
-    IF HAS(ENAME,'L3B') OR HAS(ENAME,'L3m') OR HAS(SATNAME, 'GHRSST') OR HAS(SATNAME,'ESACCI') OR HAS(ENAME,'nrt_global_allsat_phy') OR HAS(ENAME,'coral') THEN BEGIN  ; Now works with L3B and GHRSST files
+    IF HAS(ENAME,'L3B') OR HAS(ENAME,'L3m') OR HAS(SATNAME, 'GHRSST') OR HAS(SATNAME,'ESACCI') OR HAS(ENAME,'nrt_global_allsat_phy') OR HAS(ENAME,'coral') OR HAS(ENAME,'GLORYS') THEN BEGIN  ; Now works with L3B and GHRSST files
       NC_ALGS = []
       NC_PRODS = []
       V_PRODS = []
@@ -400,6 +401,20 @@ FUNCTION SENSOR_INFO, FILES, PROD=PROD, GET_PRODS=GET_PRODS
           V_PRODS  = ['SST',         'SST_ERROR',     'SST_MASK','LAT','LON']
           SOURCE = 'https://podaac.jpl.nasa.gov/dataset/JPL-L4UHfnd-GLOB-MUR'
           PROD_LABEL = 'SST'
+        END
+        
+        'GLORYS': BEGIN
+          LEVEL = 'L4'
+          METHOD = 'V12'
+          MP = 'L4' ; 
+          COVERAGE = '9KM'
+          SATELLITE = 'MODEL'
+          PERIOD = 'D_' + STRMID(FP[N].DATE_START,0,8)  ; Do not use the period derived from PARSE_IT
+          PERIOD_CODE = 'D'
+          NC_PRODS = ['BOTTOMT','LATITUDE','LONGITUDE']
+          V_PRODS  = ['BTEMP', 'LAT','LON']
+          SOURCE = ''
+          PROD_LABEL = 'BTEMP'
         END
         
         'ACSPO': BEGIN

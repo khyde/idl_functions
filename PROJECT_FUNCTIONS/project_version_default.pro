@@ -161,7 +161,7 @@ FUNCTION PROJECT_VERSION_DEFAULT, PROJECT, VERSION=VERSION, DIR_PROJECT=DIR_PROJ
           ;SERIES = 'LONG'
           EXTRACT_PRODS = ['CHLOR_A','PPD','PSC_'+['MICRO','NANO','PICO','FMICRO','FNANO','FPICO']] ; Removing SST to reduce the total size
           PSUBAREAS = ['GOM','GB','MAB'] ; Project specific subareas (excluding SS to reduce the total file size)
-          ;EVENTS = ['2024_UPWELLING','2024_SST_ANOMALY']
+          EVENTS = ['2025_BOTTEMP']
         END
         'V2025': BEGIN
           YEAR = '2024'

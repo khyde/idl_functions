@@ -115,6 +115,7 @@
         'MUR':    BEGIN & DPRODS='SST' &  MAPIN='L4' & IF ~N_ELEMENTS(MAP_OUT) THEN DMAP=['L3B4','L3B2'] ELSE DMAP=MAP_OUT & END
         'ACSPO': BEGIN & DPRODS='SST' & MAPIN='SOURCE' & DMAP='L3B2' & END
         'ACSPONRT': BEGIN & DPRODS='SST' & MAPIN='SOURCE' & DMAP='L3B2' & END
+        'GLORYS': BEGIN & DPRODS='BTEMP' & MAPIN='SOURCE' & DMAP='NWA' & L3BSUBMAP = [] & END
       ENDCASE ; DSET
       IF MP[M] NE 'L3B4' THEN OMAP = MP[M] ELSE OMAP = DMAP
         
@@ -127,6 +128,7 @@
           OPRODS = APROD
           MPROD=[]
           CASE APROD OF  ; Get prod specific information (netcdf product=NPROD, output product(s)=OPRODS)
+            'BTEMP': NPROD='bottomT'
             'RRS': BEGIN & NPROD='RRS' & OPRODS = 'RRS_'+['412', '443', '490', '510', '560', '665']  & MPROD='RRS' & END
             'CHLOR_A-CCI': BEGIN & NPROD='CHL' & IF MAP_IN EQ '1KM' THEN NPROD='CHLOR_A-CCI' & END
             'CHLOR_A-GSM': NPROD='CHL1'

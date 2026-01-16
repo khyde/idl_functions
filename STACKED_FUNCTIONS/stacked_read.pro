@@ -90,7 +90,8 @@
   IF PRODS NE [] THEN PRODS = INPRODS                                                                                    ; If no PRODS are provided, get all of the PRODS
   IF WHERE_MATCH(PRODS, INPRODS) EQ [] THEN PRODS = INPRODS                                                              ; If specific PRODS are requested, match them to the prods in the file
   
-  STRUCT = CREATE_STRUCT('KEYS',KEYS, 'PRODS',PRODS, 'DB',DB, 'BINS',BINS, 'INFO',INFO, 'METADATA',METADATA)             ; Create a structure with the non-data information
+  STRUCT = CREATE_STRUCT('KEYS',KEYS, 'PRODS',PRODS, 'DB',DB, 'INFO',INFO, 'METADATA',METADATA)             ; Create a structure with the non-data information
+  IF BINS NE [] THEN STRUCT = CREATE_STRUCT(STRUCT,'BINS',BINS)
   FOR R=0, N_ELEMENTS(PRODS)-1 DO BEGIN
     STRUCT = CREATE_STRUCT(STRUCT,PRODS[R],SD[PRODS[R]])
   ENDFOR

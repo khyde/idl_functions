@@ -128,6 +128,7 @@
     'ATV':        DATES = ['20000224', TODAY] ; SeaWiFS + MODISA + MODIST + VIIRS
     'OCCCI':      DATES = ['19970904', TODAY] ; Blended ESA product.  As of 2018-02-26, only current through 2016-12-31, but should be updated routinely
     'GLOBCOLOUR': DATES = ['19970904', TODAY] ; Blended GlobColour product.  
+    'GLORYS':     DATES = ['19930101', TODAY] ; GLORYS V12 reanalaysis
     'GEOPOLAR':   DATES = ['20020901', TODAY] ; Blended NOAA SST product
     'GEOPOLAR':   DATES = ['20020901', TODAY] ; Blended NOAA SST product
     'GEOPOLAR_INTERPOLATED':   DATES = ['20020901', TODAY] ; Blended and interpolated NOAA SST product

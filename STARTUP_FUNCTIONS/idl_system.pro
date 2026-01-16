@@ -165,7 +165,7 @@ PRO IDL_SYSTEM, TEST=TEST
         'NEFSCSATDATA.NMFS.LOCAL': PATH = '/Satdata_Primary/nadata/'
         'NECMAC04363461.LOCAL': BEGIN 
             IF FILE_TEST('/Volumes/EDAB_Archive/nadata/',/DIR) THEN PATH  = '/Volumes/EDAB_Archive/nadata/' ELSE PATH  = '/Users/kimberly.hyde/Documents/nadata/' 
-            IF FILE_TEST('/Volumes/EDAB_Datasets/',/DIR)       THEN SPATH = '/Volumes/EDAB_Datasets/'       ELSE SPATH = '/Users/kimberly.hyde/Documents/nadata/DATASETS_SOURCE/'
+            IF FILE_TEST('/Volumes/EDAB_Datasets/',/DIR)       THEN SPATH = '/Volumes/EDAB_Datasets/'       ELSE SPATH = '/Users/kimberly.hyde/Documents/nadata/DATASETS/'
           END
          'GUIHYDE': BEGIN
            IF FILE_TEST('/mnt/EDAB_Archive/nadata/',/DIR) THEN PATH  = '/mnt/EDAB_Archive/nadata/' ELSE PATH  = '/Satdata_Primary/nadata/'
