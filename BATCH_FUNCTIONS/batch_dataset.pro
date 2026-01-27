@@ -91,6 +91,7 @@
       'AVHRR':      BEGIN & MAPIN='L3B4'          & NPRODS='SST' & END
       'ACSPO':      BEGIN & MAPIN='L3B2'          & NPRODS='SST' & FPRODS='SST' & CPRODS='SST' & END
       'ACSPONRT':   BEGIN & MAPIN='L3B2'          & NPRODS='SST' & FPRODS='SST' & CPRODS='SST' & END
+      'GLORYS':     BEGIN & MAPIN='NWA'           & NPRODS='BTEMP' & END
     ENDCASE
     IF SPRODS EQ [] THEN SPRODS = NPRODS
     

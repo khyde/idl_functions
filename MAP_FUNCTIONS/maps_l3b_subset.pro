@@ -96,6 +96,7 @@
   ENDIF ELSE BEGIN
     IF PXL NE PXD AND PYL NE PYD THEN MESSAGE, 'ERROR: The input array size does not match the GS map size.'
     GARR = ARRAY
+    _INPUT_MAP = INPUT_MAP
   ENDELSE
   
   ; ===> Get the min/max lon/lat from the subset map (if provided)

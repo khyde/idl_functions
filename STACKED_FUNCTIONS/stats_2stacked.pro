@@ -88,6 +88,12 @@
     'MM': SPERS = YEAR_MONTH_RANGE(SENSOR_DATERANGE[0],SENSOR_DATERANGE[1])                                             ; Get the "month" dates for the full sensor date range
     'WW': SPERS = YEAR_WEEK_RANGE(SENSOR_DATERANGE[0],SENSOR_DATERANGE[1])                                              ; Get the "week" dates for the full sensor date range
     'MM3':SPERS = YEAR_MONTH_RANGE(SENSOR_DATERANGE[0],SENSOR_DATERANGE[1]) 
+    'SEA': BEGIN
+      SPERS = YEAR_MONTH_RANGE(SENSOR_DATERANGE[0],SENSOR_DATERANGE[1]) 
+      DP = STRMID(SPERS,4,2)
+      OK = WHERE(DP EQ '01' OR DP EQ '04' OR DP EQ '07' OR DP EQ '10',COUNT)
+      IF COUNT GT 1 THEN SPERS = SPERS[OK]
+    END  
   ENDCASE          
   STACKED_PERIOD = STRJOIN([ISTR.PERIOD_CODE,MIN(SPERS),MAX(SPERS)],'_')                                                ; Create the new stacked period code
     

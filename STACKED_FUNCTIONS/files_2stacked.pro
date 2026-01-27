@@ -220,7 +220,7 @@ PRO FILES_2STACKED, FILES, PRODS=PRODS, STAT_TYPES=STAT_TYPES, D3_FILES=D3_FILES
     DIROUT = REPLACE(DIROUT,['/SAVE','/NC','/STATS','/ANOMS'],[REPLICATE('/STACKED_SAVE/'+PROD_LABEL+SL,4)]) 
     
     DIROUT = REPLACE(DIROUT,[SL+['SOURCE','SOURCE_MONTHLY','SOURCE_1KM',FP[0].MAP]+SL],[REPLICATE(SL+AMAP+SL,4)])                                                                                     ; Change the map in the output directory
-    DIROUT = REPLACE(DIROUT,[SL+'cmems_mod_glo_phy_my_0.083deg_P1D-m/glorys_bottomT/bottomT'],[SL+AMAP+SL+'STACKED_SAVE'+SL+PROD_LABEL+SL])                                                                                     ; Change the map in the output directory
+    DIROUT = REPLACE(DIROUT,[SL+'glorys_bottomT/cmems_mod_glo_phy_my_0.083deg_P1D-m/bottomT'],[SL+'V12'+SL+AMAP+SL+'STACKED_SAVE'+SL+PROD_LABEL+SL])                                                                                     ; Change the map in the output directory
 
     IF SI NE [] THEN DIROUT = REPLACE(DIROUT,SI.COVERAGE,AMAP)                                                                                     ; Change the map/coverage in the output directory
     DIROUT = REPLACE(DIROUT,'//','/')

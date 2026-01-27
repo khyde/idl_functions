@@ -241,9 +241,11 @@ FUNCTION PERIOD_2STRUCT, PER
       ;|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
       
       PERIOD_CODE EQ 'MONTH3' :BEGIN
-        DATE_START           = JD_2DATE(DATE_2JD(THIRD_DATE+FIRST_DATE)) ; FIRST YYYY + MM
+        DATE_START          = JD_2DATE(DATE_2JD(THIRD_DATE+FIRST_DATE)) ; FIRST YYYY + MM
         S[SUBS].DATE_START    = DATE_START
-        DATE_END             = JD_2DATE(JULDAY(SECOND_DATE,DATE_DAYS_MONTH(SECOND_DATE),FOURTH_DATE, 23,59,59))
+        OK = WHERE(SECOND_DATE EQ '00', COUNT, COMPLEMENT=CP, NCOMPLEMENT=NCP)
+        IF COUNT GT 0 THEN SECOND_DATE[OK] = '02' ; MONTH3 stacked periods will have 00_00 as the month numbers so the end week should be changed to 52 because stacked files contain all weeks within the year
+        DATE_END            = JD_2DATE(JD_ADD(JULDAY(FIRST_DATE,DATE_DAYS_MONTH(FOURTH_DATE+1 + FIRST_DATE),FOURTH_DATE+1, 23,59,59),59,/DAY)) ; Extend the date to the end of February of the following year
         S[SUBS].DATE_END      = DATE_END
       END;'MONTH'
       ;|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||

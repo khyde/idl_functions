@@ -197,11 +197,10 @@
         'MONTH3': BEGIN
           IF N_ELEMENTS(FILES) NE 1 THEN MESSAGE, 'ERROR: Only a single merged MM input file allowed for "MONTH3" output files'
           FP = PARSE_IT(FILES) & DP = PERIOD_2STRUCT(FP.PERIOD)
-          CLIMDTS = JD_2DATE([DATE_2JD(CLIMRANGE[0])>DATE_2JD(DP.DATE_START),DATE_2JD(CLIMRANGE[1])<DATE_2JD(DP.DATE_END)])
-        stop; need to fix the climatology date range
-          SET = PERIOD_SETS(JD_GEN([DP.DATE_START,DP.DATE_END]),PERIOD_CODE='M3')  ; Create the weekly periods as an input to the WEEK period
+          CLIMDTS = JD_2DATE([DATE_2JD(CLIMRANGE[0])>DATE_2JD(DP.DATE_START),JD_ADD(DATE_2JD(CLIMRANGE[1]),59,/DAY)<DATE_2JD(DP.DATE_END)])
+          SET = PERIOD_SETS(JD_GEN(CLIMDTS),PERIOD_CODE='M3')  ; Create the 3-month periods as an input to the MONTH3 period
           SET = PERIOD_SETS(PERIOD_2JD(SET.PERIOD), PERIOD_CODE='MONTH3') ;
-          STACKED_PERIOD = 'MONTH3' + '_00_' + CLIMYRS[0] + '_' + CLIMYRS[1]
+          STACKED_PERIOD = 'MONTH3' + '_00_00_' + CLIMYRS[0] + '_' + CLIMYRS[1]
           YRPER = REPLICATE(CREATE_STRUCT('STACKED_PERIOD','', 'FILENAME',''),N_ELEMENTS(SET))
           YRPER.STACKED_PERIOD = STACKED_PERIOD
           YRPER.FILENAME = FILES
