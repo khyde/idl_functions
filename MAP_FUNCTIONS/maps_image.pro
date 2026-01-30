@@ -63,7 +63,7 @@ ROUTINE_NAME  = 'MAPS_IMAGE'
 ;***************************
 ;
 ;===> DEFAULTS 
-  IF NONE(DIR_OUT) THEN DIR_OUT = !S.IDL_TEMP 
+  IF NONE(DIR_OUT) THEN DIR_OUT = !S.TEMP 
   IF NONE(PAL)     THEN PAL = 'PAL_SW3'
   RES = 600  
   IF NONE(C_LOW)   THEN C_LOW = 1
