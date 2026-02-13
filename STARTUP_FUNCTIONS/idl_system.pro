@@ -167,6 +167,11 @@ PRO IDL_SYSTEM, TEST=TEST
             IF FILE_TEST('/Volumes/EDAB_Archive/nadata/',/DIR) THEN PATH  = '/Volumes/EDAB_Archive/nadata/' ELSE PATH  = '/Users/kimberly.hyde/Documents/nadata/' 
             IF FILE_TEST('/Volumes/EDAB_Datasets/',/DIR)       THEN SPATH = '/Volumes/EDAB_Datasets/'       ELSE SPATH = '/Users/kimberly.hyde/Documents/nadata/DATASETS/'
           END
+         'MAC.LOCALDOMAIN': BEGIN
+           IF FILE_TEST('/Volumes/EDAB_Archive/nadata/',/DIR) THEN PATH  = '/Volumes/EDAB_Archive/nadata/' ELSE PATH  = '/Users/kimberly.hyde/Documents/nadata/'
+           IF FILE_TEST('/Volumes/EDAB_Datasets/',/DIR)       THEN SPATH = '/Volumes/EDAB_Datasets/'       ELSE SPATH = '/Users/kimberly.hyde/Documents/nadata/DATASETS/'
+         END
+         
          'GUIHYDE': BEGIN
            IF FILE_TEST('/mnt/EDAB_Archive/nadata/',/DIR) THEN PATH  = '/mnt/EDAB_Archive/nadata/' ELSE PATH  = '/Satdata_Primary/nadata/'
            IF FILE_TEST('/mnt/EDAB_Datasets/',/DIR)       THEN SPATH = '/mnt/EDAB_Datasets/'       ELSE SPATH = '/Satdata_Primary/nadata/'
