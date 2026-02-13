@@ -402,9 +402,11 @@
         ORGFILES = DB[SUBS].NAME & ORGFILES = ORGFILES[WHERE(ORGFILES NE '',/NULL)]                                            ; Get the names of the original input files
         IF ORGFILES EQ [] THEN CONTINUE                                                                                        ; If no files were found, continue
         ORGFILES = ORGFILES[UNIQ(ORGFILES,SORT(ORGFILES))]                                                                     ; Remove redundant files
-        IF FILE_TEST(STAT_FILE) AND STATHASH['FILE_DB','MTIME',SEQ] GE MAX(GET_MTIME(DB[SUBS].FULLNAME)) THEN BEGIN                                     ; Check the MTIMES in the file DB
+        IF FILE_TEST(STAT_FILE) AND STATHASH['FILE_DB','MTIME',SEQ] GE MAX(GET_MTIME(DB[SUBS].FULLNAME)) THEN BEGIN            ; Check the MTIMES in the file DB
           IF NTH NE N_ELEMENTS(PER_SET)-1 THEN CONTINUE                                                                        ; Skip if the data is already in the database and does not need to be updated
-          IF FILE_MAKE(INFILES,STAT_FILE,OVERWRITE=OVERWRITE) THEN WRITEFILE = 1                                               ; The input file MTIME could be more recent than the output file (common when the input files span multiple years) so the output file should be resaved to update the MTIME
+          IF FILE_MAKE(INFILES,STAT_FILE,OVERWRITE=OVERWRITE) THEN BEGIN                                                       ; Check to see if the input file MTIME could be more recent than the output file (common when the input files span multiple years) so the output file should be resaved to update the MTIME
+            IF ~KEYWORD_SET(PEROUTCLIM) THEN WRITEFILE = 1                                                                     ; Make sure it is not a climatology file                                      
+          ENDIF
           GOTO, WRITE_FILE                                                                                                     ; Jump to the WRITE_FILE section
         ENDIF  
         WRITEFILE = 1                                                                                                          ; If data are updated, then set so that the file will be written
