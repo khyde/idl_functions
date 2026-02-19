@@ -117,11 +117,11 @@ PRO MAPS_COASTLINE, RESOLUTION, MINAREA=MINAREA, MIN_LAKEAREA=MIN_LAKEAREA, ANTA
   
 ; ===> Get shoreline file
   CASE RESOLUTION OF
-    'FULL':         FILE = !S.IDL_COASTLINE_FILES + 'gshhs_f.b'
-    'HIGH':         FILE = !S.IDL_COASTLINE_FILES + 'gshhs_h.b'
-    'INTERMEDIATE': FILE = !S.IDL_COASTLINE_FILES + 'gshhs_i.b'
-    'LOW':          FILE = !S.IDL_COASTLINE_FILES + 'gshhs_l.b'
-    'CRUDE':        FILE = !S.IDL_COASTLINE_FILES + 'gshhs_c.b'
+    'FULL':         FILE = !S.COASTLINE + 'gshhs_f.b'
+    'HIGH':         FILE = !S.COASTLINE + 'gshhs_h.b'
+    'INTERMEDIATE': FILE = !S.COASTLINE + 'gshhs_i.b'
+    'LOW':          FILE = !S.COASTLINE + 'gshhs_l.b'
+    'CRUDE':        FILE = !S.COASTLINE + 'gshhs_c.b'
   ENDCASE  
   
 ; ===> Open the file (note: GSHSS binary data files are big-endian)
