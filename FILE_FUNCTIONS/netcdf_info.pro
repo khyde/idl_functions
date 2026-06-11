@@ -395,6 +395,7 @@
             CASE BI[I].VALUE OF
               'ACSPO': FF[ISUBS].ALG = 'ACSPO'
               'ACSPONRT': FF[ISUBS].ALG = 'ACSPO'
+              'OCCCI': FF[ISUBS].ALG = 'OCCCI'
             ENDCASE
           ENDFOR
           FP[SUBS].ALG = FF.ALG   

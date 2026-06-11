@@ -104,12 +104,12 @@
         'OCCCI': BEGIN 
           DPRODS='CHLOR_A-CCI' 
           CASE MAP_IN OF 
-            '1KM': BEGIN & MAPIN='SOURCE_1KM' & DMAP='L3B2' & END
+            '1KM': BEGIN & MAPIN='BINNED_1KM_DAILY' & DMAP='L3B2' & END
             '4KM': BEGIN & MAPIN='SOURCE_MONTHLY' & DMAP='L3B4' & PERS='MONTHLY' & END
               ELSE: BEGIN & MAPIN='SOURCE' & DMAP='L3B4' & IF PERS[0] EQ '' THEN PERS=['DAILY'] & IF KEYWORD_SET(DOY) THEN PERS = '' & END
            ENDCASE  
         END
-        'GLOBCOLOUR': BEGIN & DPRODS=['CHLOR_A-GSM','PAR'] & MAPIN='L3' & DMAP='L3B4' & END
+        'GLOBCOLOUR': BEGIN & DPRODS=['CHLOR_A-GSM','PAR'] & MAPIN='SOURCE' & DMAP='L3B4' & END
         'CORAL': BEGIN & DPRODS='SST' & MAPIN='L3' & DMAP='L3B5' & END 
         'AVHRR': BEGIN & DPRODS='SST' & MAPIN='L3' & DMAP='L3B4' & END
         'MUR':    BEGIN & DPRODS='SST' &  MAPIN='L4' & IF ~N_ELEMENTS(MAP_OUT) THEN DMAP=['L3B4','L3B2'] ELSE DMAP=MAP_OUT & END
@@ -130,7 +130,7 @@
           CASE APROD OF  ; Get prod specific information (netcdf product=NPROD, output product(s)=OPRODS)
             'BTEMP': NPROD='bottomT'
             'RRS': BEGIN & NPROD='RRS' & OPRODS = 'RRS_'+['412', '443', '490', '510', '560', '665']  & MPROD='RRS' & END
-            'CHLOR_A-CCI': BEGIN & NPROD='CHL' & IF MAP_IN EQ '1KM' THEN NPROD='CHLOR_A-CCI' & END
+            'CHLOR_A-CCI': BEGIN & NPROD='CHL' & END;& IF MAP_IN EQ '1KM' THEN NPROD='CHLOR_A-CCI' & END
             'CHLOR_A-GSM': NPROD='CHL1'
             'CHLOR_A-AV': NPROD='CHL1_AV'
             'KD_490': BEGIN & NPROD='KD490' & OPRODS = 'KD_490-ZHANG' & END
@@ -172,7 +172,7 @@
           ENDIF
           
           ; ===> Find the files in the NC product directory
-          FILES = GET_FILES(DSET, PRODS=NPROD, FILE_TYPE=FILETYPE,VERSION=VERSION,DATERANGE=DTR)
+          FILES = GET_FILES(DSET, PRODS=NPROD, MAPS=MAPIN, FILE_TYPE=FILETYPE,VERSION=VERSION,DATERANGE=DTR)
           IF FILES EQ [] THEN BEGIN
             PLUN, LUN, 'ERROR: No files found for ' + DSET
             CONTINUE

@@ -73,11 +73,13 @@
   DIR_OUT = REPLACE(FP[0].DIR,'STACKED_STATS','STACKED_TEMP') & DIR_TEST, DIR_OUT                                       ; Create the output directory
   
   SENSOR_DATERANGE = SENSOR_DATES(FP[0].SENSOR)                                                                         ; Get the daterange based on the SENSOR
-  APROD = FP[0].PROD                                                                                                    ; Get the PROD name
+  APRODS = FP[0].PROD                                                                                                    ; Get the PROD name
   
-  CASE APROD OF 
-    'GRAD_SST': BEGIN & APROD=['GRADX_SST','GRADY_SST'] & STAT = '' & END
-    'GRAD_CHL': BEGIN & APROD=['GRADX_CHL','GRADY_CHL'] & STAT = '' & END
+  CASE APRODS OF 
+    'GRAD_SST': BEGIN & APRODS=['GRADX_SST','GRADY_SST'] & STAT = '' & END
+    'GRAD_CHL': BEGIN & APRODS=['GRADX_CHL','GRADY_CHL'] & STAT = '' & END
+    'GRAD_CHLKM': BEGIN & APRODS=['GRADX_CHLKM','GRADY_CHLKM'] & STAT = '' & END
+    'GRAD_SSTKM': BEGIN & APRODS=['GRADX_SSTKM','GRADY_SSTKM'] & STAT = '' & END
     ELSE: IF ~N_ELEMENTS(STAT) THEN STAT = 'MEAN'                                                                               ; If the "stat" type is not provided, use the MEAN
   ENDCASE
   
@@ -97,11 +99,20 @@
   ENDCASE          
   STACKED_PERIOD = STRJOIN([ISTR.PERIOD_CODE,MIN(SPERS),MAX(SPERS)],'_')                                                ; Create the new stacked period code
     
-  FOR S=0, N_ELEMENTS(STAT)-1 DO BEGIN                                                                                  ; Loop on the stat types
-    ASTAT = STAT[S]
-    SPROD = APROD + '_' + ASTAT                                                                                         ; Get the tagname for the PROD + STAT in the input files
-    OUTFILE = DIR_OUT + REPLACE(FP[0].NAME_EXT,[FP[0].PERIOD,'STACKED_STATS'],[STACKED_PERIOD,'STACKED_TEMP-'+ASTAT])   ; Creat the new output file name  
-    FILES_2STACKED, FILES, PRODS=APROD, STAT_TYPE=ASTAT, L3BSUBMAP=L3BSUBMAP, OUTFILE=OUTFILE, DIR_OUT=DIR_OUT, OVERWRITE=OVERWRITE, LOGLUN=LOGLUN
-  ENDFOR ; Stats 
+  IF STAT[0] NE '' THEN BEGIN
+    FOR S=0, N_ELEMENTS(STAT)-1 DO BEGIN                                                                                  ; Loop on the stat types
+      ASTAT = STAT[S]
+      SPROD = APRODS + '_' + ASTAT                                                                                         ; Get the tagname for the PROD + STAT in the input files
+      OUTFILE = DIR_OUT + REPLACE(FP[0].NAME_EXT,[FP[0].PERIOD,'STACKED_STATS'],[STACKED_PERIOD,'STACKED_TEMP-'+ASTAT])   ; Creat the new output file name  
+      FILES_2STACKED, FILES, PRODS=APROD, STAT_TYPE=ASTAT, L3BSUBMAP=L3BSUBMAP, OUTFILE=OUTFILE, DIR_OUT=DIR_OUT, OVERWRITE=OVERWRITE, LOGLUN=LOGLUN
+    ENDFOR ; Stats 
+  ENDIF ELSE BEGIN
+    FOR S=0, N_ELEMENTS(APRODS)-1 DO BEGIN                                                                                  ; Loop on the stat types
+      APROD = APRODS[S]
+      SPROD = APROD + '_' + STAT                                                                                         ; Get the tagname for the PROD + STAT in the input files
+      OUTFILE = REPLACE(DIR_OUT,FP[0].PROD,APROD) + REPLACE(FP[0].NAME_EXT,[FP[0].PERIOD,'STACKED_STATS',FP[0].PROD],[STACKED_PERIOD,'STACKED_TEMP',APROD])   ; Creat the new output file name
+      FILES_2STACKED, FILES, PRODS=APROD, STAT_TYPE=ASTAT, L3BSUBMAP=L3BSUBMAP, OUTFILE=OUTFILE, DIR_OUT=REPLACE(DIR_OUT,FP[0].PROD,APROD), OVERWRITE=OVERWRITE, LOGLUN=LOGLUN
+    ENDFOR ; Stats
+  ENDELSE
 
 END ; ***************** End of STATS_2STACKED *****************

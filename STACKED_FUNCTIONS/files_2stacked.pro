@@ -618,11 +618,19 @@ PRO FILES_2STACKED, FILES, PRODS=PRODS, STAT_TYPES=STAT_TYPES, D3_FILES=D3_FILES
             'PSC_FDIATOM': DAT = STR.PSC_DIATOM/STR.CHLOR_A
             'PSC_FDINOFLAGELLATE': DAT = STR.PSC_DINOFLAGELLATE/STR.CHLOR_A
             'PSC_FNANOPICO': DAT = (STR.PSC_NANO + STR.PSC_PICO)/STR.CHLOR_A
+            'GRADX_CHLKM_MEAN': DAT = STR.GRADX_CHLKM
+            'GRADY_CHLKM_MEAN': DAT = STR.GRADY_CHLKM
+            'GRADX_CHL_MEAN': DAT = STR.GRADX_CHL
+            'GRADY_CHL_MEAN': DAT = STR.GRADY_CHL
+            'GRADX_SSTKM_MEAN': DAT = STR.GRADX_SSTKM
+            'GRADY_SSTKM_MEAN': DAT = STR.GRADY_SSTKM
+            'GRADX_SST_MEAN': DAT = STR.GRADX_SST
+            'GRADY_SST_MEAN': DAT = STR.GRADY_SST
             ELSE: DAT = GET_TAG(STR, DATA_TAG)                                                                                                ; Extract the specified data from the structure
           ENDCASE
   
           IF DAT EQ [] THEN BEGIN                                                                                                     ; Check to make sure DAT is not !NULL
-            IF VALIDS('PRODS',STR.PROD) EQ DATA_TAG THEN BEGIN
+            IF VALIDS('PRODS',STR.PRODS) EQ DATA_TAG THEN BEGIN
               IF WHERE(TAG_NAMES(STR) EQ 'IMAGE') GE 0 THEN DAT = STR.IMAGE ; DAT = GET_TAG(STR,'IMAGE')                                                                                              ; Use the "IMAGE" data tag to extract the data from the structure
               IF DAT EQ [] AND WHERE(TAG_NAMES(STR) EQ 'DATA') GE 0 THEN DAT = STR.DATA ; DAT = GET_TAG(STR,'DATA')                                                                             ; If "IMAGE" tag is not found, then try the "DATA" tag to extract the data from the structure
               IF DAT EQ [] THEN MESSAGE, 'ERROR: IMAGE and DATA tags not found in the structure'                                      ; Write an error if unable to extract the data

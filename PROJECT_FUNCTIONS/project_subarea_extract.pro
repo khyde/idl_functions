@@ -118,7 +118,7 @@
         FOR F=0, N_ELEMENTS(FILETYPES)-1 DO BEGIN
           ATYPE = FILETYPES[F]
           IF DIRDATA EQ !S.DATASETS THEN FILES = GET_FILES(DSET, PRODS=DPRD, PERIODS=DPERS, FILE_TYPE='STACKED_'+ATYPE, MAPS=MAPIN, VERSION=DVER, DATERANGE=DTR, COUNT=COUNT) $
-                                                           ELSE FILES = FILE_SEARCH(DIRDATA + DSET + SL + MAPIN + SL + 'STATS' + SL + DPRD + SL + [DPERS] + '*',COUNT=COUNT)
+                                    ELSE FILES = FILE_SEARCH(DIRDATA + DSET + SL + MAPIN + SL + 'STATS' + SL + DPRD + SL + [DPERS] + '*',COUNT=COUNT)
           IF FILES EQ [] THEN CONTINUE
           FP = PARSE_IT(FILES,/ALL)
           IF ~SAME(FP.MAP) THEN MESSAGE, 'ERROR: All input files must have the same map.'

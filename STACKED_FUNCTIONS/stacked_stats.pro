@@ -210,7 +210,7 @@
             
       ; ===> Look for GRAD_MAG data and extract the X and Y components
       XDATA = [] & YDATA = []
-      IF HAS(STRUCT_PROD,'GRAD_') THEN BEGIN
+      IF HAS(STRUCT_PROD,'GRAD') THEN BEGIN
         GRAD_STATS = 1
         CASE STRUCT_PROD OF
           'GRAD_SST': BEGIN & GPRD = 'SST' & GRAD_TRANSFORM = 0 & END
@@ -228,6 +228,7 @@
           AZIMUTH = AZIMUTH[0,BINS-1]
         ENDIF ELSE AZIMUTH = D.(AZTAG)  
         INDATA = XDATA
+        STATTYPES = REMOVE(STATTYPES,VALUES=['SPAN','SUM','MED','MEAN','VAR','STD','CV','SKEW','KURT','GMEAN'])           ; Remove other stat types in case they were mistakenly included in the stats list
       ENDIF ELSE BEGIN
         GRAD_STATS = 0
         CASE 1 OF 
